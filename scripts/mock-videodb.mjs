@@ -9,6 +9,10 @@ import { createServer } from "node:http";
 
 const PORT = process.env.MOCK_PORT || 4519;
 const VALID_KEY = "sk-e2e-test-key";
+// The DirectorFE bridge hands over an `mcp-` connected-app token instead of a
+// pasted `sk-` key; videodb-server accepts both by prefix, so the mock does too.
+const VALID_MCP_TOKEN = "mcp-e2e-test-token";
+const accepts = (token) => token === VALID_KEY || token === VALID_MCP_TOKEN;
 
 let asyncHits = 0;
 
@@ -81,7 +85,7 @@ createServer((req, res) => {
   req.on("data", (c) => (body += c));
   req.on("end", () => {
     res.setHeader("Content-Type", "application/json");
-    if (req.headers["x-access-token"] !== VALID_KEY) {
+    if (!accepts(req.headers["x-access-token"])) {
       res.statusCode = 401;
       res.end(JSON.stringify({ success: false, message: "Invalid API key" }));
       return;
@@ -95,5 +99,5 @@ createServer((req, res) => {
     res.end(handler(body));
   });
 }).listen(PORT, () => {
-  console.log(`mock VideoDB API listening on http://127.0.0.1:${PORT} (key: ${VALID_KEY})`);
+  console.log(`mock VideoDB API listening on http://127.0.0.1:${PORT} (keys: ${VALID_KEY}, ${VALID_MCP_TOKEN})`);
 });

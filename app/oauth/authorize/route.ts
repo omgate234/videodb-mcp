@@ -7,6 +7,8 @@ import {
   canonicalResource,
   mcpResourceUrl,
   publicOrigin,
+  directorFeOrigin,
+  consentUrl,
   SCOPES,
 } from "@/lib/oauth";
 import { consentPage } from "@/lib/consent-page";
@@ -81,6 +83,12 @@ export async function GET(req: Request) {
     scope,
     resource,
   });
+
+  // With a bridge configured the user signs in to VideoDB instead of handling a
+  // secret; the sealed request rides along and comes back at /authorize/callback.
+  if (directorFeOrigin()) {
+    return Response.redirect(consentUrl(reqToken), 302);
+  }
 
   return new Response(consentPage({ reqToken, clientName: client.name }), {
     headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
