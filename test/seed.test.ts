@@ -11,7 +11,7 @@ describe("media", () => {
     const vdb = fakeConnection({ "GET video": { videos: [VIDEO] } });
     const { data, isError } = await call(toolNamed(media, "list_videos"), { collection_id: "c-1" }, vdb);
     expect(isError).toBe(false);
-    expect(data).toEqual([{ id: "m-1", collection_id: "c-1", name: "Keynote", length: 120, size: "1", stream_url: VIDEO.streamUrl, player_url: VIDEO.playerUrl }]);
+    expect(data).toEqual({ videos: [{ id: "m-1", collection_id: "c-1", name: "Keynote", length: 120, size: "1", stream_url: VIDEO.streamUrl, player_url: VIDEO.playerUrl }] });
     expect(vdb.http.get).toHaveBeenCalledWith(["video"], { params: { collection_id: "c-1" } });
   });
 
