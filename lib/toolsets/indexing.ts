@@ -4,7 +4,7 @@ import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { CALLBACK_URL, COLLECTION_ID, VIDEO_ID } from "@/lib/mcp/schemas";
 import { fetchVideo } from "@/lib/videodb/resolve";
-import { pick } from "@/lib/videodb/serialize";
+import { pick, cap } from "@/lib/videodb/serialize";
 
 /**
  * Indexing. Legacy (v1): spoken-word + scene indexes consumed by search_video /
@@ -51,9 +51,7 @@ const indexShell = (vdb: Parameters<typeof fetchVideo>[0], collectionId: string,
 
 /** Cap a raw list, or every top-level list inside a raw object, to RECORD_CAP items. */
 function capRecords(value: unknown): Record<string, unknown> {
-  if (Array.isArray(value)) {
-    return value.length > RECORD_CAP ? { records: value.slice(0, RECORD_CAP), truncated: true, total: value.length } : { records: value };
-  }
+  if (Array.isArray(value)) return cap(value, "records", RECORD_CAP);
   if (!value || typeof value !== "object") return { output: value };
   let truncated = false;
   const out: Record<string, unknown> = {};

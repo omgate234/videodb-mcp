@@ -3,7 +3,7 @@ import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { COLLECTION_ID } from "@/lib/mcp/schemas";
 import { collection } from "@/lib/videodb/resolve";
-import { pick } from "@/lib/videodb/serialize";
+import { pick, cap } from "@/lib/videodb/serialize";
 
 /**
  * Collections + account. SDK: Connection.getCollections/getCollection/
@@ -13,8 +13,6 @@ import { pick } from "@/lib/videodb/serialize";
 
 // Collection instances carry every SDK method as an enumerable prop; keep only data.
 const COLLECTION_KEYS = ["id", "name", "description", "is_public"];
-const MAX_INVOICES = 200;
-
 const listCollections = defineTool({
   name: "list_collections",
   title: "List collections",
@@ -110,7 +108,7 @@ const listInvoices = defineTool({
   input: z.object({}),
   handler: async (_args, vdb) => {
     const all = (await vdb.getInvoices()) ?? [];
-    return { invoices: all.slice(0, MAX_INVOICES), ...(all.length > MAX_INVOICES ? { truncated: true, total: all.length } : {}) };
+    return cap(all, "invoices");
   },
 });
 

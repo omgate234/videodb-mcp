@@ -28,7 +28,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 ## Rules for every tool
 
 - snake_case name ≤ 64 chars, `verb_noun`; one purpose per tool; never a `method`/`path` pass-through.
-- Inputs snake_case; outputs snake_case via `toPlain`/`pick`. Trim large SDK objects with `pick(obj, *_KEYS)`.
+- Inputs snake_case; outputs snake_case via `toPlain`/`pick`. Trim large SDK objects with `pick(obj, *_KEYS)`; cap unbounded lists with `cap(items, key, max)` — truncated results always carry `truncated: true` + `total`.
 - Long-running writes set `retryWith` to the read tool that shows the result.
 - Descriptions state what the tool does and its prerequisite (e.g. "requires index_spoken_words"). No behavioural instructions to the model.
 - Every tool: one unit test through `test/harness.ts` asserting the SDK wire call (`vdb.http.get/post…`) and the flattened output.

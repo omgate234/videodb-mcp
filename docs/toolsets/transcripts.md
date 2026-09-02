@@ -17,7 +17,7 @@ Branch `feat/toolset-transcripts` · `lib/toolsets/transcripts.ts` · `test/tran
 
 ## Deviations from the catalog
 
-- Segment cap is 2000 (not the 200 example): word-level timestamps of a 10-minute video already exceed 200, and the cap would make `timestamped=true` useless. Truncated responses carry `truncated: true` + `total_segments`.
+- Segment cap is 2000 (not the 200 example): word-level timestamps of a 10-minute video already exceed 200, and the cap would make `timestamped=true` useless. Truncated responses carry `truncated: true` + `total` (shared `cap()` contract).
 - Audio segments are `{start, end, text}` (SDK shape) while video segments are `{start, end, word}`; both are returned under `word_timestamps` so the output key is stable across media kinds.
 - Audio wire call always sends `segmenter=word&length=1&force=false` defaults — that is the SDK's `_fetchTranscript` behaviour, not ours.
 - `translate_transcript` has no `retryWith`: the SDK returns the translation inline and stores nothing readable afterwards, so there is no read tool to point at. Audio has no translate method in the SDK, so the tool is video-only.

@@ -3,7 +3,7 @@ import { RTStreamIndex, RTStreamSceneIndex, RTStreamUnderstanding, type Connecti
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { COLLECTION_ID, RTSTREAM_ID, PAGE, PAGE_SIZE } from "@/lib/mcp/schemas";
-import { pick } from "@/lib/videodb/serialize";
+import { pick, cap } from "@/lib/videodb/serialize";
 import { collection } from "@/lib/videodb/resolve";
 
 /**
@@ -29,7 +29,7 @@ const v2Index = (vdb: Connection, rtstreamId: string, indexId: string) => new RT
 const understanding = (vdb: Connection, rtstreamId: string, understandingId: string) =>
   new RTStreamUnderstanding(vdb.vhttp, { understandingId, rtstreamId });
 
-const capped = <T>(items: T[]) => (items.length > MAX_LIST ? { items: items.slice(0, MAX_LIST), truncated: true } : { items });
+const capped = <T>(items: T[]) => cap(items, "items", MAX_LIST);
 
 const UNIX_START = z.number().int().min(0).describe("Start time as a Unix timestamp in seconds.");
 const UNIX_END = z.number().int().min(0).describe("End time as a Unix timestamp in seconds.");

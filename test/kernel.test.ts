@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { defineTool, ANNOTATIONS } from "@/lib/mcp/tool";
 import { allTools, TOOLSETS, enabledToolsets } from "@/lib/mcp/registry";
-import { toPlain } from "@/lib/videodb/serialize";
+import { toPlain, cap } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
 import { call, fakeConnection } from "./harness";
 
@@ -49,6 +49,17 @@ describe("serialize", () => {
     const a: any = { id: 1 };
     a.parent = { child: a };
     expect(toPlain(a)).toEqual({ id: 1, parent: {} });
+  });
+});
+
+describe("cap", () => {
+  it("passes short lists through untouched", () => {
+    expect(cap([1, 2], "items", 5)).toEqual({ items: [1, 2] });
+  });
+
+  it("truncates with a uniform truncated/total contract regardless of key", () => {
+    expect(cap([1, 2, 3], "records", 2)).toEqual({ records: [1, 2], truncated: true, total: 3 });
+    expect(cap([1, 2, 3], "shots", 2)).toEqual({ shots: [1, 2], truncated: true, total: 3 });
   });
 });
 

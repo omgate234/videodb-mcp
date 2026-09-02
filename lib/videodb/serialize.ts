@@ -45,3 +45,16 @@ export const SHOT_KEYS = ["video_id", "video_title", "start", "end", "text", "se
 export function shotsToPlain(shots: readonly object[]) {
   return shots.map((s) => pick(s, SHOT_KEYS));
 }
+
+/**
+ * Cap an unbounded list so one tool result cannot blow the context window.
+ * Truncated results always report `truncated: true` and `total`, whatever the
+ * list is called, so agents can page or narrow the query.
+ */
+export const DEFAULT_LIST_CAP = 200;
+
+export function cap<T>(items: readonly T[], key: string, max = DEFAULT_LIST_CAP): Record<string, unknown> {
+  return items.length > max
+    ? { [key]: items.slice(0, max), truncated: true, total: items.length }
+    : { [key]: items };
+}

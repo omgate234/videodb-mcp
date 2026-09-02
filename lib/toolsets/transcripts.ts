@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
+import { cap } from "@/lib/videodb/serialize";
 import { CALLBACK_URL, COLLECTION_ID, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
 import { fetchAudio, fetchVideo } from "@/lib/videodb/resolve";
 
@@ -38,11 +39,7 @@ function transcribableKind(id: string): "video" | "audio" {
   return kind;
 }
 
-function cappedSegments(segments: readonly unknown[]) {
-  return segments.length > MAX_SEGMENTS
-    ? { word_timestamps: segments.slice(0, MAX_SEGMENTS), truncated: true, total_segments: segments.length }
-    : { word_timestamps: segments };
-}
+const cappedSegments = (segments: readonly unknown[]) => cap(segments, "word_timestamps", MAX_SEGMENTS);
 
 const getTranscript = defineTool({
   name: "get_transcript",
@@ -122,8 +119,7 @@ const translateTranscript = defineTool({
     return {
       video_id,
       language,
-      translated_transcript: segments.slice(0, MAX_SEGMENTS),
-      ...(segments.length > MAX_SEGMENTS ? { truncated: true, total_segments: segments.length } : {}),
+      ...cap(segments, "translated_transcript", MAX_SEGMENTS),
     };
   },
 });

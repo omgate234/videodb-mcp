@@ -3,7 +3,7 @@ import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { COLLECTION_ID, VIDEO_ID } from "@/lib/mcp/schemas";
 import { fetchVideo, collection } from "@/lib/videodb/resolve";
-import { shotsToPlain } from "@/lib/videodb/serialize";
+import { shotsToPlain, cap } from "@/lib/videodb/serialize";
 import { AskResponse, SearchResponse, SearchResult, type Connection } from "videodb";
 
 /**
@@ -14,10 +14,7 @@ import { AskResponse, SearchResponse, SearchResult, type Connection } from "vide
 const MAX_SHOTS = 200;
 
 /** Cap unbounded shot lists so one search cannot blow the context window. */
-function cappedShots(shots: readonly object[]) {
-  const truncated = shots.length > MAX_SHOTS;
-  return { shots: shotsToPlain(shots.slice(0, MAX_SHOTS)), ...(truncated ? { truncated: true, total: shots.length } : {}) };
-}
+const cappedShots = (shots: readonly object[]) => cap(shotsToPlain(shots), "shots", MAX_SHOTS);
 
 /** Normalise any SDK search return into { shots, ...envelope }. */
 export function searchToPlain(res: unknown) {
@@ -225,8 +222,8 @@ const aggregateIndex = defineTool({
     const res = await target.aggregate(defined({ indexName: index_name, indexId: index_id, groupBy: group_by, metric, filter, sort, limit }));
     const rows = Array.isArray(res) ? res : Array.isArray(res?.results) ? (res.results as unknown[]) : undefined;
     if (!rows || rows.length <= MAX_SHOTS) return res;
-    const capped = rows.slice(0, MAX_SHOTS);
-    return Array.isArray(res) ? { results: capped, truncated: true, total: rows.length } : { ...res, results: capped, truncated: true, total: rows.length };
+    const capped = cap(rows, "results", MAX_SHOTS);
+    return Array.isArray(res) ? capped : { ...res, ...capped };
   },
 });
 
