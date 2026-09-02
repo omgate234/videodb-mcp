@@ -28,10 +28,16 @@ const CAPTURE_CLIENT_NOTE =
 const sessionShell = (vdb: Connection, collectionId: string, id: string) =>
   new CaptureSession(vdb.vhttp, { id, collectionId });
 
-const sessionToPlain = (s: CaptureSession) => ({
-  ...pick(s, SESSION_KEYS),
-  rtstreams: s.rtstreams.map((r) => pick(r, RTSTREAM_KEYS)),
-});
+/**
+ * refresh() keeps whatever collectionId the caller passed, so the "default" alias would
+ * leak out where list_capture_sessions reports the real c- id for the same session.
+ */
+const sessionToPlain = (s: CaptureSession) => {
+  const plain = pick(s, SESSION_KEYS);
+  const real = s.rtstreams.find((r) => r.collectionId)?.collectionId;
+  if (plain.collection_id === "default" && real) plain.collection_id = real;
+  return { ...plain, rtstreams: s.rtstreams.map((r) => pick(r, RTSTREAM_KEYS)) };
+};
 
 const recordMeeting = defineTool({
   name: "record_meeting",

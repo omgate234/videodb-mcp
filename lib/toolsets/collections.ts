@@ -107,7 +107,9 @@ const listInvoices = defineTool({
   kind: "read",
   input: z.object({}),
   handler: async (_args, vdb) => {
-    const all = (await vdb.getInvoices()) ?? [];
+    // The API returns an object keyed "0".."n", not an array, so the cap needs a real list.
+    const raw = (await vdb.getInvoices()) ?? [];
+    const all = Array.isArray(raw) ? raw : Object.values(raw as Record<string, unknown>);
     return cap(all, "invoices");
   },
 });

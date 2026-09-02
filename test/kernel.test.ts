@@ -3,6 +3,8 @@ import { z } from "zod";
 import { defineTool, ANNOTATIONS } from "@/lib/mcp/tool";
 import { allTools, TOOLSETS, enabledToolsets } from "@/lib/mcp/registry";
 import { toPlain, cap } from "@/lib/videodb/serialize";
+import { describeError } from "@/lib/videodb/errors";
+import { InvalidRequestError } from "videodb";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
 import { call, fakeConnection } from "./harness";
 
@@ -105,5 +107,22 @@ describe("deadline + invoke", () => {
 
   it("rejects bad tool names", () => {
     expect(() => defineTool({ name: "BadName", title: "", description: "", kind: "read", input: z.object({}), handler: async () => 1 })).toThrow();
+  });
+});
+
+describe("describeError", () => {
+  it("surfaces the API's message and status from the SDK's nested cause", () => {
+    // The SDK builds this exact shape: new InvalidRequestError(response, { cause: apiMessage }).
+    const err = new InvalidRequestError({ status: 403, statusText: "Forbidden", data: {} } as never, {
+      cause: "Given collection id not found in your account",
+    } as never);
+    expect(describeError(err)).toBe(
+      "VideoDB rejected the request (HTTP 403): Given collection id not found in your account"
+    );
+  });
+
+  it("falls back to the response body when no cause is set", () => {
+    const err = new InvalidRequestError({ status: 404, statusText: "Not Found", data: { message: "Session not found" } } as never);
+    expect(describeError(err)).toBe("VideoDB rejected the request (HTTP 404): Session not found");
   });
 });
