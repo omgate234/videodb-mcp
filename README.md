@@ -102,14 +102,11 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | rtstream | off | `list_rtstream_indexes` | read | List the understanding-backed indexes on a real-time stream with their status, source understanding and capabilities. |
 | rtstream | off | `set_rtstream_index_status` | update | Resume or pause an understanding-backed index on a real-time stream. |
 | rtstream | off | `get_rtstream_index_records` | read | Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. |
-| sessions | off | `record_meeting` | create | Send a VideoDB recorder bot to a Zoom, Google Meet or Microsoft Teams meeting URL. |
-| sessions | off | `get_meeting` | read | Get the current state of a meeting recorder bot started with record_meeting: status (initializing, joined, processing, done), the recorded video_id once done, and the speaker timeline when available. |
-| sessions | off | `list_capture_sessions` | read | List desktop capture sessions in a collection with their status, channels and exported video ID. |
-| sessions | off | `get_capture_session` | read | Get one desktop capture session: status (created, starting, active, stopped, exported, failed), channels, export status, exported video ID and the real-time streams (id, channel, media types) recorded in it. |
-| sessions | off | `export_capture_session` | create | Export a stopped desktop capture session's recording as a VideoDB video. |
+| meetings | off | `record_meeting` | create | Send a VideoDB recorder bot to a Zoom, Google Meet or Microsoft Teams meeting URL. |
+| meetings | off | `get_meeting` | read | Get the current state of a meeting recorder bot started with record_meeting: status (initializing, joined, processing, done), the recorded video_id once done, and the speaker timeline when available. |
 <!-- tools:end -->
 
-No AI media *generation* tools are exposed (VideoDB's `generate*`/dub/voice-clone endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation). Desktop capture and WebSocket features stay in the SDK: they need a local process.
+No AI media *generation* tools are exposed (VideoDB's `generate*`/dub/voice-clone endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation). Desktop capture is deliberately not exposed at all — the capture client is a local native binary talking over a long-lived socket, so neither it nor the capture sessions it produces belong in a remote connector.
 
 ## How auth works (no database)
 

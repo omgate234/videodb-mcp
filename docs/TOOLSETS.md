@@ -40,7 +40,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | `generateImage/Music/SoundEffect/Voice/Video`, `dubVideo` | Directory policy: no AI image/video/audio generation |
 | Voice clones, sandboxes, `GenerationJob`/`getJobStatus`/`waitForJob` | Exist only to serve the generation stack |
 | `generateText` | LLM text; the client is already the LLM |
-| Capture client (`videodb/capture`), `WebSocketConnection`, `generateClientToken` | Local binary / long-lived socket / secret for that binary |
+| Desktop capture in full: the capture client (`videodb/capture`), capture sessions (`Collection.listCaptureSessions`/`getCaptureSession`, `CaptureSession.*`), `WebSocketConnection`, `generateClientToken` | Capture is driven by a local native binary over a long-lived socket, with `generateClientToken` minting the secret for it. None of that surface — including the sessions it produces — belongs in a remote connector |
 | `uploadFile` (local path), `play()` | Filesystem / spawns browser |
 | Scene collections (`extractScenes` & CRUD), `Scene/Frame.describe`, `indexAudio`, `insertVideo` | v1 manual pipeline internals — deferred to v2 backlog |
 
@@ -144,14 +144,12 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | `understand_rtstream` / `list_rtstream_understandings` / `get_rtstream_understanding_records` | C / R / R | `RTStream.understand` / `listUnderstanding` / `RTStreamUnderstanding.getRecords` |
 | `create_rtstream_index` / `list_rtstream_indexes` / `get_rtstream_index_records` | C / R / R | `RTStream.index` / `listIndexes` / `RTStreamIndex.getRecords` |
 
-### sessions (default **off**) — owner: agent I
+### meetings (default **off**) — owner: agent I
 
 | Tool | Kind | SDK |
 | --- | --- | --- |
 | `record_meeting` | C | `Collection.recordMeeting({meetingUrl, botName, meetingTitle, callbackUrl, timeZone})` |
 | `get_meeting` | R | `Collection.getMeeting` |
-| `list_capture_sessions` / `get_capture_session` | R | `Collection.listCaptureSessions` / `getCaptureSession` |
-| `export_capture_session` | C | `CaptureSession.export(videoChannelId)` |
 
 ## Agent contract (Phase 1)
 

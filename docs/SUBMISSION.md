@@ -27,7 +27,7 @@ Note on auth at scale: DCR registers a new client on every fresh connection. Ant
 | Portal step | What to enter |
 | --- | --- |
 | **Connection** | URL `https://mcp.videodb.io/mcp`, transport: Streamable HTTP, same URL for every user |
-| **Tools** | Auto-synced. With the default toolsets: 59 tools (31 read / 20 write / 8 destructive). `VIDEODB_MCP_TOOLSETS=all` adds rtstream + sessions for 91 total (47 read / 36 write / 8 destructive). Decide which set the listing ships before submitting — see [TOOLSETS.md](TOOLSETS.md) |
+| **Tools** | Auto-synced. With the default toolsets: 59 tools (31 read / 20 write / 8 destructive). `VIDEODB_MCP_TOOLSETS=all` adds rtstream + meetings for 88 total (45 read / 35 write / 8 destructive). Decide which set the listing ships before submitting — see [TOOLSETS.md](TOOLSETS.md) |
 | **Listing — name** | `VideoDB` |
 | **Listing — tagline** (≤55 chars) | `Search, edit, and stream your videos from Claude` |
 | **Listing — description** (≤2000 chars) | VideoDB turns raw video into a searchable, editable database. Connect your VideoDB account and Claude can upload videos from any URL or YouTube link, transcribe and index them, semantically search for exact moments across your whole library, pull timestamped transcripts, cut clips and stitch highlight reels without re-encoding, burn in subtitles, and hand back instantly streamable links you can watch or share. Built for creators, media teams, and developers building video-native workflows. |
