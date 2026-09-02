@@ -190,7 +190,11 @@ const indexRTStreamScenes = defineTool({
   handler: async ({ rtstream_id, prompt, window_seconds, frame_count, model_name, name }, vdb) => {
     const rt = await fetchRTStream(vdb, rtstream_id);
     const idx = await rt.indexVisuals({
-      batchConfig: window_seconds !== undefined ? { type: "time", value: window_seconds, frameCount: frame_count } : undefined,
+      // frame_count only reaches the wire inside extractionConfig, which the SDK builds only when batchConfig is set.
+      batchConfig:
+        window_seconds !== undefined || frame_count !== undefined
+          ? { type: "time", value: window_seconds ?? 2, frameCount: frame_count }
+          : undefined,
       prompt,
       modelName: model_name,
       name,
@@ -218,7 +222,11 @@ const indexRTStreamAudio = defineTool({
   handler: async ({ rtstream_id, prompt, segmenter, segment_value, model_name, name, auto_start_transcript }, vdb) => {
     const rt = await fetchRTStream(vdb, rtstream_id);
     const idx = await rt.indexAudio({
-      batchConfig: segmenter && segment_value !== undefined ? { type: segmenter, value: segment_value } : undefined,
+      // Either field alone must still reach the wire; the SDK drops both when batchConfig is unset.
+      batchConfig:
+        segmenter || segment_value !== undefined
+          ? { type: segmenter ?? "word", value: segment_value ?? 10 }
+          : undefined,
       prompt,
       modelName: model_name,
       name,
@@ -305,8 +313,8 @@ const listEvents = defineTool({
   kind: "read",
   input: z.object({}),
   handler: async (_args, vdb) => {
-    const { items, truncated } = capped(await vdb.listEvents());
-    return { events: items, ...(truncated ? { truncated } : {}) };
+    const { items, ...rest } = capped(await vdb.listEvents());
+    return { events: items, ...rest };
   },
 });
 
@@ -339,8 +347,8 @@ const listRTStreamAlerts = defineTool({
   kind: "read",
   input: z.object({ rtstream_id: RTSTREAM_ID, index_id: z.string().describe("Scene index ID or index ID."), index_kind: INDEX_KIND }),
   handler: async ({ rtstream_id, index_id, index_kind }, vdb) => {
-    const { items, truncated } = capped(await alertTarget(vdb, rtstream_id, index_id, index_kind).listAlerts());
-    return { rtstream_id, index_id, alerts: items, ...(truncated ? { truncated } : {}) };
+    const { items, ...rest } = capped(await alertTarget(vdb, rtstream_id, index_id, index_kind).listAlerts());
+    return { rtstream_id, index_id, alerts: items, ...rest };
   },
 });
 

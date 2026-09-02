@@ -19,6 +19,15 @@ describe("streams", () => {
     expect(data).toEqual({ stream_url: "https://stream/clip.m3u8", player_url: expect.stringContaining("clip.m3u8") });
   });
 
+  it("generate_clip prefers the clip's own player URL over the video's", async () => {
+    const vdb = fakeConnection({
+      "GET video/m-1": VIDEO,
+      "POST video/m-1/stream": () => ({ streamUrl: "https://stream/clip.m3u8", playerUrl: "https://player/clip" }),
+    });
+    const { data } = await call(toolNamed(streams, "generate_clip"), { video_id: "m-1", collection_id: "c-1", timeline: [[10, 20]] }, vdb);
+    expect(data).toEqual({ stream_url: "https://stream/clip.m3u8", player_url: "https://player/clip" });
+  });
+
   it("compile_clips posts snake_case clips to /compile and prefers the server player url", async () => {
     const vdb = fakeConnection({
       "POST compile": (body: any) => {

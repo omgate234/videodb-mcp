@@ -113,6 +113,30 @@ describe("rtstream: scene indexes", () => {
     expect(data).toEqual({ ...SCENE_INDEX_PLAIN, extraction_type: "transcript" });
   });
 
+  it("index_rtstream_scenes sends frame_count even without window_seconds", async () => {
+    const vdb = fakeConnection({
+      "GET rtstream/rts-1": RT,
+      "POST rtstream/rts-1/index/scene": (body: any) => {
+        expect(body.extraction_config).toEqual({ time: 2, frame_count: 10 });
+        return SCENE_INDEX;
+      },
+    });
+    const { isError } = await call(t("index_rtstream_scenes"), { rtstream_id: "rts-1", frame_count: 10 }, vdb);
+    expect(isError).toBe(false);
+  });
+
+  it("index_rtstream_audio sends the segmenter even without segment_value", async () => {
+    const vdb = fakeConnection({
+      "GET rtstream/rts-1": RT,
+      "POST rtstream/rts-1/index/scene": (body: any) => {
+        expect(body.extraction_config).toEqual({ segmenter: "sentence", segmentation_value: 10 });
+        return { ...SCENE_INDEX, extractionType: "transcript" };
+      },
+    });
+    const { isError } = await call(t("index_rtstream_audio"), { rtstream_id: "rts-1", segmenter: "sentence" }, vdb);
+    expect(isError).toBe(false);
+  });
+
   it("list_rtstream_scene_indexes lists trimmed indexes", async () => {
     const vdb = fakeConnection({ "GET rtstream/rts-1": RT, "GET rtstream/rts-1/index/scene": { sceneIndexes: [SCENE_INDEX] } });
     const { data } = await call(t("list_rtstream_scene_indexes"), { rtstream_id: "rts-1" }, vdb);

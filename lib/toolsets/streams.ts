@@ -22,7 +22,11 @@ const generateClip = defineTool({
   input: z.object({ video_id: VIDEO_ID, collection_id: COLLECTION_ID, timeline: TIMELINE }),
   handler: async ({ video_id, collection_id, timeline }, vdb) => {
     const video = await fetchVideo(vdb, collection_id, video_id);
-    return stream(await video.generateStream(timeline as [number, number][]));
+    // The SDK keeps the video's own playerUrl when the clip response omits one, so only
+    // adopt it if this call changed it — otherwise synthesize a player URL for the clip.
+    const before = video.playerUrl;
+    const streamUrl = await video.generateStream(timeline as [number, number][]);
+    return stream(streamUrl, video.playerUrl === before ? undefined : video.playerUrl);
   },
 });
 
@@ -176,7 +180,8 @@ const reframeVideo = defineTool({
     const video = await fetchVideo(vdb, collection_id, video_id);
     const out = await video.reframe({ start, end, target, mode, callbackUrl: callback_url });
     if (callback_url) return { accepted: true, video_id, collection_id, callback_url };
-    return out ? pick(out, VIDEO_KEYS) : { ok: true };
+    if (!out) throw new Error("VideoDB returned no reframed video. Retry, or check the source video is playable.");
+    return pick(out, VIDEO_KEYS);
   },
 });
 
