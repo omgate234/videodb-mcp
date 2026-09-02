@@ -28,3 +28,7 @@ Collection objects are trimmed with a local `COLLECTION_KEYS = [id, name, descri
 ## Kernel requests
 
 None.
+
+## Open
+
+- `delete_collection` refuses the literal id `"default"`, but not the default collection's real `c-…` id — that path reaches the API. Whether VideoDB itself rejects deleting an account's default collection is unverified; confirm against the live API and tighten the guard if it does not.
