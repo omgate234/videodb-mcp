@@ -11,15 +11,26 @@ export interface Processing {
   retry_with?: string;
 }
 
+/** Whose clock ran out: our own deadline, or the upstream API gateway. */
+export type ProcessingReason = "deadline" | "gateway";
+
 export class StillProcessing extends Error {
-  constructor(public readonly label: string, public readonly retryWith?: string) {
+  constructor(
+    public readonly label: string,
+    public readonly retryWith?: string,
+    public readonly reason: ProcessingReason = "deadline"
+  ) {
     super(`${label} is still processing on VideoDB's side.`);
     this.name = "StillProcessing";
   }
   toResult(): Processing {
+    const check = this.retryWith ? `check with ${this.retryWith}` : "verify whether it completed";
     return {
       status: "processing",
-      message: `${this.label} is still running on VideoDB. It continues in the background — check again in a minute.`,
+      message:
+        this.reason === "gateway"
+          ? `${this.label} outlived VideoDB's API gateway timeout. The job may still be running and may already have finished — ${check} before retrying, or you will create a duplicate.`
+          : `${this.label} is still running on VideoDB. It continues in the background — check again in a minute.`,
       ...(this.retryWith ? { retry_with: this.retryWith } : {}),
     };
   }
