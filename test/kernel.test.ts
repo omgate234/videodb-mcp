@@ -126,3 +126,59 @@ describe("describeError", () => {
     expect(describeError(err)).toBe("VideoDB rejected the request (HTTP 404): Session not found");
   });
 });
+
+describe("gateway timeouts", () => {
+  // The SDK wraps any non-401 HTTP failure as InvalidRequestError(response, { cause }).
+  const apiError = (status: number, message: string) =>
+    new InvalidRequestError({ status, statusText: "", data: {} } as never, { cause: message } as never);
+
+  const failingTool = (err: Error, retryWith?: string) =>
+    defineTool({
+      name: "export_recording",
+      title: "Export recording",
+      description: "a long write whose request dies at the API gateway in this test",
+      kind: "create",
+      input: z.object({}),
+      retryWith,
+      handler: async () => {
+        throw err;
+      },
+    });
+
+  it("turns an upstream 504 into a processing result naming the retry tool", async () => {
+    const tool = failingTool(apiError(504, "Endpoint request timed out"), "get_rtstream");
+    const res = await call(tool, {}, fakeConnection());
+    expect(res.isError).toBe(false);
+    expect(res.data).toMatchObject({ status: "processing", retry_with: "get_rtstream" });
+    const { message } = res.data as { message: string };
+    expect(message).toContain("get_rtstream");
+    expect(message).not.toMatch(/succeed|successful/i);
+  });
+
+  it("omits retry_with when the tool declares none", async () => {
+    const res = await call(failingTool(apiError(504, "Endpoint request timed out")), {}, fakeConnection());
+    expect(res.isError).toBe(false);
+    expect(res.data).toMatchObject({ status: "processing" });
+    expect(res.data).not.toHaveProperty("retry_with");
+  });
+
+  it("treats every gateway status the same way", async () => {
+    for (const status of [408, 502, 503]) {
+      const res = await call(failingTool(apiError(status, "gateway"), "get_rtstream"), {}, fakeConnection());
+      expect(res.isError, `HTTP ${status}`).toBe(false);
+      expect(res.data).toMatchObject({ status: "processing" });
+    }
+  });
+
+  it("keeps a 400 a hard failure with the API's message", async () => {
+    const res = await call(failingTool(apiError(400, "Invalid start time"), "get_rtstream"), {}, fakeConnection());
+    expect(res.isError).toBe(true);
+    expect(res.data).toBe("Error: VideoDB rejected the request (HTTP 400): Invalid start time");
+  });
+
+  it("keeps an ambiguous 500 a hard failure", async () => {
+    const res = await call(failingTool(apiError(500, "Internal server error"), "get_rtstream"), {}, fakeConnection());
+    expect(res.isError).toBe(true);
+    expect(res.data).toBe("Error: VideoDB rejected the request (HTTP 500): Internal server error");
+  });
+});

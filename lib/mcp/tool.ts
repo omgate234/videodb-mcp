@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { describeError } from "@/lib/videodb/errors";
+import { describeError, isGatewayTimeout } from "@/lib/videodb/errors";
 
 /**
  * Tool kinds map 1:1 onto the annotations the Anthropic directory requires.
@@ -72,6 +72,12 @@ export async function invoke<S extends z.ZodObject<z.ZodRawShape>>(
     return { content: [text(toPlain(result) ?? { ok: true })] };
   } catch (e) {
     if (e instanceof StillProcessing) return { content: [text(e.toResult())] };
+    // An upstream gateway timeout killed the request, not the job — reporting it as a
+    // failure makes agents retry and duplicate a write that already succeeded.
+    if (isGatewayTimeout(e)) {
+      const still = new StillProcessing(def.deadlineLabel ?? def.title, def.retryWith, "gateway");
+      return { content: [text(still.toResult())] };
+    }
     return { content: [text(`Error: ${describeError(e)}`)], isError: true };
   }
 }

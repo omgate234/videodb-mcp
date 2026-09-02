@@ -22,13 +22,27 @@ function apiDetail(e: unknown): string {
   return typeof body === "string" ? body : "";
 }
 
+const httpStatus = (e: unknown): number | undefined => (e as { response?: { status?: number } }).response?.status;
+
+/**
+ * A gateway timeout means the HTTP request died in transit, not the job: the write
+ * keeps running on VideoDB. 500 is ambiguous and stays a real failure.
+ */
+const GATEWAY_TIMEOUT_STATUSES = new Set([408, 502, 503, 504]);
+
+export function isGatewayTimeout(e: unknown): boolean {
+  if (!(e instanceof InvalidRequestError)) return false;
+  const status = httpStatus(e);
+  return status !== undefined && GATEWAY_TIMEOUT_STATUSES.has(status);
+}
+
 /** Map SDK errors to messages an agent can act on. */
 export function describeError(e: unknown): string {
   if (e instanceof StillProcessing) return e.message;
   if (e instanceof AuthenticationError) return "Invalid VideoDB API key (401). Reconnect the VideoDB connector.";
   if (e instanceof RequestTimeoutError) return "VideoDB is still processing this job. Retry in a few minutes.";
   if (e instanceof InvalidRequestError) {
-    const status = (e as { response?: { status?: number } }).response?.status;
+    const status = httpStatus(e);
     const detail = apiDetail(e);
     const where = status ? ` (HTTP ${status})` : "";
     return detail ? `VideoDB rejected the request${where}: ${detail}` : `VideoDB rejected the request${where}.`;
