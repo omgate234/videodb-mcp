@@ -25,9 +25,17 @@ describe("rtstream: streams", () => {
     expect(data).toEqual(RT_PLAIN);
   });
 
-  it("list_rtstreams passes filters as query params", async () => {
+  it("connect_rtstream omits store until the SDK carries it back", async () => {
+    // RTSTREAM_KEYS lists store, but SDK 0.3.1's RTStream never assigns it, so pick() drops it.
+    const vdb = fakeConnection({ "POST rtstream": { ...RT, store: true } });
+    const { data } = await call(t("connect_rtstream"), { url: "rtsp://cam/1", name: "Gate cam", store: true }, vdb);
+    expect(data).toEqual(RT_PLAIN);
+  });
+
+  it("list_rtstreams is account-scoped: no collection_id input, no collection on the wire", async () => {
     const vdb = fakeConnection({ "GET rtstream": { results: [RT] } });
-    const { data } = await call(t("list_rtstreams"), { collection_id: "c-1", limit: 5, status: "connected" }, vdb);
+    expect(Object.keys(t("list_rtstreams").input.shape)).not.toContain("collection_id");
+    const { data } = await call(t("list_rtstreams"), { limit: 5, status: "connected" }, vdb);
     expect(vdb.http.get).toHaveBeenCalledWith(["rtstream"], { params: { limit: 5, offset: 0, status: "connected" } });
     expect(data).toEqual([RT_PLAIN]);
   });
@@ -194,15 +202,36 @@ describe("rtstream: events & alerts", () => {
     expect((data as any).truncated).toBe(true);
   });
 
-  it("create_rtstream_alert posts to the scene-index alert path by default", async () => {
+  it("create_rtstream_alert pre-flights the scene index, then posts to its alert path", async () => {
     const vdb = fakeConnection({
+      "GET rtstream/rts-1/index/scene": { sceneIndexes: [SCENE_INDEX] },
       "POST rtstream/rts-1/index/rsi-1/alert": (body: any) => {
         expect(body).toEqual({ event_id: "ev-1", callback_url: "https://hook.example/alert" });
         return { alertId: "al-1" };
       },
     });
     const { data } = await call(t("create_rtstream_alert"), { rtstream_id: "rts-1", index_id: "rsi-1", event_id: "ev-1", callback_url: "https://hook.example/alert" }, vdb);
+    expect(vdb.http.get).toHaveBeenCalledTimes(1);
     expect(data).toEqual({ alert_id: "al-1", rtstream_id: "rts-1", index_id: "rsi-1", event_id: "ev-1" });
+  });
+
+  it("create_rtstream_alert refuses an unknown scene index without posting (alerts are undeletable)", async () => {
+    const vdb = fakeConnection({ "GET rtstream/rts-1/index/scene": { sceneIndexes: [SCENE_INDEX] } });
+    const { isError, data } = await call(t("create_rtstream_alert"), { rtstream_id: "rts-1", index_id: "rsi-nope", event_id: "ev-1", callback_url: "https://hook.example/alert" }, vdb);
+    expect(isError).toBe(true);
+    expect(String(data)).toContain('No scene_index "rsi-nope"');
+    expect(String(data)).toContain("Available: rsi-1");
+    expect(vdb.http.post).not.toHaveBeenCalled();
+  });
+
+  it("create_rtstream_alert with index_kind=index pre-flights the v2 index list", async () => {
+    const vdb = fakeConnection({ "GET rtstream/rts-1/indexes": { indexes: [INDEX] } });
+    const { isError, data } = await call(t("create_rtstream_alert"), { rtstream_id: "rts-1", index_id: "idx-nope", index_kind: "index", event_id: "ev-1", callback_url: "https://hook.example/alert" }, vdb);
+    expect(vdb.http.get).toHaveBeenCalledWith(["rtstream", "rts-1", "indexes"]);
+    expect(isError).toBe(true);
+    expect(String(data)).toContain('No index "idx-nope"');
+    expect(String(data)).toContain("Available: idx-1");
+    expect(vdb.http.post).not.toHaveBeenCalled();
   });
 
   it("list_rtstream_alerts with index_kind=index reads the v2 index alert path", async () => {

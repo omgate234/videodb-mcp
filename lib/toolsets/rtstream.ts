@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RTStreamIndex, RTStreamSceneIndex, RTStreamUnderstanding, type Connection } from "videodb";
+import { RTStream, RTStreamIndex, RTStreamSceneIndex, RTStreamUnderstanding, type Connection } from "videodb";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { COLLECTION_ID, RTSTREAM_ID, PAGE, PAGE_SIZE } from "@/lib/mcp/schemas";
@@ -12,7 +12,8 @@ import { collection } from "@/lib/videodb/resolve";
  * All rtstream timestamps are Unix seconds, not offsets into the stream.
  */
 
-const RTSTREAM_KEYS = ["id", "name", "collection_id", "status", "sample_rate", "media_types", "channel_id", "stream_url", "player_url", "created_at"];
+// store is set at connect time; stream_url/player_url only exist after get_rtstream_stream has generated them.
+const RTSTREAM_KEYS = ["id", "name", "collection_id", "status", "sample_rate", "media_types", "store", "channel_id", "stream_url", "player_url", "created_at"];
 const SCENE_INDEX_KEYS = ["rtstream_index_id", "rtstream_id", "extraction_type", "extraction_config", "prompt", "name", "status"];
 const UNDERSTANDING_KEYS = ["id", "rtstream_id", "status", "store", "segmentation", "analyzers", "outputs"];
 const INDEX_KEYS = ["id", "rtstream_id", "name", "status", "use_for", "source_understanding_id", "output"];
@@ -43,6 +44,16 @@ const INDEX_KIND = z
 const alertTarget = (vdb: Connection, rtstream_id: string, index_id: string, kind: "scene_index" | "index") =>
   kind === "index" ? v2Index(vdb, rtstream_id, index_id) : sceneIndex(vdb, rtstream_id, index_id);
 
+// Alerts cannot be deleted, so a typo'd index_id would leave a permanent orphan:
+// check membership in the index list (one GET) before creating one.
+const assertIndexExists = async (vdb: Connection, rtstream_id: string, index_id: string, kind: "scene_index" | "index") => {
+  const rt = new RTStream(vdb.vhttp, { id: rtstream_id });
+  const ids = kind === "index" ? (await rt.listIndexes()).map((x) => x.id) : (await rt.listSceneIndexes()).map((x) => x.rtstreamIndexId);
+  if (!ids.includes(index_id)) {
+    throw new Error(`No ${kind} "${index_id}" on stream ${rtstream_id}. Available: ${ids.join(", ") || "none"}.`);
+  }
+};
+
 // ── streams ─────────────────────────────────────────────────────────────
 
 const connectRTStream = defineTool({
@@ -70,18 +81,19 @@ const connectRTStream = defineTool({
 const listRTStreams = defineTool({
   name: "list_rtstreams",
   title: "List real-time streams",
-  description: "List real-time streams in a collection with their IDs, names, status and media types. Filter by status or name; paginate with limit/offset.",
+  description:
+    "List real-time streams in the account with their IDs, names, status and media types. The API scopes this to the whole account, not one collection — each row carries its collection_id. Filter by status or name; paginate with limit/offset.",
   kind: "read",
   input: z.object({
-    collection_id: COLLECTION_ID,
     limit: z.number().int().min(1).max(200).default(10).describe("Max streams to return."),
     offset: z.number().int().min(0).default(0).describe("Number of streams to skip."),
     status: z.string().optional().describe("Filter by status, e.g. connected or stopped."),
     name: z.string().optional().describe("Filter by name."),
     ordering: z.string().optional().describe("Sort field, prefix with - for descending, e.g. -created_at."),
   }),
-  handler: async ({ collection_id, limit, offset, status, name, ordering }, vdb) => {
-    const streams = await collection(vdb, collection_id).listRTStreams({ limit, offset, status, name, ordering });
+  handler: async ({ limit, offset, status, name, ordering }, vdb) => {
+    // GET /rtstream takes no collection: the shell is only a handle for the call.
+    const streams = await collection(vdb, "default").listRTStreams({ limit, offset, status, name, ordering });
     return streams.map((s) => pick(s, RTSTREAM_KEYS));
   },
 });
@@ -322,7 +334,7 @@ const createRTStreamAlert = defineTool({
   name: "create_rtstream_alert",
   title: "Create an alert",
   description:
-    "Attach an event (from create_event) to a stream index so VideoDB POSTs to callback_url each time the event is detected in a new window. Requires a running scene index or index. Returns the alert ID.",
+    "Attach an event (from create_event) to a stream index so VideoDB POSTs to callback_url each time the event is detected in a new window. Requires a running scene index or index; index_id is verified before the alert is created because alerts cannot be deleted. Returns the alert ID.",
   kind: "create",
   input: z.object({
     rtstream_id: RTSTREAM_ID,
@@ -332,12 +344,15 @@ const createRTStreamAlert = defineTool({
     callback_url: z.string().url().describe("Webhook that receives each alert."),
   }),
   retryWith: "list_rtstream_alerts",
-  handler: async ({ rtstream_id, index_id, index_kind, event_id, callback_url }, vdb) => ({
-    alert_id: await alertTarget(vdb, rtstream_id, index_id, index_kind).createAlert(event_id, callback_url),
-    rtstream_id,
-    index_id,
-    event_id,
-  }),
+  handler: async ({ rtstream_id, index_id, index_kind, event_id, callback_url }, vdb) => {
+    await assertIndexExists(vdb, rtstream_id, index_id, index_kind);
+    return {
+      alert_id: await alertTarget(vdb, rtstream_id, index_id, index_kind).createAlert(event_id, callback_url),
+      rtstream_id,
+      index_id,
+      event_id,
+    };
+  },
 });
 
 const listRTStreamAlerts = defineTool({
