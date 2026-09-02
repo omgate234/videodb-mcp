@@ -116,8 +116,18 @@ const TEXT_ASSET = z.object({
     .describe("Text alignment within its width/height box."),
   tabsize: z.number().int().min(1).optional().describe("Spaces per tab (≥ 1). Default 4."),
   line_spacing: z.number().min(0).optional().describe("Extra spacing between lines in px. Default 0."),
-  width: z.number().min(1).optional().describe("Text box width in px; omit to size automatically."),
-  height: z.number().min(1).optional().describe("Text box height in px; omit to size automatically."),
+  width: z
+    .number()
+    .min(1)
+    .optional()
+    .describe(
+      "Text box width in px; omit to size automatically. Only respected when the clip sets fit 'contain'; the default fit 'crop' scales this box up to fill the whole frame, so the text renders far larger than its font size."
+    ),
+  height: z
+    .number()
+    .min(1)
+    .optional()
+    .describe("Text box height in px; omit to size automatically. Same fit 'contain' requirement as width."),
 });
 
 const CAPTION_ASSET = z.object({
@@ -125,7 +135,9 @@ const CAPTION_ASSET = z.object({
   src: z
     .literal("auto")
     .default("auto")
-    .describe("Caption source. 'auto' generates captions from the video's spoken-word index (requires index_spoken_words on that video)."),
+    .describe(
+      "Caption source. 'auto' generates captions from the video's spoken-word index; that video must have been indexed with index_spoken_words first. Without an index the render still succeeds but produces zero captions and no error."
+    ),
   font: z
     .object({
       name: z.string().optional().describe("Font name. Default 'Clear Sans'."),
@@ -192,7 +204,12 @@ const CLIP = z.object({
   filter: z.enum(["blur", "boost", "contrast", "darken", "greyscale", "lighten", "muted", "negative"]).optional().describe("Visual filter."),
   scale: z.number().min(0).max(10).optional().describe("Size multiplier 0–10, 1 = natural size. Default 1."),
   opacity: z.number().min(0).max(1).optional().describe("Opacity 0–1. Default 1."),
-  fit: z.enum(["crop", "cover", "contain", "none"]).optional().describe("How the asset fills the frame. Default crop."),
+  fit: z
+    .enum(["crop", "cover", "contain", "none"])
+    .optional()
+    .describe(
+      "How the asset fills the frame. Default crop. For text assets this also scales the asset's width/height box: only 'contain' keeps the text at its declared size."
+    ),
   position: z
     .enum(["top", "bottom", "left", "right", "center", "top_left", "top_right", "bottom_left", "bottom_right"])
     .optional()
@@ -272,7 +289,7 @@ const renderTimeline = defineTool({
   name: "render_timeline",
   title: "Render editor timeline",
   description:
-    "Render a multi-track editor timeline into a new stream in one call. Tracks stack by z_index; each clip places an asset at a start time for a duration with optional transitions, effects, filters, scale, opacity, fit and position. Asset kinds: video, image, audio (ids must be existing VideoDB media ids from this account), text (styled overlay text) and caption (src 'auto' generates captions from the video's spoken-word index, so that video requires index_spoken_words first). Returns stream_url and player_url; use download_timeline_render for an MP4.",
+    "Render a multi-track editor timeline into a new stream in one call. Tracks stack by z_index; each clip places an asset at a start time for a duration with optional transitions, effects, filters, scale, opacity, fit and position. Asset kinds: video, image, audio (ids must be existing VideoDB media ids from this account), text (styled overlay text) and caption. Two behaviours to plan for: caption src 'auto' needs the video indexed with index_spoken_words first, otherwise the render succeeds with zero captions and no error; and a text asset's width/height are only honoured under fit 'contain', because the default fit 'crop' scales that box up to fill the frame. Returns stream_url and player_url; use download_timeline_render for an MP4.",
   kind: "create",
   input: z.object({
     tracks: z.array(TRACK).min(1).describe("Tracks in the timeline; the whole edit is described here."),
