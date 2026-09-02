@@ -11,26 +11,30 @@ Built to meet [Anthropic's connector directory review criteria](https://claude.c
 
 ## Tools
 
-| Tool | Kind | What it does |
-| --- | --- | --- |
-| `list_collections` | read | List collections in the account |
-| `list_videos` | read | List videos with durations + player links |
-| `get_video` | read | Metadata for one video |
-| `get_transcript` | read | Plain or timestamped transcript |
-| `search_video` | read | Semantic/keyword search inside one video (spoken or visual index) |
-| `search_collection` | read | Semantic search across a whole collection |
-| `list_scene_indexes` | read | List visual indexes on a video |
-| `create_collection` | write | Create a collection |
-| `upload_media` | write | Upload video/audio/image from a public URL or YouTube |
-| `index_spoken_words` | write | Transcribe + index speech for search |
-| `index_scenes` | write | Visually index scenes (optionally prompt-steered) |
-| `generate_clip` | write | Cut a clip / supercut from one video → instant stream + player URL |
-| `compile_clips` | write | Stitch moments across videos into one stream (highlight reels) |
-| `add_subtitles` | write | Burn subtitles from the transcript |
-| `generate_thumbnail` | write | Default or timestamped thumbnail |
-| `delete_video` | destructive | Permanently delete a video |
+Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is backed by the official [`videodb`](https://www.npmjs.com/package/videodb) Node SDK. Which toolsets a deployment exposes is set with `VIDEODB_MCP_TOOLSETS` (comma list or `all`; unset → the default-on set). Full catalog, SDK mapping and exclusions: [docs/TOOLSETS.md](docs/TOOLSETS.md).
 
-No AI media *generation* tools are exposed (VideoDB's gen-AI endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation).
+<!-- tools:begin — regenerate with `npm run tools:sync` -->
+| Toolset | Default | Tool | Kind | What it does |
+| --- | --- | --- | --- | --- |
+| collections | on | `list_collections` | read | List all collections in the connected VideoDB account, with their IDs, names, and descriptions. |
+| collections | on | `create_collection` | create | Create a new VideoDB collection to organize videos. |
+| media | on | `list_videos` | read | List videos in a VideoDB collection: IDs, names, durations, and playable stream/player URLs. |
+| media | on | `get_video` | read | Get metadata for one video: name, duration, thumbnail, stream URL, and a player URL for watching it in a browser. |
+| media | on | `upload_media` | create | Upload a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). |
+| media | on | `generate_thumbnail` | create | Get the default thumbnail of a video, or generate one from a specific timestamp (in seconds). |
+| media | on | `delete_video` | destructive | Permanently delete a video from a VideoDB collection. |
+| transcripts | on | `get_transcript` | read | Get the transcript of a video, either as plain text or with word-level timestamps. |
+| indexing | on | `index_spoken_words` | create | Transcribe and index everything spoken in a video so it becomes searchable with search_video / search_collection. |
+| indexing | on | `index_scenes` | create | Visually index a video: samples frames per shot or per time window and describes what's on screen so visual moments become searchable (search_video with index_type='scene'). |
+| indexing | on | `list_scene_indexes` | read | List the visual (scene) indexes that exist for a video, including their IDs, names and status. |
+| search | on | `search_video` | read | Search within one video and get matching moments with start/end timestamps, text, and relevance scores. |
+| search | on | `search_collection` | read | Semantic search across every indexed video in a collection. |
+| streams | on | `generate_clip` | create | Cut a clip (or a supercut of several segments) from a single video without re-encoding. |
+| streams | on | `compile_clips` | create | Stitch moments from one or more videos into a single new stream — e.g. |
+| streams | on | `add_subtitles` | create | Burn subtitles into a video from its transcript (requires index_spoken_words first). |
+<!-- tools:end -->
+
+No AI media *generation* tools are exposed (VideoDB's `generate*`/dub/voice-clone endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation). Desktop capture and WebSocket features stay in the SDK: they need a local process.
 
 ## How auth works (no database)
 
@@ -72,6 +76,8 @@ Also works in Claude Code (`claude mcp add --transport http videodb https://<you
 npm install
 cp .env.example .env       # set AUTH_SECRET
 npm run dev                # http://localhost:3000
+npm test                   # unit tests (no network)
+npm run tools:list         # print the tool catalog
 ```
 
 ## Submitting to the Anthropic connector directory
@@ -81,12 +87,16 @@ See [docs/SUBMISSION.md](docs/SUBMISSION.md) for the filled-out checklist: porta
 ## Project layout
 
 ```
-app/mcp/route.ts                          MCP endpoint (16 tools, annotated) + bearer verification
+app/mcp/route.ts                          MCP endpoint + bearer verification
 app/oauth/{authorize,token,register}/     Stateless OAuth 2.1 authorization server
 app/.well-known/...                       RFC 9728 + RFC 8414 discovery metadata
-lib/videodb.ts                            VideoDB REST client (envelope + async-poll protocol)
+lib/mcp/{tool,registry,schemas}.ts        defineTool() kernel, toolset registry + env gating, shared zod atoms
+lib/toolsets/*.ts                         One file per domain (collections, media, search, streams, editor, rtstream…)
+lib/videodb/*.ts                          SDK client, output flattening, deadline, error mapping, key verification
 lib/oauth.ts, lib/crypto.ts               Sealed-token machinery
 lib/consent-page.ts                       VideoDB-branded consent screen
+scripts/list-tools.ts                     Prints the tool catalog (npm run tools:list)
+test/                                     vitest; harness fakes the SDK transport so real SDK classes run
 ```
 
 ## License

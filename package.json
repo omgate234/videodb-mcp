@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "tools:list": "tsx scripts/list-tools.ts"
+    "tools:list": "tsx scripts/list-tools.ts",
+    "tools:sync": "tsx scripts/sync-readme.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
