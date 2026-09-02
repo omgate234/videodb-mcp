@@ -15,6 +15,13 @@ Multi-track timeline editing via the SDK's `EditorTimeline`/`Track`/`Clip`/asset
 - Hex colours (`#RRGGBB`) for text/background; ASS colours (`&HAABBGGRR`) for captions, as the SDK defaults use.
 - `resolution` must be `WIDTHxHEIGHT`; `fit`, `position`, `filter`, alignments and `animation` are enums copied from the SDK.
 
+## Verified surprises (documented in the tool descriptions)
+
+| Behaviour | Detail |
+| --- | --- |
+| Caption `src: "auto"` on an unindexed video | Renders successfully with zero captions and no error; the SDK's `console.warn` never reaches the MCP client. The video needs `index_spoken_words` first. |
+| Text `width`/`height` under the default `fit: "crop"` | The box is a sub-canvas that `crop` upscales to fill the frame, so a 48px font can render ~300px tall. Only `fit: "contain"` keeps the declared size. |
+
 ## Deviations
 
 | Item | Why |

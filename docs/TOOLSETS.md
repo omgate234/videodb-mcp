@@ -160,3 +160,24 @@ Each agent owns exactly three paths and touches nothing else:
 - `docs/toolsets/<name>.md` — ≤ 40 lines: tool table + any deviation from this catalog and why.
 
 Done means `npm run typecheck && npm test && npm run tools:list` all pass on your branch.
+
+## Upstream defects (VideoDB API / SDK)
+
+Found by live testing against the dev API. These belong to VideoDB's server or the `videodb` Node SDK, not to this connector; no workaround is implemented here.
+
+| Tool affected | Defect | Evidence |
+| --- | --- | --- |
+| `list_rtstreams` | `name` filter crashes the server for any value | HTTP 500 `'NoneType' object has no attribute 'lower'` — likely a stream row with a NULL name |
+| `delete_image` | Destructive op reports a false failure on thumbnail-derived records | HTTP 500 returned, but the image record is actually deleted |
+| `search_youtube` | `result_threshold` ignored | `Connection.youtubeSearch` always returns 10 results |
+| `set_rtstream_scene_index_status` | Echoes a status that may not be real | SDK hardcodes `status = 'connected'` after the scene-index status PATCH instead of reading the response |
+| `create_rtstream_alert` | Accepts a nonexistent `index_id` and creates an undeletable alert | Alert is created against a bogus index; there is no delete-alert endpoint |
+| `search_videos_by_title`, `list_thumbnails`, `list_invoices` | `fromSnakeToCamel` converted top-level arrays into objects | Fixed upstream on `fix/snake-to-camel-array` in `videodb-node-main`, unreleased; this connector still runs the published 0.3.1 until that ships |
+
+## Coverage gaps
+
+Paths that live testing could not exercise, so they are unverified rather than known-good:
+
+- rtstream v2 understand → index **write** path (`understand_rtstream`, `create_rtstream_index`): the test account has zero v2 understandings/indexes and both tools 404 on the handler's pre-flight, so their request bodies have never reached VideoDB.
+- rtstream transcripts (`get_rtstream_transcript`): no transcript data exists anywhere in the account.
+- `get_transcode_status`: no transcode job reached a terminal state during testing.
