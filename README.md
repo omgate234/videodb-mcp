@@ -74,23 +74,6 @@ cp .env.example .env       # set AUTH_SECRET
 npm run dev                # http://localhost:3000
 ```
 
-### End-to-end test (no VideoDB account needed)
-
-The e2e suite exercises the full flow exactly like Claude does — discovery, DCR, consent, PKCE, token exchange + rotation, 401 challenges, MCP initialize/tools-list, and tool calls including the async job-polling path — against a mock VideoDB API:
-
-```bash
-# terminal 1 — mock VideoDB API on :4519
-npm run mock
-
-# terminal 2 — the server pointed at the mock
-AUTH_SECRET=test-secret-0123456789 VIDEODB_API_BASE=http://127.0.0.1:4519 npm run dev
-
-# terminal 3
-npm run e2e
-```
-
-All green = safe to deploy. To test against the real API, just connect from Claude with a real key — every tool maps 1:1 to documented VideoDB endpoints ([docs.videodb.io](https://docs.videodb.io)).
-
 ## Submitting to the Anthropic connector directory
 
 See [docs/SUBMISSION.md](docs/SUBMISSION.md) for the filled-out checklist: portal steps, listing copy, allowed link URIs, test-account requirements, and the compliance acknowledgments.
@@ -104,7 +87,6 @@ app/.well-known/...                       RFC 9728 + RFC 8414 discovery metadata
 lib/videodb.ts                            VideoDB REST client (envelope + async-poll protocol)
 lib/oauth.ts, lib/crypto.ts               Sealed-token machinery
 lib/consent-page.ts                       VideoDB-branded consent screen
-scripts/mock-videodb.mjs, scripts/e2e.mjs Full-flow test harness
 ```
 
 ## License
