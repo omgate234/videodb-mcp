@@ -13,7 +13,7 @@ import {
   CORS_HEADERS,
 } from "@/lib/oauth";
 import { safeEqual } from "@/lib/crypto";
-import { validateApiKey } from "@/lib/videodb";
+import { validateApiKey } from "@/lib/videodb/auth";
 
 export const maxDuration = 30;
 
