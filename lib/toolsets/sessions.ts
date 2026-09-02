@@ -24,20 +24,34 @@ const RTSTREAM_KEYS = ["id", "channel_id", "media_types", "status"];
 const CAPTURE_CLIENT_NOTE =
   "Capture sessions are created and recorded by the VideoDB desktop capture client; this connector only observes and exports them.";
 
-// Shell needs only ids; refresh() is the same GET as getCaptureSession but also hydrates rtstreams.
+// export() only needs the ids to build its path.
 const sessionShell = (vdb: Connection, collectionId: string, id: string) =>
   new CaptureSession(vdb.vhttp, { id, collectionId });
 
+interface SessionResponse {
+  id?: string;
+  collectionId?: string;
+  rtstreams?: { rtstreamId?: string; id?: string; channelId?: string; mediaTypes?: string[]; status?: string }[];
+}
+
 /**
- * refresh() keeps whatever collectionId the caller passed, so the "default" alias would
- * leak out where list_capture_sessions reports the real c- id for the same session.
+ * Read the session straight off the wire rather than through CaptureSession.refresh():
+ * refresh() never assigns the response's own collectionId, so a caller passing the
+ * "default" alias would get "default" back where list_capture_sessions reports the
+ * real c- id for the same session. The response carries the resolved id at top level.
  */
-const sessionToPlain = (s: CaptureSession) => {
-  const plain = pick(s, SESSION_KEYS);
-  const real = s.rtstreams.find((r) => r.collectionId)?.collectionId;
-  if (plain.collection_id === "default" && real) plain.collection_id = real;
-  return { ...plain, rtstreams: s.rtstreams.map((r) => pick(r, RTSTREAM_KEYS)) };
-};
+async function fetchSession(vdb: Connection, collectionId: string, sessionId: string) {
+  const res = await vdb.vhttp.get<SessionResponse>(["collection", collectionId, "capture", "session", sessionId]);
+  const data = (res.data ?? {}) as SessionResponse;
+  return {
+    ...pick(data, SESSION_KEYS),
+    id: data.id ?? sessionId,
+    collection_id: data.collectionId ?? collectionId,
+    rtstreams: (data.rtstreams ?? []).map((r) =>
+      pick({ id: r.rtstreamId ?? r.id, channelId: r.channelId, mediaTypes: r.mediaTypes, status: r.status }, RTSTREAM_KEYS)
+    ),
+  };
+}
 
 const recordMeeting = defineTool({
   name: "record_meeting",
@@ -102,11 +116,7 @@ const getCaptureSession = defineTool({
   description: `Get one desktop capture session: status (created, starting, active, stopped, exported, failed), channels, export status, exported video ID and the real-time streams (id, channel, media types) recorded in it. ${CAPTURE_CLIENT_NOTE}`,
   kind: "read",
   input: z.object({ session_id: SESSION_ID, collection_id: COLLECTION_ID }),
-  handler: async ({ session_id, collection_id }, vdb) => {
-    const session = sessionShell(vdb, collection_id, session_id);
-    await session.refresh();
-    return sessionToPlain(session);
-  },
+  handler: async ({ session_id, collection_id }, vdb) => fetchSession(vdb, collection_id, session_id),
 });
 
 const exportCaptureSession = defineTool({
