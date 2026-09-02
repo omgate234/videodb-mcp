@@ -76,7 +76,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | editor | on | `render_timeline` | create | Render a multi-track editor timeline into a new stream in one call. |
 | editor | on | `download_timeline_render` | create | Request an MP4 download of a stream produced by render_timeline. |
 | rtstream | off | `connect_rtstream` | create | Register a live RTSP/RTMP/HLS stream with VideoDB and start ingesting it. |
-| rtstream | off | `list_rtstreams` | read | List real-time streams in a collection with their IDs, names, status and media types. |
+| rtstream | off | `list_rtstreams` | read | List real-time streams in the account with their IDs, names, status and media types. |
 | rtstream | off | `get_rtstream` | read | Get one real-time stream: name, status, sample rate, media types, creation time. |
 | rtstream | off | `set_rtstream_status` | update | Start (connect) or stop (disconnect) ingestion of a real-time stream. |
 | rtstream | off | `get_rtstream_stream` | read | Generate a playable stream and player URL for a time window of a real-time stream. |
