@@ -294,6 +294,7 @@ const createEvent = defineTool({
     event_prompt: z.string().describe("Condition to detect, in natural language."),
     label: z.string().describe("Short machine-friendly label, e.g. intrusion."),
   }),
+  retryWith: "list_events",
   handler: async ({ event_prompt, label }, vdb) => ({ event_id: await vdb.createEvent(event_prompt, label), label }),
 });
 
@@ -322,6 +323,7 @@ const createRTStreamAlert = defineTool({
     event_id: z.string().describe("Event ID from create_event."),
     callback_url: z.string().url().describe("Webhook that receives each alert."),
   }),
+  retryWith: "list_rtstream_alerts",
   handler: async ({ rtstream_id, index_id, index_kind, event_id, callback_url }, vdb) => ({
     alert_id: await alertTarget(vdb, rtstream_id, index_id, index_kind).createAlert(event_id, callback_url),
     rtstream_id,

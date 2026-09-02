@@ -19,6 +19,16 @@ describe("registry", () => {
     }
   });
 
+  it("points every retryWith at a real read tool", () => {
+    const byName = new Map(allTools().map((t) => [t.name, t]));
+    for (const t of allTools()) {
+      if (!t.retryWith) continue;
+      const target = byName.get(t.retryWith);
+      expect(target, `${t.name} retryWith → unknown tool ${t.retryWith}`).toBeDefined();
+      expect(target!.kind, `${t.name} retryWith → ${t.retryWith} must be a read tool`).toBe("read");
+    }
+  });
+
   it("gates toolsets by env", () => {
     expect(enabledToolsets("").every((t) => t.defaultEnabled)).toBe(true);
     expect(enabledToolsets("all")).toHaveLength(TOOLSETS.length);

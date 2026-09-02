@@ -162,6 +162,7 @@ const generateThumbnail = defineTool({
     collection_id: COLLECTION_ID,
     time_seconds: z.number().min(0).optional().describe("Timestamp to capture; omit for the default thumbnail."),
   }),
+  retryWith: "list_thumbnails",
   handler: async ({ video_id, collection_id, time_seconds }, vdb) => {
     const video = await fetchVideo(vdb, collection_id, video_id);
     const result = await video.generateThumbnail(time_seconds);
