@@ -1,28 +1,130 @@
 import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
-import { COLLECTION_ID, VIDEO_ID } from "@/lib/mcp/schemas";
-import { fetchVideo } from "@/lib/videodb/resolve";
+import { CALLBACK_URL, COLLECTION_ID, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
+import { fetchAudio, fetchVideo } from "@/lib/videodb/resolve";
 
 /** Transcripts for video and audio: fetch, (re)generate, translate. */
+
+// A transcript can run to tens of thousands of words; cap the segment list so one call stays readable.
+const MAX_SEGMENTS = 2000;
+
+const SEGMENTER = z
+  .enum(["word", "sentence", "time"])
+  .optional()
+  .describe("How to split timestamped segments: one per word (default), per sentence, or fixed time windows.");
+
+const SEGMENT_LENGTH = z
+  .number()
+  .int()
+  .min(1)
+  .optional()
+  .describe("Units per segment: words/sentences per segment, or seconds per segment when segmenter is 'time'.");
+
+// media_id is the canonical input; video_id is kept as an alias so pre-toolset callers keep working.
+const MEDIA_TARGET = {
+  media_id: z.string().optional().describe("VideoDB media ID: m- (video) or a- (audio)."),
+  video_id: VIDEO_ID.optional().describe("Deprecated alias of media_id; accepts a video ID (m-)."),
+  collection_id: COLLECTION_ID,
+};
+
+const requireMediaId = { message: "Provide media_id (m- or a-) — video_id is a deprecated alias.", path: ["media_id"] };
+
+const targetId = (a: { media_id?: string; video_id?: string }): string => (a.media_id ?? a.video_id) as string;
+
+function transcribableKind(id: string): "video" | "audio" {
+  const kind = mediaKind(id);
+  if (kind === "image") throw new Error(`${id} is an image; transcripts exist only for video (m-) and audio (a-).`);
+  return kind;
+}
+
+function cappedSegments(segments: readonly unknown[]) {
+  return segments.length > MAX_SEGMENTS
+    ? { word_timestamps: segments.slice(0, MAX_SEGMENTS), truncated: true, total_segments: segments.length }
+    : { word_timestamps: segments };
+}
 
 const getTranscript = defineTool({
   name: "get_transcript",
   title: "Get transcript",
   description:
-    "Get the transcript of a video, either as plain text or with word-level timestamps. Generates the transcript on first call if the video hasn't been transcribed yet (may take a minute).",
+    "Get the transcript of a video or audio file, either as plain text or with timestamped segments (per word, sentence, or time window). Generates the transcript on first call if the media hasn't been transcribed yet (may take a minute). Timestamped output is capped at 2000 segments; narrow with start/end or a coarser segmenter.",
   kind: "read",
+  input: z
+    .object({
+      ...MEDIA_TARGET,
+      timestamped: z.boolean().default(false).describe("true → timestamped segments plus text; false → plain text only."),
+      start: z.number().min(0).optional().describe("Only include speech after this second."),
+      end: z.number().min(0).optional().describe("Only include speech before this second."),
+      segmenter: SEGMENTER,
+      segment_length: SEGMENT_LENGTH,
+    })
+    .refine((a) => a.media_id || a.video_id, requireMediaId),
+  retryWith: "get_transcript",
+  handler: async (args, vdb) => {
+    const { collection_id, timestamped, start, end, segmenter, segment_length } = args;
+    const id = targetId(args);
+    if (transcribableKind(id) === "audio") {
+      const audio = await fetchAudio(vdb, collection_id, id);
+      const segments = await audio.getTranscript(start, end, segmenter, segment_length);
+      const text = audio.transcriptText ?? "";
+      return timestamped ? { text, ...cappedSegments(segments) } : { text };
+    }
+    const t = await (await fetchVideo(vdb, collection_id, id)).getTranscript(start, end, segmenter, segment_length);
+    return timestamped ? { text: t.text, ...cappedSegments(t.wordTimestamps ?? []) } : { text: t.text };
+  },
+});
+
+const generateTranscript = defineTool({
+  name: "generate_transcript",
+  title: "Generate transcript",
+  description:
+    "Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. Read the result with get_transcript.",
+  kind: "create",
+  input: z
+    .object({
+      ...MEDIA_TARGET,
+      force: z.boolean().default(false).describe("Re-transcribe even if a transcript already exists."),
+      language_code: z.string().optional().describe("BCP-47/ISO language code of the speech, e.g. 'en', 'hi'. Auto-detected if omitted."),
+    })
+    .refine((a) => a.media_id || a.video_id, requireMediaId),
+  retryWith: "get_transcript",
+  handler: async (args, vdb) => {
+    const { collection_id, force, language_code } = args;
+    const id = targetId(args);
+    const kind = transcribableKind(id);
+    const result =
+      kind === "audio"
+        ? await (await fetchAudio(vdb, collection_id, id)).generateTranscript(force, language_code)
+        : await (await fetchVideo(vdb, collection_id, id)).generateTranscript(force, language_code);
+    return { media_id: id, media_type: kind, ...(result ?? { success: true }) };
+  },
+});
+
+const translateTranscript = defineTool({
+  name: "translate_transcript",
+  title: "Translate transcript",
+  description:
+    "Translate a video's transcript into another language and return the translated segments (requires a transcript — get_transcript or generate_transcript first). Video only; the translation is returned, not stored.",
+  kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
-    timestamped: z.boolean().default(false).describe("true → word-level timestamps; false → plain text."),
-    start: z.number().min(0).optional().describe("Only include words after this second."),
-    end: z.number().min(0).optional().describe("Only include words before this second."),
+    language: z.string().min(1).describe("Target language, e.g. 'Spanish' or 'fr'."),
+    additional_notes: z.string().optional().describe("Style guidance for the translation, e.g. 'formal register'."),
+    callback_url: CALLBACK_URL,
   }),
-  retryWith: "get_transcript",
-  handler: async ({ video_id, collection_id, timestamped, start, end }, vdb) => {
-    const t = await (await fetchVideo(vdb, collection_id, video_id)).getTranscript(start, end);
-    return timestamped ? t : { text: t.text };
+  handler: async ({ video_id, collection_id, language, additional_notes, callback_url }, vdb) => {
+    const video = await fetchVideo(vdb, collection_id, video_id);
+    const translated = await video.translateTranscript(language, additional_notes ?? "", callback_url);
+    if (callback_url) return { accepted: true, video_id, language };
+    const segments = translated ?? [];
+    return {
+      video_id,
+      language,
+      translated_transcript: segments.slice(0, MAX_SEGMENTS),
+      ...(segments.length > MAX_SEGMENTS ? { truncated: true, total_segments: segments.length } : {}),
+    };
   },
 });
 
@@ -30,5 +132,5 @@ export const transcripts: Toolset = {
   name: "transcripts",
   description: "Transcripts: fetch, regenerate, translate.",
   defaultEnabled: true,
-  tools: [getTranscript],
+  tools: [getTranscript, generateTranscript, translateTranscript],
 };
