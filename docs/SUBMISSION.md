@@ -18,7 +18,7 @@ Working checklist for listing the VideoDB connector in Claude's [Connectors Dire
 - [x] **No AI media generation tools** (VideoDB's `/generate/*` endpoints are deliberately not exposed — the directory rejects AI image/video/audio generation).
 - [x] First-party API only (`api.videodb.io`).
 - [x] Actionable error messages; trimmed responses (search results are mapped to compact match objects).
-- [ ] Run `npm run e2e` green + exercise every tool once via **MCP Inspector** and once as a **custom connector in Claude** against production. The portal asks you to confirm you did this.
+- [ ] Exercise every tool once via **MCP Inspector** and once as a **custom connector in Claude** against production. The portal asks you to confirm you did this.
 
 Note on auth at scale: DCR registers a new client on every fresh connection. Anthropic recommends **CIMD or pre-registered credentials (`oauth_anthropic_creds`)** for high-traffic directory listings — if the connector takes off, email `mcp-review@anthropic.com` a static client_id/secret and switch. Not a launch blocker.
 

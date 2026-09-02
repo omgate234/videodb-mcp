@@ -1,5 +1,9 @@
 import { open, seal, nowSeconds } from "./crypto";
 
+function _urlencode(params: Record<string, string>): string {
+  return new URLSearchParams(params).toString();
+}
+
 /**
  * Stateless OAuth 2.1 primitives.
  *
@@ -180,6 +184,40 @@ export function redirectUriAllowed(candidate: string, registered: string[]): boo
       return false;
     }
   });
+}
+
+// ---------- DirectorFE bridge ----------
+
+/**
+ * Where the user signs in, instead of pasting an API key.
+ *
+ * Unset means no bridge is configured, and /oauth/authorize falls back to the
+ * built-in consent page. That fallback is what keeps the e2e suite and local
+ * development runnable without a DirectorFE instance, and it is the path an
+ * account with a VideoDB API key but no DirectorFE login still takes.
+ */
+export function directorFeOrigin(): string | null {
+  const origin = process.env.DIRECTORFE_ORIGIN?.trim();
+  return origin ? origin.replace(/\/$/, "") : null;
+}
+
+/**
+ * Shared secret proving a callback really came from DirectorFE.
+ *
+ * Without it a stolen req_token would be enough to drive the callback and mint
+ * an authorization code, since the req_token travels through the browser.
+ */
+export function bridgeSecret(): string | null {
+  const secret = process.env.DIRECTORFE_BRIDGE_SECRET?.trim();
+  return secret ? secret : null;
+}
+
+export const BRIDGE_SECRET_HEADER = "x-bridge-secret";
+
+export function consentUrl(reqToken: string): string {
+  const origin = directorFeOrigin();
+  if (!origin) throw new Error("DIRECTORFE_ORIGIN is not configured");
+  return `${origin}/connect/videodb-mcp?${_urlencode({ req_token: reqToken })}`;
 }
 
 // ---------- response helpers ----------
