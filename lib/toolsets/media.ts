@@ -2,7 +2,7 @@ import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { AUDIO_ID, CALLBACK_URL, COLLECTION_ID, IMAGE_ID, MEDIA_ID, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
-import { AUDIO_KEYS, IMAGE_KEYS, VIDEO_KEYS, pick } from "@/lib/videodb/serialize";
+import { AUDIO_KEYS, IMAGE_KEYS, VIDEO_KEYS, cap, pick } from "@/lib/videodb/serialize";
 import { collection, fetchAudio, fetchImage, fetchVideo } from "@/lib/videodb/resolve";
 import type { Connection } from "@/lib/videodb/client";
 
@@ -16,36 +16,39 @@ type VideoConfig = NonNullable<Parameters<Connection["transcode"]>[3]>;
 const listVideos = defineTool({
   name: "list_videos",
   title: "List videos",
-  description: "List videos in a VideoDB collection: IDs, names, durations, and playable stream/player URLs.",
+  description:
+    "List videos in a VideoDB collection: IDs, names, durations, and playable stream/player URLs. Returns {videos: [...]} with the first 200 videos; `truncated: true` and `total` are set when the collection holds more. The endpoint has no pagination, so use search_videos_by_title or search_collection to reach videos beyond the cap.",
   kind: "read",
   input: z.object({ collection_id: COLLECTION_ID }),
   handler: async ({ collection_id }, vdb) => {
     const videos = await collection(vdb, collection_id).getVideos();
-    return videos.map((v) => pick(v, VIDEO_KEYS));
+    return cap(videos.map((v) => pick(v, VIDEO_KEYS)), "videos");
   },
 });
 
 const listAudios = defineTool({
   name: "list_audios",
   title: "List audio files",
-  description: "List audio files in a VideoDB collection: IDs, names, durations and sizes.",
+  description:
+    "List audio files in a VideoDB collection: IDs, names, durations and sizes. Returns {audios: [...]} with the first 200 files; `truncated: true` and `total` are set when the collection holds more. The endpoint has no pagination, so the rest can only be reached by get_audio with a known ID.",
   kind: "read",
   input: z.object({ collection_id: COLLECTION_ID }),
   handler: async ({ collection_id }, vdb) => {
     const audios = await collection(vdb, collection_id).getAudios();
-    return audios.map((a) => pick(a, AUDIO_KEYS));
+    return cap(audios.map((a) => pick(a, AUDIO_KEYS)), "audios");
   },
 });
 
 const listImages = defineTool({
   name: "list_images",
   title: "List images",
-  description: "List images in a VideoDB collection: IDs, names and URLs.",
+  description:
+    "List images in a VideoDB collection: IDs, names and URLs. Returns {images: [...]} with the first 200 images; `truncated: true` and `total` are set when the collection holds more. The endpoint has no pagination, so the rest can only be reached by get_image with a known ID.",
   kind: "read",
   input: z.object({ collection_id: COLLECTION_ID }),
   handler: async ({ collection_id }, vdb) => {
     const images = await collection(vdb, collection_id).getImages();
-    return images.map((i) => pick(i, IMAGE_KEYS));
+    return cap(images.map((i) => pick(i, IMAGE_KEYS)), "images");
   },
 });
 
@@ -119,8 +122,8 @@ const searchYoutube = defineTool({
   kind: "read",
   input: z.object({
     query: z.string().describe("Search terms."),
-    result_threshold: z.number().int().min(1).max(50).default(10).describe("Max results."),
-    duration: z.enum(["short", "medium", "long", "any"]).default("medium").describe("YouTube duration filter."),
+    result_threshold: z.number().int().min(1).max(50).default(10).describe("Requested result count; the server currently ignores it and always returns 10."),
+    duration: z.enum(["short", "medium", "long"]).default("medium").describe("YouTube duration filter."),
   }),
   handler: async ({ query, result_threshold, duration }, vdb) => {
     return { results: await vdb.youtubeSearch(query, result_threshold, duration) };

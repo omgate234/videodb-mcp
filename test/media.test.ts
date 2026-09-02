@@ -17,7 +17,7 @@ describe("media", () => {
     const vdb = fakeConnection({ "GET video": { videos: [VIDEO] } });
     const { data, isError } = await call(t("list_videos"), { collection_id: "c-1" }, vdb);
     expect(isError).toBe(false);
-    expect(data).toEqual([VIDEO_OUT]);
+    expect(data).toEqual({ videos: [VIDEO_OUT] });
     expect(vdb.http.get).toHaveBeenCalledWith(["video"], PARAMS);
   });
 
@@ -25,7 +25,7 @@ describe("media", () => {
     const vdb = fakeConnection({ "GET audio": { audios: [AUDIO] } });
     const { data, isError } = await call(t("list_audios"), { collection_id: "c-1" }, vdb);
     expect(isError).toBe(false);
-    expect(data).toEqual([AUDIO_OUT]);
+    expect(data).toEqual({ audios: [AUDIO_OUT] });
     expect(vdb.http.get).toHaveBeenCalledWith(["audio"], PARAMS);
   });
 
@@ -33,8 +33,18 @@ describe("media", () => {
     const vdb = fakeConnection({ "GET image": { images: [IMAGE] } });
     const { data, isError } = await call(t("list_images"), { collection_id: "c-1" }, vdb);
     expect(isError).toBe(false);
-    expect(data).toEqual([IMAGE_OUT]);
+    expect(data).toEqual({ images: [IMAGE_OUT] });
     expect(vdb.http.get).toHaveBeenCalledWith(["image"], PARAMS);
+  });
+
+  it("list tools cap at 200 rows and report the total", async () => {
+    const many = Array.from({ length: 250 }, (_, i) => ({ ...IMAGE, id: `img-${i}` }));
+    const vdb = fakeConnection({ "GET image": { images: many } });
+    const { data } = await call(t("list_images"), { collection_id: "c-1" }, vdb);
+    const out = data as { images: unknown[]; truncated: boolean; total: number };
+    expect(out.images).toHaveLength(200);
+    expect(out.truncated).toBe(true);
+    expect(out.total).toBe(250);
   });
 
   it("get_video fetches one video", async () => {
@@ -89,6 +99,10 @@ describe("media", () => {
     const { data, isError } = await call(t("search_youtube"), { query: "cats", result_threshold: 3, duration: "short" }, vdb);
     expect(isError).toBe(false);
     expect(data).toEqual({ results: [{ title: "Cat", url: "https://youtu.be/1" }] });
+  });
+
+  it("search_youtube rejects duration \"any\" (the API returns nothing for it)", () => {
+    expect(t("search_youtube").input.safeParse({ query: "cats", duration: "any" }).success).toBe(false);
   });
 
   it("search_videos_by_title flattens matching videos", async () => {

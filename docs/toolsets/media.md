@@ -4,7 +4,7 @@ Videos, audio and images: list/get/upload/update/delete, thumbnails, signed URLs
 
 | Tool | Kind | SDK | Output |
 | --- | --- | --- | --- |
-| `list_videos` ★ / `list_audios` / `list_images` | R | `Collection.getVideos/getAudios/getImages` | array of `pick(*, VIDEO/AUDIO/IMAGE_KEYS)` |
+| `list_videos` ★ / `list_audios` / `list_images` | R | `Collection.getVideos/getAudios/getImages` | `cap(picked, "videos"/"audios"/"images")` — first 200 + `truncated`/`total` |
 | `get_video` ★ / `get_audio` / `get_image` | R | `Collection.getVideo/getAudio/getImage` | picked object |
 | `upload_media` ★ | C | `Collection.uploadURL` | media object; with `callback_url` → `{accepted, collection_id, url, callback_url}` |
 | `search_youtube` | R | `Connection.youtubeSearch(query, result_threshold, duration)` | `{results}` (raw SDK rows) |
@@ -22,8 +22,8 @@ Videos, audio and images: list/get/upload/update/delete, thumbnails, signed URLs
 
 - `transcode_media` sends `video_config` with snake_case keys (`aspect_ratio`, `resize_mode`). The Node SDK forwards the config object verbatim and the API (and Python SDK) use snake_case, so camelCase keys would be silently ignored. `callback_url` is required (SDK signature).
 - `upload_media` with `callback_url` returns no media id: the SDK returns `undefined` on async uploads; the response echoes `collection_id`, `url` and `callback_url` instead.
-- `list_*` return plain arrays without a 200-row cap: `list_videos` ★ already returned an array (locked by `test/seed.test.ts`), collection listings are bounded by collection size, and the SDK endpoint is unpaginated.
-- `search_youtube` `duration` is an enum (`short|medium|long|any`, default `medium`); the SDK types it as a free string.
+- `list_*` now return `{videos|audios|images, truncated?, total?}` instead of the bare array `list_videos` ★ used to return — a real account hit 3170 images / 1.11 MB in one result. The SDK endpoints take no offset/limit, so the descriptions point past the cap (`search_videos_by_title`/`search_collection`, or `get_audio`/`get_image` by ID) rather than adding a paging parameter the API cannot honour.
+- `search_youtube` `duration` is an enum (`short|medium|long`, default `medium`); the SDK types it as a free string. `any` is excluded — the API returns zero results for it. `result_threshold` is passed through but the API ignores it and always returns 10; the field description says so.
 - `search_videos_by_title` returns the videos directly instead of the SDK's `[{video}]` wrapper.
 
 ## Kernel requests
