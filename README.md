@@ -23,6 +23,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | collections | on | `delete_collection` | destructive | Permanently delete a collection and everything in it. |
 | collections | on | `get_account_usage` | read | Get the connected VideoDB account's current usage and billing summary as reported by VideoDB. |
 | collections | on | `list_invoices` | read | List the connected VideoDB account's invoices (first 200; `truncated` is set when more exist). |
+| media | on | `list_assets` | read | List videos, audio files and images together in one paginated result, filtered by type, name pattern, duration or file size, and sorted by name, duration or size. |
 | media | on | `list_videos` | read | List videos in a VideoDB collection: IDs, names, durations, and playable stream/player URLs. |
 | media | on | `list_audios` | read | List audio files in a VideoDB collection: IDs, names, durations and sizes. |
 | media | on | `list_images` | read | List images in a VideoDB collection: IDs, names and URLs. |

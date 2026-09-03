@@ -39,6 +39,8 @@ export function pick<T extends object>(value: T, keys: string[]): Record<string,
 export const VIDEO_KEYS = ["id", "collection_id", "name", "description", "length", "size", "stream_url", "player_url", "thumbnail"];
 export const AUDIO_KEYS = ["id", "collection_id", "name", "length", "size"];
 export const IMAGE_KEYS = ["id", "collection_id", "name", "url"];
+// One row of the mixed video/audio/image listing; only the keys that apply to a row's type are present.
+export const ASSET_KEYS = ["id", "type", "collection_id", "name", "description", "length", "size", "created_at", "url", "stream_url", "player_url", "thumbnail_url"];
 export const SHOT_KEYS = ["video_id", "video_title", "start", "end", "text", "search_score", "scene_index_id", "scene_index_name", "stream_url", "player_url", "metadata"];
 
 /** Search results → { shots: [...] } with only agent-relevant fields. */
