@@ -45,7 +45,7 @@ const getTranscript = defineTool({
   name: "get_transcript",
   title: "Get transcript",
   description:
-    "Get the transcript of a video or audio file, either as plain text or with timestamped segments (per word, sentence, or time window). Generates the transcript on first call if the media hasn't been transcribed yet (may take a minute). Timestamped output is capped at 2000 segments; narrow with start/end or a coarser segmenter.",
+    "Get the transcript of a video or audio file, either as plain text or with timestamped segments (per word, sentence, or time window). Reads an existing transcript only — media that has never been transcribed returns an error naming generate_transcript. Timestamped output is capped at 2000 segments; narrow with start/end or a coarser segmenter.",
   kind: "read",
   input: z
     .object({

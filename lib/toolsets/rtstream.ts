@@ -512,7 +512,7 @@ const getRTStreamIndexRecords = defineTool({
 export const rtstream: Toolset = {
   name: "rtstream",
   description: "Real-time streams (RTSP/live): connect, index live, alerts, search, export.",
-  defaultEnabled: false,
+  defaultEnabled: true,
   tools: [
     connectRTStream,
     listRTStreams,

@@ -1,4 +1,4 @@
-# meetings toolset (default **off**)
+# meetings toolset (default **on**)
 
 Meeting recorder bots on the `videodb` SDK. File: `lib/toolsets/meetings.ts`, tests: `test/meetings.test.ts`. Send a bot into a Zoom / Google Meet / Microsoft Teams call, then poll it for the recorded video.
 

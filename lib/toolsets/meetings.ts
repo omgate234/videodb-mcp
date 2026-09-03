@@ -56,6 +56,6 @@ const getMeeting = defineTool({
 export const meetings: Toolset = {
   name: "meetings",
   description: "Meeting recording bots.",
-  defaultEnabled: false,
+  defaultEnabled: true,
   tools: [recordMeeting, getMeeting],
 };
