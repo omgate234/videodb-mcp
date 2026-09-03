@@ -24,7 +24,19 @@ describe("search", () => {
     expect(data).toEqual({ response_type: "deepsearch", session_id: "s-2", waiting_for: "none", shots: [SHOT] });
   });
 
-  it("search_video with no params keeps the legacy defaults", async () => {
+  it("search_video with no options goes to v2, not the legacy endpoint", async () => {
+    const vdb = fakeConnection({
+      "GET video/m-1": VIDEO,
+      "POST video/m-1/search/v2": (body: any) => {
+        expect(body).toEqual({ query: "pricing" });
+        return { responseType: "shots", results: RESULTS };
+      },
+    });
+    const { data } = await call(toolNamed(search, "search_video"), { video_id: "m-1", query: "pricing" }, vdb);
+    expect(data).toMatchObject({ shots: [SHOT] });
+  });
+
+  it("legacy_search_video applies the v1 defaults and cannot reach v2 params", async () => {
     const vdb = fakeConnection({
       "GET video/m-1": VIDEO,
       "POST video/m-1/search": (body: any) => {
@@ -32,19 +44,14 @@ describe("search", () => {
         return { results: RESULTS };
       },
     });
-    const { data } = await call(toolNamed(search, "search_video"), { video_id: "m-1", query: "pricing" }, vdb);
+    const tool = toolNamed(search, "legacy_search_video");
+    const { data, isError } = await call(tool, { video_id: "m-1", query: "pricing" }, vdb);
+    expect(isError).toBe(false);
     expect(data).toEqual({ shots: [SHOT] });
+    expect(Object.keys((tool.input as any).shape)).not.toContain("top_k");
   });
 
-  it("search_video surfaces the SDK error when legacy and v2 params are mixed", async () => {
-    const vdb = fakeConnection({ "GET video/m-1": VIDEO });
-    const { data, isError } = await call(toolNamed(search, "search_video"), { video_id: "m-1", query: "x", index_type: "scene", top_k: 5 }, vdb);
-    expect(isError).toBe(true);
-    expect(String(data)).toContain("Cannot mix legacy search params");
-    expect(vdb.http.post).not.toHaveBeenCalled();
-  });
-
-  it("search_collection routes legacy scene params to /collection/{id}/search", async () => {
+  it("legacy_search_collection routes scene params to /collection/{id}/search", async () => {
     const vdb = fakeConnection({
       "POST collection/c-1/search": (body: any) => {
         expect(body).toMatchObject({ query: "podium", search_type: "semantic", index_type: "scene", result_threshold: 2 });
@@ -52,13 +59,44 @@ describe("search", () => {
       },
     });
     const { data, isError } = await call(
-      toolNamed(search, "search_collection"),
+      toolNamed(search, "legacy_search_collection"),
       { collection_id: "c-1", query: "podium", index_type: "scene", result_threshold: 2 },
       vdb
     );
     expect(isError).toBe(false);
     expect(data).toEqual({ shots: [SHOT] });
     expect(vdb.http.get).not.toHaveBeenCalled();
+  });
+
+  it("null stands in for an unset param instead of failing validation", async () => {
+    const vdb = fakeConnection({
+      "POST collection/c-1/search/v2": (body: any) => {
+        expect(body).toEqual({ query: "podium", top_k: 4 });
+        return { responseType: "shots", results: RESULTS };
+      },
+    });
+    const { data, isError } = await call(
+      toolNamed(search, "search_collection"),
+      { collection_id: "c-1", query: "podium", top_k: 4, mode: null, include_clip: null, session_id: null },
+      vdb
+    );
+    expect(isError).toBe(false);
+    expect(data).toMatchObject({ shots: [SHOT] });
+  });
+
+  it("null on a defaulted param falls back to the default", async () => {
+    const vdb = fakeConnection({
+      "POST collection/c-1/search": (body: any) => {
+        expect(body).toMatchObject({ query: "podium", index_type: "spoken_word", result_threshold: 5 });
+        return { results: RESULTS };
+      },
+    });
+    const { isError } = await call(
+      toolNamed(search, "legacy_search_collection"),
+      { collection_id: "c-1", query: "podium", index_type: null, result_threshold: null },
+      vdb
+    );
+    expect(isError).toBe(false);
   });
 
   it("search_collection v2 returns raw results for non-shot response types", async () => {

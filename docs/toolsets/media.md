@@ -28,6 +28,7 @@ Videos, audio and images: list/get/upload/update/delete, thumbnails, signed URLs
 - `list_*` now return `{videos|audios|images, truncated?, total?}` instead of the bare array `list_videos` ★ used to return — a real account hit 3170 images / 1.11 MB in one result. The SDK endpoints take no offset/limit, so the descriptions point past the cap (`search_videos_by_title`/`search_collection`, or `get_audio`/`get_image` by ID) rather than adding a paging parameter the API cannot honour.
 - `search_youtube` `duration` is an enum (`short|medium|long`, default `medium`); the SDK types it as a free string. `any` is excluded — the API returns zero results for it. `result_threshold` is passed through but the API ignores it and always returns 10; the field description says so.
 - `search_videos_by_title` returns the videos directly instead of the SDK's `[{video}]` wrapper.
+- `upload_media.media_type` defaults to `video` rather than letting the server sniff the file: an unset enum was the most common validation failure. Audio and image uploads must set it explicitly, which both the tool and the param description say.
 
 ## Kernel requests
 

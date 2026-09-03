@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
@@ -34,10 +34,30 @@ export interface ToolDef<S extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.Zo
   retryWith?: string;
 }
 
+/**
+ * Clients send `null` for a parameter the model chose not to fill, which zod
+ * rejects on `.optional()`/`.default()` fields. Read null as "not provided" so
+ * an unset param falls back to its default instead of failing validation.
+ */
+function nullAsAbsent(field: z.ZodType): z.ZodType {
+  if (!field.safeParse(undefined).success) return field; // required — a null here is a real error
+  const { description } = field;
+  // The description moves to the wrapper, so the `anyOf` branch does not repeat it in every tool listing.
+  const widened = field.meta({ description: undefined }).or(z.null()).transform((v) => (v === null ? field.parse(undefined) : v));
+  return description ? widened.describe(description) : widened;
+}
+
+/** Rebuild the object with null-tolerant fields; `.refine()` checks are re-attached, since a rebuild drops them. */
+function nullTolerant<S extends z.ZodObject<z.ZodRawShape>>(schema: S): S {
+  const rebuilt = z.object(Object.fromEntries(Object.entries(schema.shape).map(([k, f]) => [k, nullAsAbsent(f as z.ZodType)])));
+  const checks = (schema._zod.def.checks ?? []) as Parameters<typeof rebuilt.check>;
+  return (checks.length ? rebuilt.check(...checks) : rebuilt) as unknown as S;
+}
+
 export function defineTool<S extends z.ZodObject<z.ZodRawShape>>(def: ToolDef<S>): ToolDef<S> {
   if (def.name.length > 64) throw new Error(`Tool name too long: ${def.name}`);
   if (!/^[a-z][a-z0-9_]*$/.test(def.name)) throw new Error(`Tool name must be snake_case: ${def.name}`);
-  return def;
+  return { ...def, input: nullTolerant(def.input) };
 }
 
 /** Pull the VideoDB API key out of the verified bearer token for this request. */

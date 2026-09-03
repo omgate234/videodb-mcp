@@ -7,7 +7,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | Layer | File | Responsibility |
 | --- | --- | --- |
 | Transport/auth | `app/mcp/route.ts` | Streamable HTTP + bearer verification (unchanged OAuth layer) |
-| Kernel | `lib/mcp/tool.ts` | `defineTool()` → name/annotation validation; `invoke()` = deadline + serialize + error mapping |
+| Kernel | `lib/mcp/tool.ts` | `defineTool()` → name/annotation validation + null-tolerant input schema; `invoke()` = deadline + serialize + error mapping |
 | Registry | `lib/mcp/registry.ts` | `Toolset` type, `TOOLSETS`, env gating, duplicate-name check |
 | Shared schemas | `lib/mcp/schemas.ts` | zod atoms (`COLLECTION_ID`, `VIDEO_ID`, `TIMELINE`, `CALLBACK_URL`, `mediaKind()`) |
 | SDK access | `lib/videodb/client.ts`, `resolve.ts` | `client(apiKey)` per call; `collection()` shell (no round-trip), `fetchVideo/Audio/Image` |
@@ -29,6 +29,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 
 - snake_case name ≤ 64 chars, `verb_noun`; one purpose per tool; never a `method`/`path` pass-through.
 - Prefer an SDK call. Where the API has no SDK binding, wrap the raw call in one `lib/videodb/*.ts` helper on `Connection.vhttp` (never a second HTTP stack) and keep the toolset handler SDK-shaped.
+- Optional and defaulted params must tolerate an explicit `null`: clients send one for a param the model chose not to fill. `defineTool()` rewrites every tool's top-level params to read `null` as "not provided", so schemas are written with plain `.optional()`/`.default()` and nothing else is needed.
 - Inputs snake_case; outputs snake_case via `toPlain`/`pick`. Trim large SDK objects with `pick(obj, *_KEYS)`; cap unbounded lists with `cap(items, key, max)` — truncated results always carry `truncated: true` + `total`.
 - Long-running writes set `retryWith` to the read tool that shows the result.
 - Descriptions state what the tool does and its prerequisite (e.g. "requires index_spoken_words"). No behavioural instructions to the model.
@@ -106,7 +107,8 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
-| `search_video` ★ / `search_collection` ★ | R | `Video.search` / `Collection.search` | keep legacy params; add v2 params (`top_k`, `mode`, `include_clip`, `session_id`); SDK throws when mixed — surface that message |
+| `search_video` ★ / `search_collection` ★ | R | `Video.search` / `Collection.search` | v2 params only (`top_k`, `mode`, `include_clip`, `session_id`) |
+| `legacy_search_video` / `legacy_search_collection` | R | `Video.legacySearch` / `Collection.legacySearch` | v1 params only; split out because the SDK throws when the two families are mixed |
 | `ask_video` / `ask_collection` | R | `Video.ask` / `Collection.ask` (`{topK, mode, includeSources}`) | answer + sources shots |
 | `semantic_search` | R | `Video.semanticSearch` / `Collection.semanticSearch` | `video_id` optional → collection scope; `index_names`, `index_ids`, `top_k`, `score_threshold`, `filter` |
 | `query_index` | R | `Video.query` / `Collection.query` | structured filter/sort |

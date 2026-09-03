@@ -91,14 +91,17 @@ const uploadMedia = defineTool({
   name: "upload_media",
   title: "Upload media from URL",
   description:
-    "Upload a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Waits for processing and returns the created media object with its ID and player URL; long videos may take a few minutes. With callback_url the upload runs in the background and the call returns immediately.",
+    "Upload a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Waits for processing and returns the created media object with its ID and player URL; long videos may take a few minutes. With callback_url the upload runs in the background and the call returns immediately.",
   kind: "create",
   input: z.object({
     url: z.string().url().describe("Public URL of the media (or a YouTube link)."),
     collection_id: COLLECTION_ID,
     name: z.string().optional().describe("Optional display name."),
     description: z.string().optional().describe("Optional description stored with the media."),
-    media_type: z.enum(["video", "audio", "image"]).optional().describe("Force a media type; auto-detected if omitted."),
+    media_type: z
+      .enum(["video", "audio", "image"])
+      .default("video")
+      .describe("Media type to store the URL as. Defaults to video — set 'audio' or 'image' explicitly for an audio file or an image, or it is processed as a video."),
     callback_url: CALLBACK_URL,
   }),
   retryWith: "list_videos",

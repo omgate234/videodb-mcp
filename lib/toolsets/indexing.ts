@@ -7,8 +7,8 @@ import { fetchVideo } from "@/lib/videodb/resolve";
 import { pick, cap } from "@/lib/videodb/serialize";
 
 /**
- * Indexing. Legacy (v1): spoken-word + scene indexes consumed by search_video /
- * search_collection. v2: understand (extract) → create_index (make retrievable)
+ * Indexing. Legacy (v1): spoken-word + scene indexes consumed by legacy_search_video /
+ * legacy_search_collection. v2: understand (extract) → create_index (make retrievable)
  * consumed by semantic_search / query_index / aggregate_index / ask_*.
  */
 
@@ -69,7 +69,7 @@ const indexSpokenWords = defineTool({
   name: "index_spoken_words",
   title: "Index spoken words",
   description:
-    "Transcribe and index everything spoken in a video so it becomes searchable with search_video / search_collection (legacy v1 index). Run once per video; takes roughly real-time ÷ 10. With callback_url the call returns immediately.",
+    "Transcribe and index everything spoken in a video so it becomes searchable with legacy_search_video / legacy_search_collection (legacy v1 index). Run once per video; takes roughly real-time ÷ 10. With callback_url the call returns immediately.",
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
@@ -79,7 +79,7 @@ const indexSpokenWords = defineTool({
     segmentation_type: z.enum(["sentence", "llm"]).optional().describe("How the transcript is chunked for indexing: 'sentence' (default) or 'llm' (topic-aware chunks)."),
     callback_url: CALLBACK_URL,
   }),
-  retryWith: "search_video",
+  retryWith: "legacy_search_video",
   handler: async ({ video_id, collection_id, language_code, force, segmentation_type, callback_url }, vdb) => {
     const v = await fetchVideo(vdb, collection_id, video_id);
     await v.indexSpokenWords(language_code, segmentation_type, force, callback_url);
@@ -92,7 +92,7 @@ const indexScenes = defineTool({
   name: "index_scenes",
   title: "Index scenes (visual)",
   description:
-    "Visually index a video (legacy v1 scene index): samples frames per shot or per time window and describes what's on screen so visual moments become searchable (search_video with index_type='scene'). Optionally steer descriptions with a prompt, e.g. 'focus on products shown'. With callback_url the call returns immediately.",
+    "Visually index a video (legacy v1 scene index): samples frames per shot or per time window and describes what's on screen so visual moments become searchable (legacy_search_video with index_type='scene'). Optionally steer descriptions with a prompt, e.g. 'focus on products shown'. With callback_url the call returns immediately.",
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
