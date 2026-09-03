@@ -9,6 +9,12 @@ const AUDIO_OUT = { id: "a-1", collection_id: "c-1", name: "Podcast", length: 60
 const IMAGE = { id: "img-1", collectionId: "c-1", name: "Cover", url: "https://img/cover.png" };
 const IMAGE_OUT = { id: "img-1", collection_id: "c-1", name: "Cover", url: IMAGE.url };
 const PARAMS = { params: { collection_id: "c-1" } };
+// /assets is a direct API call with convert:false, so its rows arrive already snake_cased.
+const ASSET_VIDEO = { id: "m-1", type: "video", collection_id: "c-1", name: "Keynote", length: 120, size: 1024, created_at: "2026-01-02", stream_url: "https://stream/x.m3u8", player_url: "https://player/x", thumbnail_url: "https://img/t.png", user_id: "u" };
+const ASSET_VIDEO_OUT = { id: "m-1", type: "video", collection_id: "c-1", name: "Keynote", length: 120, size: 1024, created_at: "2026-01-02", stream_url: ASSET_VIDEO.stream_url, player_url: ASSET_VIDEO.player_url, thumbnail_url: ASSET_VIDEO.thumbnail_url };
+const ASSET_IMAGE = { id: "img-1", type: "image", collection_id: "c-1", name: "Cover", url: "https://img/cover.png", created_at: "2026-01-01" };
+const ASSET_IMAGE_OUT = { id: "img-1", type: "image", collection_id: "c-1", name: "Cover", created_at: "2026-01-01", url: ASSET_IMAGE.url };
+const ASSETS_PAGE = { assets: [ASSET_VIDEO, ASSET_IMAGE], pagination: { page: 1, page_size: 100, total_count: 2, total_pages: 1 } };
 
 const t = (name: string) => toolNamed(media, name);
 
@@ -229,5 +235,60 @@ describe("media", () => {
     const { data } = await call(tool, { video_id: "m-1", collection_id: "c-1" }, vdb);
     expect(data).toEqual({ storage_removed: true, video_id: "m-1" });
     expect(vdb.http.delete).toHaveBeenCalledWith(["video", "m-1", "storage"]);
+  });
+
+  it("list_assets defaults to the whole account and sends only set params", async () => {
+    const vdb = fakeConnection({ "GET assets": ASSETS_PAGE });
+    const { data, isError } = await call(t("list_assets"), {}, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ assets: [ASSET_VIDEO_OUT, ASSET_IMAGE_OUT], pagination: ASSETS_PAGE.pagination });
+    expect(vdb.http.get).toHaveBeenCalledWith(
+      ["assets"],
+      { params: { sort_by: "created_at", sort_order: "desc", page: 1, page_size: 100 } },
+      { convert: false }
+    );
+  });
+
+  it("list_assets passes filters through and joins asset types", async () => {
+    const vdb = fakeConnection({ "GET assets": ASSETS_PAGE });
+    await call(
+      t("list_assets"),
+      {
+        collection_id: "c-1",
+        asset_type: ["video", "audio"],
+        name_pattern: "keynote|demo",
+        min_duration: 30,
+        max_size: 1000,
+        sort_by: "duration",
+        sort_order: "asc",
+        page: 2,
+        page_size: 25,
+      },
+      vdb
+    );
+    expect(vdb.http.get).toHaveBeenCalledWith(
+      ["assets"],
+      {
+        params: {
+          collection_id: "c-1",
+          asset_type: "video,audio",
+          name_pattern: "keynote|demo",
+          min_duration: 30,
+          max_size: 1000,
+          sort_by: "duration",
+          sort_order: "asc",
+          page: 2,
+          page_size: 25,
+        },
+      },
+      { convert: false }
+    );
+  });
+
+  it("list_assets surfaces a rejected name_pattern as an error", async () => {
+    const vdb = fakeConnection({ "GET assets": new Error("Invalid name_pattern") });
+    const { isError, data } = await call(t("list_assets"), { name_pattern: "(a+)+" }, vdb);
+    expect(isError).toBe(true);
+    expect(String(data)).toContain("Invalid name_pattern");
   });
 });

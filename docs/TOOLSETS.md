@@ -28,6 +28,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 ## Rules for every tool
 
 - snake_case name ≤ 64 chars, `verb_noun`; one purpose per tool; never a `method`/`path` pass-through.
+- Prefer an SDK call. Where the API has no SDK binding, wrap the raw call in one `lib/videodb/*.ts` helper on `Connection.vhttp` (never a second HTTP stack) and keep the toolset handler SDK-shaped.
 - Inputs snake_case; outputs snake_case via `toPlain`/`pick`. Trim large SDK objects with `pick(obj, *_KEYS)`; cap unbounded lists with `cap(items, key, max)` — truncated results always carry `truncated: true` + `total`.
 - Long-running writes set `retryWith` to the read tool that shows the result.
 - Descriptions state what the tool does and its prerequisite (e.g. "requires index_spoken_words"). No behavioural instructions to the model.
@@ -66,6 +67,7 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
+| `list_assets` | R | none — `GET /assets` through `Connection.vhttp` (`lib/videodb/assets.ts`) | account-wide when `collection_id` omitted; type/regex/duration/size filters, sort, pagination |
 | `list_videos` ★ / `list_audios` / `list_images` | R | `Collection.getVideos/getAudios/getImages` | `pick` with `VIDEO_KEYS/AUDIO_KEYS/IMAGE_KEYS` |
 | `get_video` ★ / `get_audio` / `get_image` | R | `Collection.getVideo/getAudio/getImage` | |
 | `upload_media` ★ | C | `Collection.uploadURL` | + `callback_url` → returns `{accepted:true}` |

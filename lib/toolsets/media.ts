@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
-import { AUDIO_ID, CALLBACK_URL, COLLECTION_ID, IMAGE_ID, MEDIA_ID, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
-import { AUDIO_KEYS, IMAGE_KEYS, VIDEO_KEYS, cap, pick } from "@/lib/videodb/serialize";
+import { AUDIO_ID, CALLBACK_URL, COLLECTION_ID, IMAGE_ID, MEDIA_ID, PAGE, PAGE_SIZE, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
+import { ASSET_KEYS, AUDIO_KEYS, IMAGE_KEYS, VIDEO_KEYS, cap, pick } from "@/lib/videodb/serialize";
 import { collection, fetchAudio, fetchImage, fetchVideo } from "@/lib/videodb/resolve";
+import { listAssets } from "@/lib/videodb/assets";
 import type { Connection } from "@/lib/videodb/client";
 
 type VideoConfig = NonNullable<Parameters<Connection["transcode"]>[3]>;
@@ -291,6 +292,45 @@ const removeVideoStorage = defineTool({
 });
 
 /** Drop undefined fields so optional config is not sent as explicit nulls. */
+const listAssetsTool = defineTool({
+  name: "list_assets",
+  title: "List assets",
+  description:
+    "List videos, audio files and images together in one paginated result, filtered by type, name pattern, duration or file size, and sorted by name, duration or size. Omit collection_id to search the whole account; give it to scope to one collection. Returns {assets: [...], pagination: {page, page_size, total_count, total_pages}}. Rows carry no creation timestamp, so the default created_at order is newest-first within each type rather than a single ordering across types; sort by name, duration or size for a total order. Image rows carry no URL — use get_image or get_media_download_url for one. Prefer this over list_videos/list_audios/list_images whenever the account is large or the answer needs filtering, sorting or paging.",
+  kind: "read",
+  input: z.object({
+    collection_id: z.string().optional().describe("Scope to one collection. Omitted = every collection in the account."),
+    asset_type: z
+      .array(z.enum(["video", "audio", "image"]))
+      .nonempty()
+      .optional()
+      .describe("Asset types to include. Omitted = all three."),
+    name_pattern: z
+      .string()
+      .max(100)
+      .optional()
+      .describe("Case-insensitive regular expression matched against the asset name, e.g. 'keynote|demo'."),
+    min_duration: z.number().min(0).optional().describe("Minimum duration in seconds (videos and audio)."),
+    max_duration: z.number().min(0).optional().describe("Maximum duration in seconds (videos and audio)."),
+    min_size: z.number().int().min(0).optional().describe("Minimum file size in bytes."),
+    max_size: z.number().int().min(0).optional().describe("Maximum file size in bytes."),
+    sort_by: z
+      .enum(["created_at", "name", "duration", "size"])
+      .default("created_at")
+      .describe("Field to sort on. created_at is newest-first per type only, since rows carry no timestamp."),
+    sort_order: z.enum(["desc", "asc"]).default("desc").describe("Sort direction."),
+    page: PAGE,
+    page_size: PAGE_SIZE,
+  }),
+  handler: async (args, vdb) => {
+    const { assets, pagination } = await listAssets(vdb, {
+      ...args,
+      asset_type: args.asset_type?.join(","),
+    });
+    return { assets: (assets ?? []).map((a) => pick(a, ASSET_KEYS)), pagination };
+  },
+});
+
 function compact<T extends object>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
 }
@@ -300,6 +340,7 @@ export const media: Toolset = {
   description: "Videos, audio and images: list, inspect, upload, thumbnails, download URLs, YouTube search, transcode, delete.",
   defaultEnabled: true,
   tools: [
+    listAssetsTool,
     listVideos,
     listAudios,
     listImages,
