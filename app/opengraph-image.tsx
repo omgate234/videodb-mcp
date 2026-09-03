@@ -1,10 +1,8 @@
 import { ImageResponse } from "next/og";
 import { SITE } from "./site";
-import { allTools } from "@/lib/mcp/registry";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const TOOL_COUNT = allTools().length;
 // Satori renders SVG only through <img>; inline the real wordmark as a data URI.
 const WORDMARK = `data:image/svg+xml;base64,${readFileSync(join(process.cwd(), "public/videodb-wordmark.svg")).toString("base64")}`;
 
@@ -35,10 +33,10 @@ export default function OpenGraphImage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2.5, maxWidth: 1000 }}>
-            Search, cut and stream video from Claude.
+            A remote MCP server for your VideoDB account.
           </div>
           <div style={{ fontSize: 28, color: "#a3a3a3", lineHeight: 1.4, maxWidth: 960 }}>
-            {`${TOOL_COUNT} tools over your VideoDB library — upload, index, search, clip and stream — for Claude, Claude Code, Cursor and any MCP client.`}
+            Upload, index, search, clip and stream your video library from Claude, Claude Code, Cursor and any MCP client.
           </div>
         </div>
 
@@ -59,11 +57,11 @@ export default function OpenGraphImage() {
             {SITE.endpoint}
           </div>
           <div style={{ display: "flex", gap: 14, fontSize: 22, color: "#a3a3a3" }}>
-            <span>Streamable HTTP</span>
+            <span>Claude</span>
             <span>·</span>
-            <span>OAuth 2.1</span>
+            <span>Claude Code</span>
             <span>·</span>
-            <span>No install</span>
+            <span>Cursor</span>
           </div>
         </div>
       </div>
