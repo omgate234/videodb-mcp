@@ -12,7 +12,7 @@ import {
   SCOPES,
 } from "@/lib/oauth";
 import { consentPage } from "@/lib/consent-page";
-import { validateApiKey } from "@/lib/videodb";
+import { validateApiKey } from "@/lib/videodb/auth";
 
 export const maxDuration = 30;
 

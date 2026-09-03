@@ -8,17 +8,17 @@ Working checklist for listing the VideoDB connector in Claude's [Connectors Dire
 - [ ] **Production deployment** on a first-party domain, e.g. `https://mcp.videodb.io/mcp` (reviewers expect the server domain to match the service; a `*.vercel.app` URL is fine for testing but weak for review).
 - [ ] Anthropic egress range `160.79.104.0/21` is **not blocked** by any WAF/CDN in front of the server or of `console.videodb.io` (the consent page must load for reviewers).
 - [ ] Public **documentation page** live by publish date (a docs.videodb.io page or blog post: what the connector does, how to connect, tool list).
-- [ ] **Privacy policy** URL (existing `https://videodb.io/privacy-policy`) and **support contact**.
+- [ ] **Privacy policy** URL `https://videodb.io/legal/privacy` (verified 200) and **support contact** `hello@videodb.io`.
 
 ## 1. Technical bar (already met by this repo — re-verify before submitting)
 
 - [x] Remote MCP server over **Streamable HTTP** at `https://…/mcp`.
 - [x] **OAuth 2.0/2.1** with Dynamic Client Registration, PKCE S256, refresh rotation (auth type: `oauth_dcr`).
 - [x] Every tool has a `title` + `readOnlyHint` or `destructiveHint`; read and write operations are **separate tools**; no catch-all `api_request` tool; names ≤ 64 chars.
-- [x] **No AI media generation tools** (VideoDB's `/generate/*` endpoints are deliberately not exposed — the directory rejects AI image/video/audio generation).
+- [x] **No AI media generation tools** (the SDK's `generate*`/`dubVideo`/voice-clone/sandbox surface is deliberately not exposed — the directory rejects AI image/video/audio generation). Retrieval and editing tools that call models (`ask_*`, transcription, scene indexing, `understand_video`, `reframe_video`, `create_highlight_clip`) analyse existing media rather than generate new media.
 - [x] First-party API only (`api.videodb.io`).
 - [x] Actionable error messages; trimmed responses (search results are mapped to compact match objects).
-- [ ] Exercise every tool once via **MCP Inspector** and once as a **custom connector in Claude** against production. The portal asks you to confirm you did this.
+- [ ] Exercise every tool once via **MCP Inspector** and once as a **custom connector in Claude** against production. The portal asks you to confirm you did this. (`npm test` covers every tool against a faked transport; it does not substitute for a live pass.)
 
 Note on auth at scale: DCR registers a new client on every fresh connection. Anthropic recommends **CIMD or pre-registered credentials (`oauth_anthropic_creds`)** for high-traffic directory listings — if the connector takes off, email `mcp-review@anthropic.com` a static client_id/secret and switch. Not a launch blocker.
 
@@ -27,14 +27,14 @@ Note on auth at scale: DCR registers a new client on every fresh connection. Ant
 | Portal step | What to enter |
 | --- | --- |
 | **Connection** | URL `https://mcp.videodb.io/mcp`, transport: Streamable HTTP, same URL for every user |
-| **Tools** | Auto-synced; all 16 should show as annotated (7 read / 8 write / 1 destructive) |
+| **Tools** | Auto-synced. The listing ships **every toolset** — 89 tools (46 read / 27 create / 8 update / 8 destructive). All nine toolsets are default-on, so prod needs no `VIDEODB_MCP_TOOLSETS` value. Catalog: [TOOLSETS.md](TOOLSETS.md) |
 | **Listing — name** | `VideoDB` |
 | **Listing — tagline** (≤55 chars) | `Search, edit, and stream your videos from Claude` |
 | **Listing — description** (≤2000 chars) | VideoDB turns raw video into a searchable, editable database. Connect your VideoDB account and Claude can upload videos from any URL or YouTube link, transcribe and index them, semantically search for exact moments across your whole library, pull timestamped transcripts, cut clips and stitch highlight reels without re-encoding, burn in subtitles, and hand back instantly streamable links you can watch or share. Built for creators, media teams, and developers building video-native workflows. |
 | **Categories** | Productivity; Media; Developer tools (pick 1–5) |
 | **Docs URL** | `https://docs.videodb.io` (or the dedicated connector page) |
-| **Privacy policy** | `https://videodb.io/privacy-policy` |
-| **Support contact** | e.g. `support@videodb.io` |
+| **Privacy policy** | `https://videodb.io/legal/privacy` |
+| **Support contact** | `hello@videodb.io` |
 | **Icon** | VideoDB logomark (square PNG) |
 | **Slug** | `videodb` (permanent once published) |
 | **Use cases** | Find moments in footage; turn long videos into clips/reels; transcript Q&A; media library management. Prereq: a VideoDB account + API key from console.videodb.io (free tier available, no card). Reads **and** writes data. |
