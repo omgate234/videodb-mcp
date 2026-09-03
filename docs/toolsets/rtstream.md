@@ -1,4 +1,4 @@
-# rtstream toolset (default off)
+# rtstream toolset (default on)
 
 Real-time streams on the `videodb` SDK. File: `lib/toolsets/rtstream.ts`, tests: `test/rtstream.test.ts`. All timestamps are Unix seconds.
 

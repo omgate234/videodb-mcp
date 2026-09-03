@@ -11,7 +11,7 @@ Built to meet [Anthropic's connector directory review criteria](https://claude.c
 
 ## Tools
 
-Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is backed by the official [`videodb`](https://www.npmjs.com/package/videodb) Node SDK. Which toolsets a deployment exposes is set with `VIDEODB_MCP_TOOLSETS` (comma list or `all`; unset → the default-on set). Full catalog, SDK mapping and exclusions: [docs/TOOLSETS.md](docs/TOOLSETS.md).
+Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is backed by the official [`videodb`](https://www.npmjs.com/package/videodb) Node SDK. Which toolsets a deployment exposes is set with `VIDEODB_MCP_TOOLSETS` (comma list or `all`; unset → the default-on set, currently every toolset). Full catalog, SDK mapping and exclusions: [docs/TOOLSETS.md](docs/TOOLSETS.md).
 
 <!-- tools:begin — regenerate with `npm run tools:sync` -->
 | Toolset | Default | Tool | Kind | What it does |
@@ -76,35 +76,35 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | streams | on | `download_stream` | create | Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles, create_highlight_clip or get_video) into a downloadable MP4 file. |
 | editor | on | `render_timeline` | create | Render a multi-track editor timeline into a new stream in one call. |
 | editor | on | `download_timeline_render` | create | Request an MP4 download of a stream produced by render_timeline. |
-| rtstream | off | `connect_rtstream` | create | Register a live RTSP/RTMP/HLS stream with VideoDB and start ingesting it. |
-| rtstream | off | `list_rtstreams` | read | List real-time streams in the account with their IDs, names, status and media types. |
-| rtstream | off | `get_rtstream` | read | Get one real-time stream: name, status, sample rate, media types, creation time. |
-| rtstream | off | `set_rtstream_status` | update | Start (connect) or stop (disconnect) ingestion of a real-time stream. |
-| rtstream | off | `get_rtstream_stream` | read | Generate a playable stream and player URL for a time window of a real-time stream. |
-| rtstream | off | `export_rtstream_recording` | create | Export the latest completed recording of a real-time stream as a regular VideoDB video (or audio) asset. |
-| rtstream | off | `get_rtstream_transcript` | read | Read the real-time transcript of a stream (requires transcription started via connect_rtstream enable_transcript or set_rtstream_transcript_status). |
-| rtstream | off | `set_rtstream_transcript_status` | update | Start or stop real-time transcription on a stream. |
-| rtstream | off | `index_rtstream_scenes` | create | Start a continuous visual (scene) index on a real-time stream: every window_seconds, frame_count frames are described with the prompt. |
-| rtstream | off | `index_rtstream_audio` | create | Start a continuous spoken-word index on a real-time stream: the live transcript is chunked by segmenter/segment_value and summarised with the prompt. |
-| rtstream | off | `list_rtstream_scene_indexes` | read | List the scene (visual and audio) indexes on a real-time stream with their IDs, prompts and status. |
-| rtstream | off | `get_rtstream_scenes` | read | Read the records a scene index has produced so far (Unix-second start/end plus description). |
-| rtstream | off | `set_rtstream_scene_index_status` | update | Resume or pause a scene index on a real-time stream. |
-| rtstream | off | `search_rtstream` | read | Semantic search over the indexed records of a real-time stream (requires a scene index or index). |
-| rtstream | off | `create_event` | create | Define a reusable event (a natural-language condition such as 'a person enters the restricted area') that alerts can watch for on any stream index. |
-| rtstream | off | `list_events` | read | List the events defined on this account (ID, label, prompt). |
-| rtstream | off | `create_rtstream_alert` | create | Attach an event (from create_event) to a stream index so VideoDB POSTs to callback_url each time the event is detected in a new window. |
-| rtstream | off | `list_rtstream_alerts` | read | List the alerts attached to a stream index, with their event, callback and enabled state. |
-| rtstream | off | `set_rtstream_alert_status` | update | Enable or disable an alert on a stream index without deleting it. |
-| rtstream | off | `understand_rtstream` | create | Start a continuous vision-model (vlm) analysis on a real-time stream: every window_seconds, frame_count frames are analysed with the prompt and the output is stored under output_name. |
-| rtstream | off | `list_rtstream_understandings` | read | List the continuous understanding jobs on a real-time stream with their status, segmentation, analyzers and output descriptors. |
-| rtstream | off | `set_rtstream_understanding_status` | update | Resume or pause a continuous understanding job on a real-time stream. |
-| rtstream | off | `get_rtstream_understanding_records` | read | Read the analysis records an understanding produced for a Unix-second time range (start and end required). |
-| rtstream | off | `create_rtstream_index` | create | Materialise an understanding output into a continuously updated searchable index (requires understand_rtstream with store=true). |
-| rtstream | off | `list_rtstream_indexes` | read | List the understanding-backed indexes on a real-time stream with their status, source understanding and capabilities. |
-| rtstream | off | `set_rtstream_index_status` | update | Resume or pause an understanding-backed index on a real-time stream. |
-| rtstream | off | `get_rtstream_index_records` | read | Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. |
-| meetings | off | `record_meeting` | create | Send a VideoDB recorder bot to a Zoom, Google Meet or Microsoft Teams meeting URL. |
-| meetings | off | `get_meeting` | read | Get the current state of a meeting recorder bot started with record_meeting: status (initializing, joined, processing, done), the recorded video_id once done, and the speaker timeline when available. |
+| rtstream | on | `connect_rtstream` | create | Register a live RTSP/RTMP/HLS stream with VideoDB and start ingesting it. |
+| rtstream | on | `list_rtstreams` | read | List real-time streams in the account with their IDs, names, status and media types. |
+| rtstream | on | `get_rtstream` | read | Get one real-time stream: name, status, sample rate, media types, creation time. |
+| rtstream | on | `set_rtstream_status` | update | Start (connect) or stop (disconnect) ingestion of a real-time stream. |
+| rtstream | on | `get_rtstream_stream` | read | Generate a playable stream and player URL for a time window of a real-time stream. |
+| rtstream | on | `export_rtstream_recording` | create | Export the latest completed recording of a real-time stream as a regular VideoDB video (or audio) asset. |
+| rtstream | on | `get_rtstream_transcript` | read | Read the real-time transcript of a stream (requires transcription started via connect_rtstream enable_transcript or set_rtstream_transcript_status). |
+| rtstream | on | `set_rtstream_transcript_status` | update | Start or stop real-time transcription on a stream. |
+| rtstream | on | `index_rtstream_scenes` | create | Start a continuous visual (scene) index on a real-time stream: every window_seconds, frame_count frames are described with the prompt. |
+| rtstream | on | `index_rtstream_audio` | create | Start a continuous spoken-word index on a real-time stream: the live transcript is chunked by segmenter/segment_value and summarised with the prompt. |
+| rtstream | on | `list_rtstream_scene_indexes` | read | List the scene (visual and audio) indexes on a real-time stream with their IDs, prompts and status. |
+| rtstream | on | `get_rtstream_scenes` | read | Read the records a scene index has produced so far (Unix-second start/end plus description). |
+| rtstream | on | `set_rtstream_scene_index_status` | update | Resume or pause a scene index on a real-time stream. |
+| rtstream | on | `search_rtstream` | read | Semantic search over the indexed records of a real-time stream (requires a scene index or index). |
+| rtstream | on | `create_event` | create | Define a reusable event (a natural-language condition such as 'a person enters the restricted area') that alerts can watch for on any stream index. |
+| rtstream | on | `list_events` | read | List the events defined on this account (ID, label, prompt). |
+| rtstream | on | `create_rtstream_alert` | create | Attach an event (from create_event) to a stream index so VideoDB POSTs to callback_url each time the event is detected in a new window. |
+| rtstream | on | `list_rtstream_alerts` | read | List the alerts attached to a stream index, with their event, callback and enabled state. |
+| rtstream | on | `set_rtstream_alert_status` | update | Enable or disable an alert on a stream index without deleting it. |
+| rtstream | on | `understand_rtstream` | create | Start a continuous vision-model (vlm) analysis on a real-time stream: every window_seconds, frame_count frames are analysed with the prompt and the output is stored under output_name. |
+| rtstream | on | `list_rtstream_understandings` | read | List the continuous understanding jobs on a real-time stream with their status, segmentation, analyzers and output descriptors. |
+| rtstream | on | `set_rtstream_understanding_status` | update | Resume or pause a continuous understanding job on a real-time stream. |
+| rtstream | on | `get_rtstream_understanding_records` | read | Read the analysis records an understanding produced for a Unix-second time range (start and end required). |
+| rtstream | on | `create_rtstream_index` | create | Materialise an understanding output into a continuously updated searchable index (requires understand_rtstream with store=true). |
+| rtstream | on | `list_rtstream_indexes` | read | List the understanding-backed indexes on a real-time stream with their status, source understanding and capabilities. |
+| rtstream | on | `set_rtstream_index_status` | update | Resume or pause an understanding-backed index on a real-time stream. |
+| rtstream | on | `get_rtstream_index_records` | read | Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. |
+| meetings | on | `record_meeting` | create | Send a VideoDB recorder bot to a Zoom, Google Meet or Microsoft Teams meeting URL. |
+| meetings | on | `get_meeting` | read | Get the current state of a meeting recorder bot started with record_meeting: status (initializing, joined, processing, done), the recorded video_id once done, and the speaker timeline when available. |
 <!-- tools:end -->
 
 No AI media *generation* tools are exposed (VideoDB's `generate*`/dub/voice-clone endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation). Desktop capture is deliberately not exposed at all — the capture client is a local native binary talking over a long-lived socket, so neither it nor the capture sessions it produces belong in a remote connector.
@@ -172,6 +172,30 @@ scripts/list-tools.ts                     Prints the tool catalog (npm run tools
 test/                                     vitest; harness fakes the SDK transport so real SDK classes run
 ```
 
+## Privacy Policy
+
+This connector is a **stateless bridge** between an MCP client and the VideoDB API. It runs no database.
+
+| | |
+| --- | --- |
+| **What it collects** | Nothing beyond the arguments of the tool call being executed. No conversation content, chat history, memory, or user files are read or stored. |
+| **Credentials** | Your VideoDB API key is encrypted (AES-256-GCM) *inside* the OAuth token the client holds, and decrypted in memory for the duration of one request. It is never written to disk, logged, or persisted server-side. |
+| **What it stores** | Nothing. There is no database, cache, or session store — every request is served from the bearer token alone. Standard hosting request logs (timestamp, path, status) are retained by the host, without token or key contents. |
+| **Third parties** | Tool calls are forwarded only to the VideoDB API (`api.videodb.io`). Nothing is sent anywhere else. |
+| **Media and derived data** | Videos you upload and the transcripts, indexes and streams built from them live in your VideoDB account under [VideoDB's retention terms](https://videodb.io/legal/privacy) — stored until you delete them, with no automatic expiry. Delete them with `delete_video`, `delete_index`, `delete_collection`, or `remove_video_storage`. |
+| **Revoking access** | Disconnect the connector in your client, or rotate the API key in [console.videodb.io](https://console.videodb.io). Rotating the server's `AUTH_SECRET` invalidates every issued token at once. |
+
+Full policy: [videodb.io/legal/privacy](https://videodb.io/legal/privacy) · Terms: [videodb.io/legal/terms](https://videodb.io/legal/terms)
+
+## Support
+
+- Email — [hello@videodb.io](mailto:hello@videodb.io)
+- Discord — [discord.gg/py9P639jGz](https://discord.com/invite/py9P639jGz)
+- Docs — [docs.videodb.io](https://docs.videodb.io)
+- Bugs in this server — email [hello@videodb.io](mailto:hello@videodb.io)
+
+Security issues: email [hello@videodb.io](mailto:hello@videodb.io).
+
 ## License
 
-Apache-2.0 © Spext Labs Inc. (VideoDB)
+Closed source. Copyright © Spext Labs Inc. (VideoDB). All rights reserved. Ships as a hosted service, not as source.

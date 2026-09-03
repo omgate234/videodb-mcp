@@ -128,7 +128,7 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | `render_timeline` | C | `EditorTimeline` + `Track/Clip/*Asset` classes → `generateStream()` | whole spec in one call; zod mirrors B6 example in the SDK inventory (tracks → clips → asset union video/image/audio/text/caption; enums Fit/Position/Filter/CaptionAnimation…) |
 | `download_timeline_render` | C | `EditorTimeline.downloadStream(streamUrl)` | |
 
-### rtstream (default **off**) — owner: agent H
+### rtstream (default on) — owner: agent H
 
 | Tool | Kind | SDK |
 | --- | --- | --- |
@@ -146,7 +146,7 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | `understand_rtstream` / `list_rtstream_understandings` / `get_rtstream_understanding_records` | C / R / R | `RTStream.understand` / `listUnderstanding` / `RTStreamUnderstanding.getRecords` |
 | `create_rtstream_index` / `list_rtstream_indexes` / `get_rtstream_index_records` | C / R / R | `RTStream.index` / `listIndexes` / `RTStreamIndex.getRecords` |
 
-### meetings (default **off**) — owner: agent I
+### meetings (default on) — owner: agent I
 
 | Tool | Kind | SDK |
 | --- | --- | --- |
