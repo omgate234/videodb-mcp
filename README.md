@@ -46,8 +46,8 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | transcripts | on | `get_transcript` | read | Get the transcript of a video or audio file, either as plain text or with timestamped segments (per word, sentence, or time window). |
 | transcripts | on | `generate_transcript` | create | Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. |
 | transcripts | on | `translate_transcript` | create | Translate a video's transcript into another language and return the translated segments (requires a transcript — get_transcript or generate_transcript first). |
-| indexing | on | `index_spoken_words` | create | Transcribe and index everything spoken in a video so it becomes searchable with search_video / search_collection (legacy v1 index). |
-| indexing | on | `index_scenes` | create | Visually index a video (legacy v1 scene index): samples frames per shot or per time window and describes what's on screen so visual moments become searchable (search_video with index_type='scene'). |
+| indexing | on | `index_spoken_words` | create | Transcribe and index everything spoken in a video so it becomes searchable with legacy_search_video / legacy_search_collection (legacy v1 index). |
+| indexing | on | `index_scenes` | create | Visually index a video (legacy v1 scene index): samples frames per shot or per time window and describes what's on screen so visual moments become searchable (legacy_search_video with index_type='scene'). |
 | indexing | on | `list_scene_indexes` | read | List the visual (scene) indexes that exist for a video, including their IDs, names and status. |
 | indexing | on | `get_scene_index` | read | Return the per-scene records (start, end, description) of one visual scene index created by index_scenes. |
 | indexing | on | `delete_scene_index` | destructive | Permanently delete one visual scene index of a video (the video itself is kept). |
@@ -63,6 +63,8 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | indexing | on | `get_index_records` | read | Page through the records stored in a v2 index (scene_id, start, end, data). |
 | search | on | `search_video` | read | Search within one video and get matching moments with start/end timestamps, text, and relevance scores. |
 | search | on | `search_collection` | read | Search every indexed video in a collection and get matching moments grouped by video, with timestamps and scores. |
+| search | on | `legacy_search_video` | read | Search within one video and get matching moments with start/end timestamps, text, and relevance scores. |
+| search | on | `legacy_search_collection` | read | Search every indexed video in a collection and get matching moments grouped by video, with timestamps and scores. |
 | search | on | `ask_video` | read | Answer a natural-language question from one video's indexed content (requires an index built by create_index). |
 | search | on | `ask_collection` | read | Answer a natural-language question from every indexed video in a collection (requires indexes built by create_index). |
 | search | on | `semantic_search` | read | Vector search over one or more indexes built by create_index (use_for includes 'semantic') in a video or across a collection. |

@@ -25,7 +25,7 @@ describe("media", () => {
 });
 
 describe("search", () => {
-  it("search_video routes legacy params and flattens shots", async () => {
+  it("legacy_search_video routes legacy params and flattens shots", async () => {
     const vdb = fakeConnection({
       "GET video/m-1": VIDEO,
       "POST video/m-1/search": (body: any) => {
@@ -33,7 +33,7 @@ describe("search", () => {
         return { results: [{ videoId: "m-1", title: "Keynote", length: 120, docs: [{ start: 1, end: 5, text: "pricing", score: 0.9 }] }] };
       },
     });
-    const { data, isError } = await call(toolNamed(search, "search_video"), { video_id: "m-1", query: "pricing" }, vdb);
+    const { data, isError } = await call(toolNamed(search, "legacy_search_video"), { video_id: "m-1", query: "pricing" }, vdb);
     expect(isError).toBe(false);
     expect(data).toEqual({ shots: [{ video_id: "m-1", video_title: "Keynote", start: 1, end: 5, text: "pricing", search_score: 0.9 }] });
   });

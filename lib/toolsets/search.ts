@@ -28,54 +28,45 @@ export function searchToPlain(res: unknown) {
   return res;
 }
 
-/** Drop undefined keys so the SDK's legacy-vs-v2 dispatcher only sees what the caller sent. */
+/** Drop undefined keys so the SDK only sees the options the caller actually sent. */
 const defined = <T extends object>(o: T): Partial<T> =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
 
-const LEGACY = {
-  search_type: z.enum(["semantic", "keyword"]).optional().describe("Legacy: semantic (default) or keyword matching. Keyword works on videos only."),
-  index_type: z.enum(["spoken_word", "scene"]).optional().describe("Legacy: index to search, spoken_word (default) or scene."),
-  result_threshold: z.number().int().min(1).max(50).optional().describe("Legacy: max results (default 5)."),
-  scene_index_id: z.string().optional().describe("Legacy: search one scene index (from list_scene_indexes)."),
-};
-
+/**
+ * Search V2 and the legacy spoken-word/scene search take mutually exclusive
+ * parameter sets and the SDK throws when they are mixed, so each family gets
+ * its own tool rather than one schema the model has to route by hand.
+ */
 const V2 = {
-  top_k: z.number().int().min(1).max(200).optional().describe("v2: maximum moments to return."),
-  mode: z.enum(["default", "deepsearch"]).optional().describe("v2: default = single-step planned retrieval; deepsearch = multi-step investigation with follow-up sessions."),
-  include_clip: z.boolean().optional().describe("v2: also return a playable clip for each moment."),
-  session_id: z.string().optional().describe("v2: continue a deepsearch session (session_id from a previous response). Only valid with mode=deepsearch."),
+  top_k: z.number().int().min(1).max(200).optional().describe("Maximum moments to return."),
+  mode: z.enum(["default", "deepsearch"]).optional().describe("default = single-step planned retrieval; deepsearch = multi-step investigation with follow-up sessions."),
+  include_clip: z.boolean().optional().describe("Also return a playable clip for each moment."),
+  session_id: z.string().optional().describe("Continue a deepsearch session (session_id from a previous response). Only valid with mode=deepsearch."),
 };
 
-const ROUTING =
-  " Routing: legacy params (search_type, index_type, result_threshold, scene_index_id where accepted) search the spoken-word/scene indexes built by index_spoken_words/index_scenes; v2 params (top_k, mode, include_clip, session_id) use Search V2 over indexes built by create_index. No params = legacy semantic spoken-word search; any v2 param = Search V2; mixing the two groups is an error.";
+const V2_NOTE =
+  " Uses Search V2 over indexes built by create_index. For the older spoken-word/scene indexes built by index_spoken_words / index_scenes, use the legacy_search_* tools instead.";
+const LEGACY_NOTE =
+  " Searches the legacy v1 indexes built by index_spoken_words / index_scenes. For indexes built by create_index, use search_video / search_collection instead.";
 
-type LegacyArgs = { search_type?: "semantic" | "keyword"; index_type?: "spoken_word" | "scene"; result_threshold?: number; scene_index_id?: string };
-type V2Args = { top_k?: number; mode?: string; include_clip?: boolean; session_id?: string };
-
-/** Legacy defaults apply only when no v2 param is given, so the v2 route stays reachable. */
-function searchOptions(a: LegacyArgs & V2Args) {
-  const legacy = defined({ searchType: a.search_type, indexType: a.index_type, resultThreshold: a.result_threshold, sceneIndexId: a.scene_index_id });
-  const v2 = defined({ topK: a.top_k, mode: a.mode, includeClip: a.include_clip, sessionId: a.session_id });
-  if (Object.keys(v2).length) return { ...legacy, ...v2 };
-  return { searchType: "semantic" as const, indexType: "spoken_word" as const, resultThreshold: 5, ...legacy };
-}
+const v2Options = (a: { top_k?: number; mode?: string; include_clip?: boolean; session_id?: string }) =>
+  defined({ topK: a.top_k, mode: a.mode, includeClip: a.include_clip, sessionId: a.session_id });
 
 const searchVideo = defineTool({
   name: "search_video",
   title: "Search inside a video",
   description:
-    "Search within one video and get matching moments with start/end timestamps, text, and relevance scores." + ROUTING,
+    "Search within one video and get matching moments with start/end timestamps, text, and relevance scores." + V2_NOTE,
   kind: "read",
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
     query: z.string().describe("What to look for, e.g. 'moments where pricing is discussed'."),
-    ...LEGACY,
     ...V2,
   }),
   handler: async ({ video_id, collection_id, query, ...rest }, vdb) => {
     const video = await fetchVideo(vdb, collection_id, video_id);
-    return searchToPlain(await video.search(query, searchOptions(rest)));
+    return searchToPlain(await video.search(query, v2Options(rest)));
   },
 });
 
@@ -83,18 +74,60 @@ const searchCollection = defineTool({
   name: "search_collection",
   title: "Search across a collection",
   description:
-    "Search every indexed video in a collection and get matching moments grouped by video, with timestamps and scores." + ROUTING,
+    "Search every indexed video in a collection and get matching moments grouped by video, with timestamps and scores." + V2_NOTE,
   kind: "read",
   input: z.object({
     collection_id: COLLECTION_ID,
     query: z.string().describe("Natural-language search query."),
-    // The SDK's collection legacy path drops scene_index_id and rejects keyword search.
-    index_type: LEGACY.index_type,
-    result_threshold: LEGACY.result_threshold,
     ...V2,
   }),
   handler: async ({ collection_id, query, ...rest }, vdb) => {
-    return searchToPlain(await collection(vdb, collection_id).search(query, searchOptions(rest)));
+    return searchToPlain(await collection(vdb, collection_id).search(query, v2Options(rest)));
+  },
+});
+
+const SEARCH_TYPE = z.enum(["semantic", "keyword"]).default("semantic").describe("semantic or keyword matching. Keyword works on videos only.");
+const INDEX_TYPE = z.enum(["spoken_word", "scene"]).default("spoken_word").describe("Index to search: spoken_word or scene.");
+const RESULT_THRESHOLD = z.number().int().min(1).max(50).default(5).describe("Max results.");
+
+const legacySearchVideo = defineTool({
+  name: "legacy_search_video",
+  title: "Search inside a video (legacy index)",
+  description:
+    "Search within one video and get matching moments with start/end timestamps, text, and relevance scores." + LEGACY_NOTE,
+  kind: "read",
+  input: z.object({
+    video_id: VIDEO_ID,
+    collection_id: COLLECTION_ID,
+    query: z.string().describe("What to look for, e.g. 'moments where pricing is discussed'."),
+    search_type: SEARCH_TYPE,
+    index_type: INDEX_TYPE,
+    result_threshold: RESULT_THRESHOLD,
+    scene_index_id: z.string().optional().describe("Search one scene index (from list_scene_indexes)."),
+  }),
+  handler: async ({ video_id, collection_id, query, search_type, index_type, result_threshold, scene_index_id }, vdb) => {
+    const video = await fetchVideo(vdb, collection_id, video_id);
+    const res = await video.legacySearch(query, search_type, index_type, result_threshold, undefined, undefined, undefined, undefined, scene_index_id);
+    return searchToPlain(res);
+  },
+});
+
+const legacySearchCollection = defineTool({
+  name: "legacy_search_collection",
+  title: "Search across a collection (legacy index)",
+  description:
+    "Search every indexed video in a collection and get matching moments grouped by video, with timestamps and scores." + LEGACY_NOTE,
+  kind: "read",
+  // The SDK's collection legacy path drops scene_index_id and rejects keyword search.
+  input: z.object({
+    collection_id: COLLECTION_ID,
+    query: z.string().describe("Natural-language search query."),
+    index_type: INDEX_TYPE,
+    result_threshold: RESULT_THRESHOLD,
+  }),
+  handler: async ({ collection_id, query, index_type, result_threshold }, vdb) => {
+    const res = await collection(vdb, collection_id).legacySearch(query, "semantic", index_type, result_threshold);
+    return searchToPlain(res);
   },
 });
 
@@ -231,5 +264,5 @@ export const search: Toolset = {
   name: "search",
   description: "Search moments, ask questions, query and aggregate indexes.",
   defaultEnabled: true,
-  tools: [searchVideo, searchCollection, askVideo, askCollection, semanticSearch, queryIndex, aggregateIndex],
+  tools: [searchVideo, searchCollection, legacySearchVideo, legacySearchCollection, askVideo, askCollection, semanticSearch, queryIndex, aggregateIndex],
 };

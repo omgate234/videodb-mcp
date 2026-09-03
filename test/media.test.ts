@@ -95,6 +95,19 @@ describe("media", () => {
     expect(res.data).toEqual({ accepted: true, collection_id: "c-1", url: "https://x/y.mp4", callback_url: "https://hook/done" });
   });
 
+  it("upload_media defaults media_type to video, including when it is sent as null", async () => {
+    const seen: unknown[] = [];
+    const vdb = fakeConnection({
+      "POST collection/c-1/upload": (body: any) => {
+        seen.push(body.media_type);
+        return VIDEO;
+      },
+    });
+    await call(t("upload_media"), { url: "https://x/y.mp4", collection_id: "c-1" }, vdb);
+    await call(t("upload_media"), { url: "https://x/y.mp4", collection_id: "c-1", media_type: null, name: null, description: null }, vdb);
+    expect(seen).toEqual(["video", "video"]);
+  });
+
   it("search_youtube posts to the default collection web search", async () => {
     const vdb = fakeConnection({
       "POST collection/default/search/web": (body: any) => {
