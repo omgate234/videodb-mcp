@@ -162,6 +162,7 @@ See [docs/SUBMISSION.md](docs/SUBMISSION.md) for the filled-out checklist: porta
 ## Project layout
 
 ```
+app/page.tsx, app/globals.css             Landing page (static, SEO: metadata, JSON-LD, OG image, sitemap, robots, llms.txt)
 app/mcp/route.ts                          MCP endpoint + bearer verification
 app/oauth/{authorize,token,register}/     Stateless OAuth 2.1 authorization server
 app/.well-known/...                       RFC 9728 + RFC 8414 discovery metadata
