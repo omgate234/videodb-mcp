@@ -31,7 +31,6 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | media | on | `get_audio` | read | Get metadata for one audio file: name, duration and size. |
 | media | on | `get_image` | read | Get metadata for one image: name and URL. |
 | media | on | `upload_media` | create | Upload a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). |
-| media | on | `search_youtube` | read | Search YouTube for videos matching a query and return titles, URLs and metadata — useful for finding URLs to pass to upload_media. |
 | media | on | `search_videos_by_title` | read | Find videos in a collection whose title matches a natural-language query. |
 | media | on | `update_video` | update | Update a video's display name. |
 | media | on | `generate_thumbnail` | create | Get the default thumbnail of a video, or generate one from a specific timestamp (in seconds). |
@@ -105,8 +104,6 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | rtstream | on | `list_rtstream_indexes` | read | List the understanding-backed indexes on a real-time stream with their status, source understanding and capabilities. |
 | rtstream | on | `set_rtstream_index_status` | update | Resume or pause an understanding-backed index on a real-time stream. |
 | rtstream | on | `get_rtstream_index_records` | read | Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. |
-| meetings | on | `record_meeting` | create | Send a VideoDB recorder bot to a Zoom, Google Meet or Microsoft Teams meeting URL. |
-| meetings | on | `get_meeting` | read | Get the current state of a meeting recorder bot started with record_meeting: status (initializing, joined, processing, done), the recorded video_id once done, and the speaker timeline when available. |
 <!-- tools:end -->
 
 No AI media *generation* tools are exposed (VideoDB's `generate*`/dub/voice-clone endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation). Desktop capture is deliberately not exposed at all — the capture client is a local native binary talking over a long-lived socket, so neither it nor the capture sessions it produces belong in a remote connector.

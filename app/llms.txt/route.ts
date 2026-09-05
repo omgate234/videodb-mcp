@@ -8,7 +8,7 @@ export function GET() {
   const total = allTools().length;
   const body = `# VideoDB MCP Server
 
-> Hosted remote MCP (Model Context Protocol) server that connects Claude, Claude Code, Cursor and any MCP client to a VideoDB account: upload media from URLs, transcribe and index video, search moments by meaning, cut clips and highlight reels, render timelines, watch live RTSP/RTMP/HLS streams, and record meetings.
+> Hosted remote MCP (Model Context Protocol) server that connects Claude, Claude Code, Cursor and any MCP client to a VideoDB account: upload media from URLs, transcribe and index video, search moments by meaning, cut clips and highlight reels, render timelines, and watch live RTSP/RTMP/HLS streams.
 
 - Endpoint: ${SITE.endpoint}
 - Transport: Streamable HTTP

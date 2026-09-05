@@ -16,7 +16,6 @@ const TOOLSET_COVERS: Record<string, string> = {
   streams: "Clips, supercuts, burned-in subtitles, highlight reels, reframes, MP4 renders.",
   editor: "Render a multi-track timeline of video, image, audio, text and caption clips.",
   rtstream: "Connect RTSP, RTMP or HLS feeds, index them live, define events, fire alerts.",
-  meetings: "Send a recorder bot to Zoom, Google Meet or Microsoft Teams and index what was said.",
 };
 
 /* ---------------- Content ---------------- */
@@ -60,10 +59,6 @@ const RECIPES = [
   {
     title: "Live camera with alerts",
     prompt: "Connect rtsp://… as “Lobby cam”, watch for anyone entering after hours, and POST to my webhook when it happens.",
-  },
-  {
-    title: "Record and search a meeting",
-    prompt: "Send a recorder bot to this Google Meet. Once it is done, index it and tell me what we agreed on.",
   },
 ];
 
