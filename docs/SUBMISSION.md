@@ -27,10 +27,10 @@ Note on auth at scale: DCR registers a new client on every fresh connection. Ant
 | Portal step | What to enter |
 | --- | --- |
 | **Connection** | URL `https://mcp.videodb.io/mcp`, transport: Streamable HTTP, same URL for every user |
-| **Tools** | Auto-synced. The listing ships **every toolset** — 89 tools (46 read / 27 create / 8 update / 8 destructive). All nine toolsets are default-on, so prod needs no `VIDEODB_MCP_TOOLSETS` value. Catalog: [TOOLSETS.md](TOOLSETS.md) |
+| **Tools** | Auto-synced. The listing ships **every toolset** — 88 tools (46 read / 26 create / 8 update / 8 destructive). All eight toolsets are default-on, so prod needs no `VIDEODB_MCP_TOOLSETS` value. Catalog: [TOOLSETS.md](TOOLSETS.md) |
 | **Listing — name** | `VideoDB` |
 | **Listing — tagline** (≤55 chars) | `Search, edit, and stream your videos from Claude` |
-| **Listing — description** (≤2000 chars) | VideoDB turns raw video into a searchable, editable database. Connect your VideoDB account and Claude can upload videos from any URL or YouTube link, transcribe and index them, semantically search for exact moments across your whole library, pull timestamped transcripts, cut clips and stitch highlight reels without re-encoding, burn in subtitles, and hand back instantly streamable links you can watch or share. Built for creators, media teams, and developers building video-native workflows. |
+| **Listing — description** (≤2000 chars) | VideoDB turns raw video into a searchable, editable database. Connect your VideoDB account and Claude can upload videos from any public URL, transcribe and index them, semantically search for exact moments across your whole library, pull timestamped transcripts, cut clips and stitch highlight reels without re-encoding, burn in subtitles, and hand back instantly streamable links you can watch or share. Built for creators, media teams, and developers building video-native workflows. |
 | **Categories** | Productivity; Media; Developer tools (pick 1–5) |
 | **Docs URL** | `https://docs.videodb.io` (or the dedicated connector page) |
 | **Privacy policy** | `https://videodb.io/legal/privacy` |

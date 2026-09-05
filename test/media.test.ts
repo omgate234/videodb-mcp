@@ -108,22 +108,6 @@ describe("media", () => {
     expect(seen).toEqual(["video", "video"]);
   });
 
-  it("search_youtube posts to the default collection web search", async () => {
-    const vdb = fakeConnection({
-      "POST collection/default/search/web": (body: any) => {
-        expect(body).toEqual({ query: "cats", result_threshold: 3, platform: "youtube", duration: "short" });
-        return { results: [{ title: "Cat", url: "https://youtu.be/1" }] };
-      },
-    });
-    const { data, isError } = await call(t("search_youtube"), { query: "cats", result_threshold: 3, duration: "short" }, vdb);
-    expect(isError).toBe(false);
-    expect(data).toEqual({ results: [{ title: "Cat", url: "https://youtu.be/1" }] });
-  });
-
-  it("search_youtube rejects duration \"any\" (the API returns nothing for it)", () => {
-    expect(t("search_youtube").input.safeParse({ query: "cats", duration: "any" }).success).toBe(false);
-  });
-
   it("search_videos_by_title flattens matching videos", async () => {
     const vdb = fakeConnection({
       "POST collection/c-1/search/title": (body: any) => {

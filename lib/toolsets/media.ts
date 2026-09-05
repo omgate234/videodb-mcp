@@ -11,7 +11,7 @@ type VideoConfig = NonNullable<Parameters<Connection["transcode"]>[3]>;
 
 /**
  * Media assets: videos, audio, images — list/get/upload/update/delete,
- * thumbnails, signed URLs, YouTube search, transcode.
+ * thumbnails, signed URLs, transcode.
  */
 
 const listVideos = defineTool({
@@ -115,22 +115,6 @@ const uploadMedia = defineTool({
     });
     if (callback_url) return { accepted: true, collection_id, url, callback_url };
     return media;
-  },
-});
-
-const searchYoutube = defineTool({
-  name: "search_youtube",
-  title: "Search YouTube",
-  description:
-    "Search YouTube for videos matching a query and return titles, URLs and metadata — useful for finding URLs to pass to upload_media. Does not change the account.",
-  kind: "read",
-  input: z.object({
-    query: z.string().describe("Search terms."),
-    result_threshold: z.number().int().min(1).max(50).default(10).describe("Requested result count; the server currently ignores it and always returns 10."),
-    duration: z.enum(["short", "medium", "long"]).default("medium").describe("YouTube duration filter."),
-  }),
-  handler: async ({ query, result_threshold, duration }, vdb) => {
-    return { results: await vdb.youtubeSearch(query, result_threshold, duration) };
   },
 });
 
@@ -340,7 +324,7 @@ function compact<T extends object>(obj: T): T {
 
 export const media: Toolset = {
   name: "media",
-  description: "Videos, audio and images: list, inspect, upload, thumbnails, download URLs, YouTube search, transcode, delete.",
+  description: "Videos, audio and images: list, inspect, upload, thumbnails, download URLs, transcode, delete.",
   defaultEnabled: true,
   tools: [
     listAssetsTool,
@@ -351,7 +335,6 @@ export const media: Toolset = {
     getAudio,
     getImage,
     uploadMedia,
-    searchYoutube,
     searchVideosByTitle,
     updateVideo,
     generateThumbnail,

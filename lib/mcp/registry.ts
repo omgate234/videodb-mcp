@@ -8,7 +8,6 @@ import { search } from "@/lib/toolsets/search";
 import { streams } from "@/lib/toolsets/streams";
 import { editor } from "@/lib/toolsets/editor";
 import { rtstream } from "@/lib/toolsets/rtstream";
-import { meetings } from "@/lib/toolsets/meetings";
 
 /**
  * A toolset is one file in lib/toolsets owning a coherent slice of the SDK.
@@ -22,7 +21,7 @@ export interface Toolset {
   tools: ToolDef<any>[];
 }
 
-export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, meetings];
+export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream];
 
 export function enabledToolsets(env = process.env.VIDEODB_MCP_TOOLSETS): Toolset[] {
   const raw = env?.trim();

@@ -72,7 +72,6 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | `list_videos` ★ / `list_audios` / `list_images` | R | `Collection.getVideos/getAudios/getImages` | `pick` with `VIDEO_KEYS/AUDIO_KEYS/IMAGE_KEYS` |
 | `get_video` ★ / `get_audio` / `get_image` | R | `Collection.getVideo/getAudio/getImage` | |
 | `upload_media` ★ | C | `Collection.uploadURL` | + `callback_url` → returns `{accepted:true}` |
-| `search_youtube` | R | `Connection.youtubeSearch(query, resultThreshold, duration)` | to find URLs to upload |
 | `search_videos_by_title` | R | `Collection.searchTitle` | |
 | `update_video` | U | `Video.update({name})` | |
 | `generate_thumbnail` ★ / `list_thumbnails` | C / R | `Video.generateThumbnail(time)` / `Video.getThumbnails` | |
@@ -148,13 +147,6 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | `understand_rtstream` / `list_rtstream_understandings` / `get_rtstream_understanding_records` | C / R / R | `RTStream.understand` / `listUnderstanding` / `RTStreamUnderstanding.getRecords` |
 | `create_rtstream_index` / `list_rtstream_indexes` / `get_rtstream_index_records` | C / R / R | `RTStream.index` / `listIndexes` / `RTStreamIndex.getRecords` |
 
-### meetings (default on) — owner: agent I
-
-| Tool | Kind | SDK |
-| --- | --- | --- |
-| `record_meeting` | C | `Collection.recordMeeting({meetingUrl, botName, meetingTitle, callbackUrl, timeZone})` |
-| `get_meeting` | R | `Collection.getMeeting` |
-
 ## Agent contract (Phase 1)
 
 Each agent owns exactly three paths and touches nothing else:
@@ -173,7 +165,6 @@ Found by live testing against the dev API. These belong to VideoDB's server or t
 | --- | --- | --- |
 | `list_rtstreams` | `name` filter crashes the server for any value | HTTP 500 `'NoneType' object has no attribute 'lower'` — likely a stream row with a NULL name |
 | `delete_image` | Destructive op reports a false failure on thumbnail-derived records | HTTP 500 returned, but the image record is actually deleted |
-| `search_youtube` | `result_threshold` ignored | `Connection.youtubeSearch` always returns 10 results |
 | `set_rtstream_scene_index_status` | Echoes a status that may not be real | SDK hardcodes `status = 'connected'` after the scene-index status PATCH instead of reading the response |
 | `create_rtstream_alert` | Accepts a nonexistent `index_id` and creates an undeletable alert | Alert is created against a bogus index; there is no delete-alert endpoint |
 | `search_videos_by_title`, `list_thumbnails`, `list_invoices` | `fromSnakeToCamel` converted top-level arrays into objects | Fixed upstream on `fix/snake-to-camel-array` in `videodb-node-main`, unreleased; this connector still runs the published 0.3.1 until that ships |
