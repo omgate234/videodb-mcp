@@ -9,7 +9,7 @@ export const dynamic = "force-static";
 /** One-line summary per toolset, used for structured data only. */
 const TOOLSET_COVERS: Record<string, string> = {
   collections: "List, create, rename and delete collections. Account usage and invoices.",
-  media: "Upload from URLs and YouTube, inspect videos, audio and images, thumbnails, transcode, delete.",
+  media: "Upload from public URLs, inspect videos, audio and images, thumbnails, transcode, delete.",
   transcripts: "Get, generate and translate transcripts, plain or timestamped.",
   indexing: "Spoken-word and scene indexes, analyzer runs, retrieval-ready indexes.",
   search: "Search moments or ask questions across one video or a whole collection.",
@@ -23,7 +23,7 @@ const TOOLSET_COVERS: Record<string, string> = {
 const STEPS = [
   {
     title: "Upload",
-    body: "Point it at a public URL or a YouTube link. VideoDB pulls the media into a collection and hands back an ID and a playable stream.",
+    body: "Point it at a public URL. VideoDB pulls the media into a collection and hands back an ID and a playable stream.",
   },
   {
     title: "Index",
@@ -42,7 +42,7 @@ const STEPS = [
 const RECIPES = [
   {
     title: "Highlight reel from a long video",
-    prompt: "Upload this YouTube keynote, index the speech, then cut every moment where they demo the product into one reel.",
+    prompt: "Upload the keynote recording at this link, index the speech, then cut every moment where they demo the product into one reel.",
   },
   {
     title: "Ask questions of a recording",
@@ -123,11 +123,11 @@ const FAQ: { q: string; a: ReactNode; plain: string }[] = [
   {
     q: "What can it not do?",
     plain:
-      "It does not generate AI images, video, audio or music, and does not dub or clone voices. It does not upload local files (upload_media takes public URLs and YouTube links), and it does not capture your desktop. The VideoDB SDK and Agent Skills cover those.",
+      "It does not generate AI images, video, audio or music, and does not dub or clone voices. It does not upload local files (upload_media takes public URLs), and it does not capture your desktop. The VideoDB SDK and Agent Skills cover those.",
     a: (
       <>
         It does not generate AI images, video, audio or music, and does not dub or clone voices. It does not upload local files
-        (<code>upload_media</code> takes public URLs and YouTube links), and it does not capture your desktop. The{" "}
+        (<code>upload_media</code> takes public URLs), and it does not capture your desktop. The{" "}
         <a href={SITE.links.docsHome}>VideoDB SDK</a> and Agent Skills cover those.
       </>
     ),
