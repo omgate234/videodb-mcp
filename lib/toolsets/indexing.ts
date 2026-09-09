@@ -341,7 +341,16 @@ const getIndexRecords = defineTool({
     cursor: z.string().optional().describe("next_cursor from the previous page."),
   }),
   handler: async ({ video_id, collection_id, index_id, limit, cursor }, vdb) => {
-    const page = await indexShell(vdb, collection_id, video_id, index_id).records(limit, cursor);
+    // Match list_indexes: resolve the default alias through the accessible video.
+    // Index records endpoints require the canonical collection ID on the wire.
+    const video = await fetchVideo(vdb, collection_id, video_id);
+    if (!video.collectionId || video.collectionId === "default") {
+      throw new Error("VideoDB did not return a canonical collection ID for this video.");
+    }
+    if (collection_id !== "default" && collection_id !== video.collectionId) {
+      throw new Error("The video does not belong to the requested collection.");
+    }
+    const page = await indexShell(vdb, video.collectionId, video_id, index_id).records(limit, cursor);
     return { index_id, records: page.records.map((r) => pick(r, RECORD_KEYS)), next_cursor: page.nextCursor };
   },
 });

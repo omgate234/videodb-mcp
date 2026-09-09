@@ -103,8 +103,11 @@ const legacySearchVideo = defineTool({
     search_type: SEARCH_TYPE,
     index_type: INDEX_TYPE,
     result_threshold: RESULT_THRESHOLD,
-    scene_index_id: z.string().optional().describe("Search one scene index (from list_scene_indexes)."),
-  }),
+    scene_index_id: z.string().trim().min(1).optional().describe("Scene index ID from list_scene_indexes. Required when search_type=keyword and index_type=scene."),
+  }).refine(
+    (a) => a.search_type !== "keyword" || a.index_type !== "scene" || Boolean(a.scene_index_id),
+    { path: ["scene_index_id"], message: "scene_index_id is required when search_type=keyword and index_type=scene." }
+  ),
   handler: async ({ video_id, collection_id, query, search_type, index_type, result_threshold, scene_index_id }, vdb) => {
     const video = await fetchVideo(vdb, collection_id, video_id);
     const res = await video.legacySearch(query, search_type, index_type, result_threshold, undefined, undefined, undefined, undefined, scene_index_id);
@@ -179,8 +182,10 @@ const RETURN_FIELDS = z
   .union([z.string(), z.array(z.string()), z.record(z.string(), z.unknown())])
   .optional()
   .describe('Index fields to hydrate into each moment\'s metadata; "all" for everything.');
-const INDEX_NAME = z.string().optional().describe("Index name (from list_indexes).");
-const INDEX_ID = z.string().optional().describe("Index ID (from list_indexes).");
+const INDEX_NAME = z.string().trim().min(1).optional().describe("Index name from list_indexes. Provide exactly one of index_name or index_id.");
+const INDEX_ID = z.string().trim().min(1).optional().describe("Index ID from list_indexes. Provide exactly one of index_id or index_name.");
+const hasOneIndex = (a: { index_name?: string; index_id?: string }) => Boolean(a.index_name) !== Boolean(a.index_id);
+const ONE_INDEX_ERROR = { path: ["index_id"], message: "Provide exactly one of index_id or index_name." };
 
 /** Scope helper: video when video_id is given, else the collection. */
 const scope = (vdb: Connection, collection_id: string, video_id?: string) =>
@@ -214,7 +219,7 @@ const queryIndex = defineTool({
   name: "query_index",
   title: "Query an index with filters",
   description:
-    "Structured filter/sort over one index built by create_index (use_for includes 'query') in a video or across a collection. Returns matching moments without semantic ranking.",
+    "Structured filter/sort over one index built by create_index (use_for includes 'query') in a video or across a collection. Provide exactly one of index_id or index_name. Returns matching moments without semantic ranking.",
   kind: "read",
   input: z.object({
     collection_id: COLLECTION_ID,
@@ -225,7 +230,7 @@ const queryIndex = defineTool({
     sort: SORT,
     limit: z.number().int().min(1).max(1000).optional().describe("Max records (default 100)."),
     return_fields: RETURN_FIELDS,
-  }),
+  }).refine(hasOneIndex, ONE_INDEX_ERROR),
   handler: async ({ collection_id, video_id, index_name, index_id, filter, sort, limit, return_fields }, vdb) => {
     const target = await scope(vdb, collection_id, video_id);
     const res = await target.query(defined({ indexName: index_name, indexId: index_id, filter, sort, limit, returnFields: return_fields }));
@@ -237,7 +242,7 @@ const aggregateIndex = defineTool({
   name: "aggregate_index",
   title: "Aggregate an index",
   description:
-    "Counts, groups and facets over one index built by create_index (use_for includes 'aggregate') in a video or across a collection. Returns aggregate rows, not moments.",
+    "Counts, groups and facets over one index built by create_index (use_for includes 'aggregate') in a video or across a collection. Provide exactly one of index_id or index_name. Returns aggregate rows, not moments.",
   kind: "read",
   input: z.object({
     collection_id: COLLECTION_ID,
@@ -249,7 +254,7 @@ const aggregateIndex = defineTool({
     filter: FILTER,
     sort: SORT,
     limit: z.number().int().min(1).max(1000).optional().describe("Max groups (default 100)."),
-  }),
+  }).refine(hasOneIndex, ONE_INDEX_ERROR),
   handler: async ({ collection_id, video_id, index_name, index_id, group_by, metric, filter, sort, limit }, vdb) => {
     const target = await scope(vdb, collection_id, video_id);
     const res = await target.aggregate(defined({ indexName: index_name, indexId: index_id, groupBy: group_by, metric, filter, sort, limit }));

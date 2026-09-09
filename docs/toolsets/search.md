@@ -28,6 +28,16 @@ Legacy defaults (`semantic`, `spoken_word`, 5) are zod `.default()`s on the lega
 
 ## Deviations from the catalog
 
+`query_index` and `aggregate_index` require exactly one nonempty `index_id` or `index_name`. Both/neither are rejected before any API lookup. Unset optional identifiers may be omitted or `null`.
+
+Legacy scene keyword search requires `scene_index_id`, for example:
+
+```json
+{"video_id":"m-...","query":"factory","search_type":"keyword","index_type":"scene","scene_index_id":"si-..."}
+```
+
+Replace the placeholder IDs with an accessible video and a ready legacy scene index from `list_scene_indexes`.
+
 - Brief asked for legacy params with no defaults at all. The legacy tools keep the v1 defaults (`semantic`, `spoken_word`, 5); `test/seed.test.ts` (not owned by this toolset) pins query-only `legacy_search_video` to that body.
 - `legacy_search_collection` exposes `index_type` + `result_threshold`, not `search_type`/`scene_index_id`: `Collection.legacySearch` rejects keyword search and silently drops `scene_index_id` for non-rtstream namespaces.
 - `searchToPlain` also handles `AskResponse` → `{answer, sources}` and caps shot/aggregate row lists at 200 (`truncated: true, total`).

@@ -300,8 +300,9 @@ describe("indexing (v2 index)", () => {
     expect(vdb.http.delete).toHaveBeenCalledWith(["video", "m-1", "indexes", "idx-1"], COLL);
   });
 
-  it("get_index_records pages with limit/cursor without fetching the video", async () => {
+  it("get_index_records resolves the video collection before paging with limit/cursor", async () => {
     const vdb = fakeConnection({
+      ...GET_VIDEO,
       "GET video/m-1/indexes/idx-1/records": {
         records: [{ video_id: "m-1", understanding_id: "u-1", scene_id: "s-1", start: 0, end: 5, data: { description: "intro" } }],
         next_cursor: "c2",
@@ -318,7 +319,7 @@ describe("indexing (v2 index)", () => {
       records: [{ video_id: "m-1", understanding_id: "u-1", scene_id: "s-1", start: 0, end: 5, data: { description: "intro" } }],
       next_cursor: "c2",
     });
-    expect(vdb.http.get).toHaveBeenCalledTimes(1);
+    expect(vdb.http.get).toHaveBeenCalledTimes(2);
     expect(vdb.http.get).toHaveBeenCalledWith(
       ["video", "m-1", "indexes", "idx-1", "records"],
       { params: { limit: 1, collection_id: "c-1", cursor: "c1" } },

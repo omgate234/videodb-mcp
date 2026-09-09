@@ -216,7 +216,7 @@ describe("search", () => {
   it("aggregate_index caps oversized row lists", async () => {
     const rows = Array.from({ length: 250 }, (_, i) => ({ key: `k${i}`, count: i }));
     const vdb = fakeConnection({ "POST collection/c-1/aggregate": { results: rows } });
-    const { data } = await call(toolNamed(search, "aggregate_index"), { collection_id: "c-1", group_by: "label" }, vdb);
+    const { data } = await call(toolNamed(search, "aggregate_index"), { collection_id: "c-1", index_name: "labels", group_by: "label" }, vdb);
     expect(data).toMatchObject({ truncated: true, total: 250 });
     expect((data as any).results).toHaveLength(200);
   });
