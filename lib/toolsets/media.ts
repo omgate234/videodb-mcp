@@ -5,6 +5,7 @@ import { AUDIO_ID, CALLBACK_URL, COLLECTION_ID, IMAGE_ID, MEDIA_ID, PAGE, PAGE_S
 import { ASSET_KEYS, AUDIO_KEYS, IMAGE_KEYS, VIDEO_KEYS, cap, pick } from "@/lib/videodb/serialize";
 import { collection, fetchAudio, fetchImage, fetchVideo } from "@/lib/videodb/resolve";
 import { listAssets } from "@/lib/videodb/assets";
+import { isJobStarted, shapeResult, startJob } from "@/lib/videodb/jobs";
 import type { Connection } from "@/lib/videodb/client";
 
 type VideoConfig = NonNullable<Parameters<Connection["transcode"]>[3]>;
@@ -91,7 +92,7 @@ const uploadMedia = defineTool({
   name: "upload_media",
   title: "Upload media from URL",
   description:
-    "Upload a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Waits for processing and returns the created media object with its ID and player URL; long videos may take a few minutes. With callback_url the upload runs in the background and the call returns immediately.",
+    "Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns the created media record with its ID and player URL. Do not call upload_media again while the job is processing. With callback_url VideoDB calls your webhook instead.",
   kind: "create",
   input: z.object({
     url: z.string().url().describe("Public URL of the media (or a YouTube link)."),
@@ -106,15 +107,15 @@ const uploadMedia = defineTool({
   }),
   retryWith: "list_videos",
   handler: async ({ url, collection_id, name, description, media_type, callback_url }, vdb) => {
-    const media = await collection(vdb, collection_id).uploadURL({
-      url,
-      name,
-      description,
-      mediaType: media_type,
-      callbackUrl: callback_url,
-    });
+    // Same wire body the SDK's uploadURL sends; posting directly lets us skip its 500 s poll.
+    const out = await startJob(
+      vdb,
+      ["collection", collection_id, "upload"],
+      { url, name, description, callback_url, media_type },
+      "Upload"
+    );
     if (callback_url) return { accepted: true, collection_id, url, callback_url };
-    return media;
+    return isJobStarted(out) ? out.job : shapeResult(out.data);
   },
 });
 

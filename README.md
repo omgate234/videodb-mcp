@@ -30,7 +30,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | media | on | `get_video` | read | Get metadata for one video: name, duration, thumbnail, stream URL, and a player URL for watching it in a browser. |
 | media | on | `get_audio` | read | Get metadata for one audio file: name, duration and size. |
 | media | on | `get_image` | read | Get metadata for one image: name and URL. |
-| media | on | `upload_media` | create | Upload a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). |
+| media | on | `upload_media` | create | Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). |
 | media | on | `search_videos_by_title` | read | Find videos in a collection whose title matches a natural-language query. |
 | media | on | `update_video` | update | Update a video's display name. |
 | media | on | `generate_thumbnail` | create | Get the default thumbnail of a video, or generate one from a specific timestamp (in seconds). |
@@ -44,7 +44,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | media | on | `remove_video_storage` | destructive | Delete the stored media bytes of a video while keeping its record, indexes and transcripts. |
 | transcripts | on | `get_transcript` | read | Get the transcript of a video or audio file, either as plain text or with timestamped segments (per word, sentence, or time window). |
 | transcripts | on | `generate_transcript` | create | Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. |
-| transcripts | on | `translate_transcript` | create | Translate a video's transcript into another language and return the translated segments (requires a transcript — get_transcript or generate_transcript first). |
+| transcripts | on | `translate_transcript` | create | Translate a video's transcript into another language (requires a transcript — get_transcript or generate_transcript first). |
 | indexing | on | `list_scene_indexes` | read | List the visual (scene) indexes that exist for a video, including their IDs, names and status. |
 | indexing | on | `get_scene_index` | read | Return the per-scene records (start, end, description) of an existing legacy visual scene index. |
 | indexing | on | `delete_scene_index` | destructive | Permanently delete one visual scene index of a video (the video itself is kept). |
@@ -69,12 +69,12 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | search | on | `aggregate_index` | read | Counts, groups and facets over one index built by create_index (use_for includes 'aggregate') in a video or across a collection. |
 | streams | on | `generate_clip` | create | Cut a clip (or a supercut of several segments) from a single video without re-encoding. |
 | streams | on | `compile_clips` | create | Stitch moments from one or more videos into a single new stream — e.g. |
-| streams | on | `add_subtitles` | create | Burn subtitles into a video from its transcript (requires index_spoken_words first). |
-| streams | on | `create_highlight_clip` | create | Pick the moments of a video that match a natural-language prompt and compile them into one stream. |
+| streams | on | `add_subtitles` | create | Burn subtitles into a video from its transcript (requires an existing spoken-word index). |
+| streams | on | `create_highlight_clip` | create | Pick the moments of a video that match a natural-language prompt. |
 | streams | on | `reframe_video` | create | Re-crop a video (or a segment of it) to a new aspect ratio — vertical, square, landscape or custom dimensions — and save it as a new video in the same collection. |
-| streams | on | `download_stream` | create | Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles, create_highlight_clip or get_video) into a downloadable MP4 file. |
+| streams | on | `download_stream` | create | Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles or get_video) into a downloadable MP4 file. |
 | editor | on | `render_timeline` | create | Render a multi-track editor timeline into a new stream in one call. |
-| editor | on | `download_timeline_render` | create | Request an MP4 download of a stream produced by render_timeline. |
+| editor | on | `download_timeline_render` | create | Start an MP4 export of a stream produced by render_timeline. |
 | rtstream | on | `connect_rtstream` | create | Register a live RTSP/RTMP/HLS stream with VideoDB and start ingesting it. |
 | rtstream | on | `list_rtstreams` | read | List real-time streams in the account with their IDs, names, status and media types. |
 | rtstream | on | `get_rtstream` | read | Get one real-time stream: name, status, sample rate, media types, creation time. |
@@ -102,6 +102,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | rtstream | on | `list_rtstream_indexes` | read | List the understanding-backed indexes on a real-time stream with their status, source understanding and capabilities. |
 | rtstream | on | `set_rtstream_index_status` | update | Resume or pause an understanding-backed index on a real-time stream. |
 | rtstream | on | `get_rtstream_index_records` | read | Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. |
+| jobs | on | `get_job_result` | read | Fetch the result of a background job started by upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript or translate_transcript. |
 <!-- tools:end -->
 
 No AI media *generation* tools are exposed (VideoDB's `generate*`/dub/voice-clone endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation). Desktop capture is deliberately not exposed at all — the capture client is a local native binary talking over a long-lived socket, so neither it nor the capture sessions it produces belong in a remote connector.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { streams } from "@/lib/toolsets/streams";
-import { call, fakeConnection, toolNamed } from "./harness";
+import { call, fakeConnection, raw, toolNamed } from "./harness";
 
 const VIDEO = { id: "m-1", collectionId: "c-1", name: "Keynote", length: 120, size: "1", streamUrl: "https://stream/x.m3u8", playerUrl: "https://player/x", userId: "u" };
 
@@ -10,7 +10,7 @@ describe("streams", () => {
       "GET video/m-1": VIDEO,
       "POST video/m-1/stream": (body: any) => {
         expect(body).toEqual({ length: 120, timeline: [[10, 20]] });
-        return { streamUrl: "https://stream/clip.m3u8" };
+        return { stream_url: "https://stream/clip.m3u8" };
       },
     });
     const { data, isError } = await call(toolNamed(streams, "generate_clip"), { video_id: "m-1", collection_id: "c-1", timeline: [[10, 20]] }, vdb);
@@ -22,10 +22,17 @@ describe("streams", () => {
   it("generate_clip prefers the clip's own player URL over the video's", async () => {
     const vdb = fakeConnection({
       "GET video/m-1": VIDEO,
-      "POST video/m-1/stream": () => ({ streamUrl: "https://stream/clip.m3u8", playerUrl: "https://player/clip" }),
+      "POST video/m-1/stream": () => ({ stream_url: "https://stream/clip.m3u8", player_url: "https://player/clip" }),
     });
     const { data } = await call(toolNamed(streams, "generate_clip"), { video_id: "m-1", collection_id: "c-1", timeline: [[10, 20]] }, vdb);
     expect(data).toEqual({ stream_url: "https://stream/clip.m3u8", player_url: "https://player/clip" });
+  });
+
+  it("generate_clip hands back the job when the API answers processing", async () => {
+    const vdb = fakeConnection({ "GET video/m-1": VIDEO, "POST video/m-1/stream": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
+    const { data, isError } = await call(toolNamed(streams, "generate_clip"), { video_id: "m-1", collection_id: "c-1", timeline: [[10, 20]] }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
   });
 
   it("compile_clips posts snake_case clips to /compile and prefers the server player url", async () => {
@@ -35,7 +42,7 @@ describe("streams", () => {
           { video_id: "m-1", collection_id: "default", shots: [[0, 5]] },
           { video_id: "m-2", collection_id: "c-2", shots: [[10, 15], [20, 25]] },
         ]);
-        return { streamUrl: "https://stream/reel.m3u8", playerUrl: "https://player/reel" };
+        return { stream_url: "https://stream/reel.m3u8", player_url: "https://player/reel" };
       },
     });
     const { data } = await call(
@@ -86,16 +93,12 @@ describe("streams", () => {
     expect(data).toEqual({ stream_url: "https://stream/subs.m3u8", player_url: expect.stringContaining("subs.m3u8") });
   });
 
-  it("create_highlight_clip posts the prompt, compiles the shots and returns them with the stream", async () => {
+  it("create_highlight_clip posts the prompt and returns shots for compile_clips; processing hands back the job", async () => {
     const vdb = fakeConnection({
       "GET video/m-1": VIDEO,
       "POST video/m-1/clip": (body: any) => {
         expect(body).toEqual({ prompt: "product demos", content_type: "visual", model_name: "pro" });
-        return { results: [{ videoId: "m-1", collectionId: "c-1", title: "Keynote", length: "120", docs: [{ start: 3, end: 9, text: "demo", score: 0.8 }] }] };
-      },
-      "POST compile": (body: any) => {
-        expect(body).toEqual([{ video_id: "m-1", collection_id: "c-1", shots: [[3, 9]] }]);
-        return { streamUrl: "https://stream/hl.m3u8", playerUrl: "https://player/hl" };
+        return { results: [{ video_id: "m-1", collection_id: "c-1", title: "Keynote", length: "120", docs: [{ start: 3, end: 9, text: "demo", score: 0.8 }] }] };
       },
     });
     const { data, isError } = await call(
@@ -104,11 +107,15 @@ describe("streams", () => {
       vdb
     );
     expect(isError).toBe(false);
+    expect(vdb.http.post).toHaveBeenCalledTimes(1); // no compile: the model renders the shots with compile_clips
     expect(data).toEqual({
-      shots: [{ video_id: "m-1", video_title: "Keynote", start: 3, end: 9, text: "demo", search_score: 0.8 }],
-      stream_url: "https://stream/hl.m3u8",
-      player_url: "https://player/hl",
+      shots: [{ video_id: "m-1", collection_id: "c-1", video_title: "Keynote", start: 3, end: 9, text: "demo", search_score: 0.8 }],
+      next: "compile_clips",
     });
+
+    const pending = fakeConnection({ "GET video/m-1": VIDEO, "POST video/m-1/clip": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
+    const job = await call(toolNamed(streams, "create_highlight_clip"), { video_id: "m-1", collection_id: "c-1", prompt: "demos" }, pending);
+    expect(job.data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
   });
 
   it("reframe_video posts target/mode and returns the new video; callback_url short-circuits", async () => {
@@ -116,7 +123,7 @@ describe("streams", () => {
       "GET video/m-1": VIDEO,
       "POST video/m-1/reframe": (body: any) => {
         expect(body).toEqual({ start: 5, end: 30, target: { width: 1080, height: 1350 }, mode: "simple", callback_url: undefined });
-        return { ...VIDEO, id: "m-9", name: "Keynote (reframed)", streamUrl: "https://stream/r.m3u8", playerUrl: "https://player/r" };
+        return { id: "m-9", collection_id: "c-1", name: "Keynote (reframed)", length: 120, size: "1", stream_url: "https://stream/r.m3u8", player_url: "https://player/r", user_id: "u" };
       },
     });
     const t = toolNamed(streams, "reframe_video");
@@ -139,11 +146,15 @@ describe("streams", () => {
     const vdb = fakeConnection({
       "POST download": (body: any) => {
         expect(body).toEqual({ stream_link: "https://stream/x.m3u8", name: "clip.mp4" });
-        return { downloadUrl: "https://files/clip.mp4", status: "done", name: "clip.mp4" };
+        return { download_url: "https://files/clip.mp4", status: "done", name: "clip.mp4" };
       },
     });
     const { data, isError } = await call(toolNamed(streams, "download_stream"), { stream_url: "https://stream/x.m3u8", name: "clip.mp4" }, vdb);
     expect(isError).toBe(false);
     expect(data).toEqual({ download_url: "https://files/clip.mp4", status: "done", name: "clip.mp4" });
+
+    const pending = fakeConnection({ "POST download": () => raw({ status: "processing", data: { id: "dl-1", output_url: "https://api.test/download/dl-1" } }) });
+    const job = await call(toolNamed(streams, "download_stream"), { stream_url: "https://stream/x.m3u8", name: "clip.mp4" }, pending);
+    expect(job.data).toMatchObject({ status: "processing", job_id: "dl-1", output_url: "https://api.test/download/dl-1", poll_with: "get_job_result" });
   });
 });

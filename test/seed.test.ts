@@ -45,7 +45,7 @@ describe("streams", () => {
       "GET video/m-1": VIDEO,
       "POST video/m-1/stream": (body: any) => {
         expect(body).toEqual({ length: 120, timeline: [[10, 20]] });
-        return { streamUrl: "https://stream/clip.m3u8", playerUrl: "https://player/clip" };
+        return { stream_url: "https://stream/clip.m3u8", player_url: "https://player/clip" };
       },
     });
     const { data } = await call(toolNamed(streams, "generate_clip"), { video_id: "m-1", timeline: [[10, 20]] }, vdb);
