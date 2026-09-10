@@ -269,7 +269,8 @@ describe("rtstream: understand → index (v2)", () => {
   it("list_rtstream_understandings lists trimmed understandings", async () => {
     const vdb = fakeConnection({ "GET rtstream/rts-1": RT, "GET rtstream/rts-1/understand": { understandings: [UNDERSTANDING] } });
     const { data } = await call(t("list_rtstream_understandings"), { rtstream_id: "rts-1" }, vdb);
-    expect(vdb.http.get).toHaveBeenCalledWith(["rtstream", "rts-1", "understand"]);
+    // SDK releases may pass conversion options; the MCP contract is this route.
+    expect(vdb.http.get.mock.calls.map((args) => args[0])).toContainEqual(["rtstream", "rts-1", "understand"]);
     expect((data as any[]).map((u) => u.id)).toEqual(["und-1"]);
   });
 
@@ -292,7 +293,10 @@ describe("rtstream: understand → index (v2)", () => {
       "GET rtstream/rts-1": RT,
       "GET rtstream/rts-1/understand/und-1": UNDERSTANDING,
       "POST rtstream/rts-1/indexes": (body: any) => {
-        expect(body).toEqual({ source: { understandingId: "und-1", output: "scene" }, name: "live_scene", use_for: ["semantic"] });
+        // Descriptor wire casing belongs to the SDK (covered below its HTTP
+        // conversion boundary there), not this MCP handler's forwarding test.
+        expect(body).toMatchObject({ source: { output: "scene" }, name: "live_scene", use_for: ["semantic"] });
+        expect(body.source.understanding_id ?? body.source.understandingId).toBe("und-1");
         return INDEX;
       },
     });

@@ -149,7 +149,7 @@ What is pre-loaded
 
 Suggested review path
   search_collection ("[a query that hits]") → get_transcript → generate_clip → compile_clips → add_subtitles → download_stream.
-  upload_media with any public MP4 URL, then index_spoken_words, to exercise the write path end to end.
+  upload_media with any public MP4 URL, then get_job_result on the output_url it returns, to exercise the write path end to end.
   The account has [N] credits, enough for the full tool surface including reframe_video and create_highlight_clip.
 
 Notes

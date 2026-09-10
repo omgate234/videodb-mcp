@@ -1,9 +1,12 @@
 /**
- * Tool calls must return inside the route's maxDuration. The SDK polls async
- * jobs for up to 500s, so we race it: on timeout the job keeps running server
- * side and the tool returns a "processing" result instead of an error.
+ * MCP clients give up on a tool call at ~60 s (the SDK default request
+ * timeout), so a tool must answer well inside that or the client records a
+ * read timeout no matter what we return later. Long jobs go through
+ * lib/videodb/jobs.ts and return at once; this race is the safety net for
+ * everything else — on timeout the job keeps running server side and the
+ * tool returns a "processing" result instead of an error.
  */
-export const DEFAULT_TOOL_DEADLINE_MS = Number(process.env.TOOL_DEADLINE_MS) || 240_000;
+export const DEFAULT_TOOL_DEADLINE_MS = Number(process.env.TOOL_DEADLINE_MS) || 50_000;
 
 export interface Processing {
   status: "processing";
