@@ -7,8 +7,8 @@ import { fetchVideo } from "@/lib/videodb/resolve";
 import { pick, cap } from "@/lib/videodb/serialize";
 
 /**
- * Indexing. Legacy (v1): spoken-word + scene indexes consumed by legacy_search_video /
- * legacy_search_collection. v2: understand (extract) → create_index (make retrievable)
+ * Indexing. Manage existing legacy scene indexes. New indexes use the v2 pipeline:
+ * understand (extract) → create_index (make retrievable)
  * consumed by semantic_search / query_index / aggregate_index / ask_*.
  */
 
@@ -20,7 +20,7 @@ const RECORD_KEYS = ["video_id", "understanding_id", "scene_id", "start", "end",
 
 const ANALYZER_TYPES = ["speech_transcription", "spoken_words", "vlm", "ocr", "object_detection", "brand_detection", "activity_recognition", "location_detection"] as const;
 const USE_FOR = z.enum(["semantic", "query", "aggregate"]);
-const FIELD_CAP = z.enum(["semantic", "fts", "filter", "aggregate", "sort"]);
+const FIELD_CAP = z.enum(["semantic", "fts", "filter", "aggregate", "sort", "hydrate", "return"]);
 
 const UNDERSTANDING_ID = z.string().describe("Understanding run ID (from understand_video / list_understandings).");
 const INDEX_ID = z.string().describe("Index ID (from create_index / list_indexes).");
@@ -30,7 +30,7 @@ const ANALYZER_REF = {
 };
 
 const analyzerRef = (name?: string, id?: string): string => {
-  const ref = name ?? id;
+  const ref = name?.trim() || id?.trim();
   if (!ref) throw new Error("Provide analyzer_name or analyzer_id.");
   return ref;
 };
@@ -65,61 +65,6 @@ function capRecords(value: unknown): Record<string, unknown> {
   return truncated ? { ...out, truncated: true } : out;
 }
 
-const indexSpokenWords = defineTool({
-  name: "index_spoken_words",
-  title: "Index spoken words",
-  description:
-    "Transcribe and index everything spoken in a video so it becomes searchable with legacy_search_video / legacy_search_collection (legacy v1 index). Run once per video; takes roughly real-time ÷ 10. With callback_url the call returns immediately.",
-  kind: "create",
-  input: z.object({
-    video_id: VIDEO_ID,
-    collection_id: COLLECTION_ID,
-    language_code: z.string().optional().describe("Optional language hint, e.g. 'en', 'hi', 'es'."),
-    force: z.boolean().default(false).describe("Re-index even if an index already exists."),
-    segmentation_type: z.enum(["sentence", "llm"]).optional().describe("How the transcript is chunked for indexing: 'sentence' (default) or 'llm' (topic-aware chunks)."),
-    callback_url: CALLBACK_URL,
-  }),
-  retryWith: "legacy_search_video",
-  handler: async ({ video_id, collection_id, language_code, force, segmentation_type, callback_url }, vdb) => {
-    const v = await fetchVideo(vdb, collection_id, video_id);
-    await v.indexSpokenWords(language_code, segmentation_type, force, callback_url);
-    if (callback_url) return { accepted: true, video_id, index_type: "spoken_word" };
-    return { indexed: true, video_id, index_type: "spoken_word" };
-  },
-});
-
-const indexScenes = defineTool({
-  name: "index_scenes",
-  title: "Index scenes (visual)",
-  description:
-    "Visually index a video (legacy v1 scene index): samples frames per shot or per time window and describes what's on screen so visual moments become searchable (legacy_search_video with index_type='scene'). Optionally steer descriptions with a prompt, e.g. 'focus on products shown'. With callback_url the call returns immediately.",
-  kind: "create",
-  input: z.object({
-    video_id: VIDEO_ID,
-    collection_id: COLLECTION_ID,
-    prompt: z.string().optional().describe("Instruction for how to describe scenes."),
-    name: z.string().optional().describe("Name for this scene index."),
-    batch_type: z.enum(["shot", "time"]).default("shot").describe("Split by detected shots or fixed time windows."),
-    batch_value: z.number().positive().optional().describe("Shot threshold (default 20) or window seconds (default 10)."),
-    frame_count: z.number().int().min(1).max(10).default(1).describe("Frames sampled per scene."),
-    model_name: z.string().optional().describe("Vision model tier or name used to describe scenes, e.g. 'basic', 'pro', 'ultra'. Omit for the default."),
-    callback_url: CALLBACK_URL,
-  }),
-  retryWith: "list_scene_indexes",
-  handler: async ({ video_id, collection_id, prompt, name, batch_type, batch_value, frame_count, model_name, callback_url }, vdb) => {
-    const v = await fetchVideo(vdb, collection_id, video_id);
-    const scene_index_id = await v.indexVisuals({
-      prompt,
-      name,
-      batchConfig: { type: batch_type, value: batch_value, frameCount: frame_count },
-      modelName: model_name,
-      callbackUrl: callback_url,
-    });
-    if (callback_url) return { accepted: true, scene_index_id, video_id };
-    return { scene_index_id, video_id };
-  },
-});
-
 const listSceneIndexes = defineTool({
   name: "list_scene_indexes",
   title: "List scene indexes",
@@ -133,12 +78,12 @@ const getSceneIndex = defineTool({
   name: "get_scene_index",
   title: "Get scene index records",
   description:
-    "Return the per-scene records (start, end, description) of one visual scene index created by index_scenes. Output is capped at 200 scenes.",
+    "Return the per-scene records (start, end, description) of an existing legacy visual scene index. Output is capped at 200 scenes.",
   kind: "read",
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
-    scene_index_id: z.string().describe("Scene index ID (from index_scenes / list_scene_indexes)."),
+    scene_index_id: z.string().describe("Scene index ID (from list_scene_indexes)."),
   }),
   handler: async ({ video_id, collection_id, scene_index_id }, vdb) => {
     const v = await fetchVideo(vdb, collection_id, video_id);
@@ -165,28 +110,35 @@ const deleteSceneIndex = defineTool({
 });
 
 const ANALYZER = z
-  .looseObject({
+  .strictObject({
     type: z
-      .string()
+      .enum(ANALYZER_TYPES)
       .describe(`Analyzer type: ${ANALYZER_TYPES.join(", ")} (spoken_words is an alias of speech_transcription). Default output names: transcript, scene, text, objects, brands, activity, location.`),
     name: z.string().optional().describe("Output name for this analyzer; needed when running two analyzers of the same type."),
+    config: z.record(z.string(), z.unknown()).optional().describe("Analyzer configuration, e.g. {prompt:'Describe the scene', model:'pro'}. Object detection requires an active compatible sandbox; select it with sandbox_id here."),
+    inputs: z.record(z.string(), z.unknown()).optional().describe("Input bindings for VLM analyzers."),
+    sampling: z.record(z.string(), z.unknown()).optional().describe("Frame sampling for visual analyzers, e.g. {strategy:'uniform', frame_count:3}."),
   })
-  .describe("Analyzer spec. Extra keys (e.g. prompt, model, language, labels, config, inputs) are passed through as analyzer configuration.");
+  .describe("Analyzer spec. Put model, language, labels and other analyzer options inside config.");
+
+const SEGMENTATION = z.union([
+  z.strictObject({ type: z.literal("shot").default("shot"), threshold: z.number().positive().optional(), min_scene_len: z.number().int().min(1).optional() }),
+  z.strictObject({ type: z.literal("time"), seconds: z.number().positive().optional() }),
+]);
 
 const understandVideo = defineTool({
   name: "understand_video",
   title: "Understand video (run analyzers)",
   description:
-    `Run one or more analyzers over a video to extract artifacts (transcript, scene descriptions, on-screen text, objects, brands, activities, locations). Returns the understanding run with its analyzers; artifacts are not searchable until create_index is run on them. ${V2_FLOW} With callback_url the call returns immediately.`,
+    `Run one or more analyzers over a video to extract artifacts (transcript, scene descriptions, on-screen text, objects, brands, activities, locations). Returns the understanding run with its analyzers; artifacts are not searchable until create_index is run on them. ${V2_FLOW} With callback_url the call returns immediately. Object detection requires an active Open Compute sandbox supporting its model; create or resume it outside this connector, then optionally pass config.sandbox_id. Hosted VLM models need no sandbox.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
-    analyzers: z.array(ANALYZER).min(1).describe("Analyzers to run, e.g. [{type:'spoken_words'}, {type:'vlm', prompt:'Describe the scene'}]."),
-    segmentation: z
-      .record(z.string(), z.unknown())
+    analyzers: z.array(ANALYZER).min(1).describe("Analyzers to run, e.g. [{type:'spoken_words'}, {type:'vlm', config:{prompt:'Describe the scene'}}]."),
+    segmentation: SEGMENTATION
       .optional()
-      .describe("How the video is split into scenes for visual analyzers: {type:'time', seconds:5} or {type:'shot', threshold:30}."),
+      .describe("One object (not an array): {type:'time', seconds:5} or {type:'shot', threshold:30}."),
     callback_url: CALLBACK_URL,
   }),
   retryWith: "get_understanding",
@@ -253,7 +205,7 @@ const createIndex = defineTool({
   name: "create_index",
   title: "Create index from analyzer output",
   description:
-    `Build a retrieval-ready index from one analyzer's output of an understanding run (requires understand_video with that analyzer done). ${V2_FLOW} use_for picks capabilities (default semantic + query + aggregate); fields maps record fields to capabilities. With callback_url the call returns immediately.`,
+    `Build a retrieval-ready index from one analyzer's output of an understanding run (requires understand_video with that analyzer done). ${V2_FLOW} use_for picks capabilities (default semantic + query + aggregate); fields maps each capability to record field names. With callback_url the call returns immediately.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
@@ -263,16 +215,17 @@ const createIndex = defineTool({
     name: z.string().optional().describe("Index name; used by semantic_search index_names and get_index."),
     use_for: z.array(USE_FOR).optional().describe("Retrieval capabilities: semantic (embeddings), query (filter/sort), aggregate (group/count)."),
     fields: z
-      .record(z.string(), z.array(FIELD_CAP))
+      .partialRecord(FIELD_CAP, z.array(z.string().min(1)))
       .optional()
-      .describe("Per-field capabilities, e.g. {description:['semantic'], label:['filter','aggregate']}. Omit for VideoDB defaults."),
+      .describe("One object mapping capabilities to field names, e.g. {semantic:['description'], filter:['label'], aggregate:['label']}. Other groups: fts, sort, hydrate, return. Empty arrays disable a group; omit fields for defaults."),
     callback_url: CALLBACK_URL,
   }),
   retryWith: "get_index",
   handler: async ({ video_id, collection_id, understanding_id, analyzer_name, analyzer_id, name, use_for, fields, callback_url }, vdb) => {
+    const ref = analyzerRef(analyzer_name, analyzer_id);
     const v = await fetchVideo(vdb, collection_id, video_id);
     const u = await v.getUnderstanding(understanding_id);
-    const analyzer = await u.getAnalyzer(analyzerRef(analyzer_name, analyzer_id));
+    const analyzer = await u.getAnalyzer(ref);
     const index = await v.index(analyzer, { name, useFor: use_for, fields, callbackUrl: callback_url });
     if (callback_url) return { accepted: true, index_id: index?.indexId, video_id, understanding_id };
     return index ? { ...pick(index, INDEX_KEYS), video_id } : { video_id, understanding_id };
@@ -357,11 +310,9 @@ const getIndexRecords = defineTool({
 
 export const indexing: Toolset = {
   name: "indexing",
-  description: "Spoken/scene indexes (v1) and understand → index pipeline (v2).",
+  description: "Understand → index pipeline (v2) and management of existing legacy scene indexes.",
   defaultEnabled: true,
   tools: [
-    indexSpokenWords,
-    indexScenes,
     listSceneIndexes,
     getSceneIndex,
     deleteSceneIndex,

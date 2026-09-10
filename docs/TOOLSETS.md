@@ -12,7 +12,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | Shared schemas | `lib/mcp/schemas.ts` | zod atoms (`COLLECTION_ID`, `VIDEO_ID`, `TIMELINE`, `CALLBACK_URL`, `mediaKind()`) |
 | SDK access | `lib/videodb/client.ts`, `resolve.ts` | `client(apiKey)` per call; `collection()` shell (no round-trip), `fetchVideo/Audio/Image` |
 | Output | `lib/videodb/serialize.ts` | `toPlain()` snake_case flattening, `pick()`, `*_KEYS`, `shotsToPlain()` |
-| Long jobs | `lib/videodb/deadline.ts` | 240 s race; timeout → `{status:"processing", retry_with}` |
+| Long jobs | `lib/videodb/jobs.ts` | async-first: `startJob()` posts with `{wait:false}` and returns `{status:"processing", output_url}`; `get_job_result` reads it later. `deadline.ts` is the 50 s safety net for tools that still wait (MCP clients drop a call at ~60 s) |
 | Errors | `lib/videodb/errors.ts` | SDK error classes → actionable text |
 | Tests | `test/harness.ts` | `fakeConnection({"GET video": {...}})` fakes `vhttp`; real SDK classes run |
 
@@ -32,7 +32,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 - Optional and defaulted params must tolerate an explicit `null`: clients send one for a param the model chose not to fill. `defineTool()` rewrites every tool's top-level params to read `null` as "not provided", so schemas are written with plain `.optional()`/`.default()` and nothing else is needed.
 - Inputs snake_case; outputs snake_case via `toPlain`/`pick`. Trim large SDK objects with `pick(obj, *_KEYS)`; cap unbounded lists with `cap(items, key, max)` — truncated results always carry `truncated: true` + `total`.
 - Long-running writes set `retryWith` to the read tool that shows the result.
-- Descriptions state what the tool does and its prerequisite (e.g. "requires index_spoken_words"). No behavioural instructions to the model.
+- Descriptions state what the tool does and its prerequisite (e.g. "requires an existing spoken-word index"). No behavioural instructions to the model.
 - Every tool: one unit test through `test/harness.ts` asserting the SDK wire call (`vdb.http.get/post…`) and the flattened output.
 
 ## Excluded from the connector
@@ -45,8 +45,9 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | Desktop capture in full: the capture client (`videodb/capture`), capture sessions (`Collection.listCaptureSessions`/`getCaptureSession`, `CaptureSession.*`), `WebSocketConnection`, `generateClientToken` | Capture is driven by a local native binary over a long-lived socket, with `generateClientToken` minting the secret for it. None of that surface — including the sessions it produces — belongs in a remote connector |
 | `uploadFile` (local path), `play()` | Filesystem / spawns browser |
 | Scene collections (`extractScenes` & CRUD), `Scene/Frame.describe`, `indexAudio`, `insertVideo` | v1 manual pipeline internals — deferred to v2 backlog |
+| `index_spoken_words`, `index_scenes` | Removed from MCP; new indexes use `understand_video` → `create_index`. Existing legacy search and scene-index management remain available. |
 
-Kept although model-backed (understanding/editing, not generation): `ask`, `translateTranscript`, `generateTranscript`, scene/visual indexing, `understand`, `reframe`, `clip`.
+Kept although model-backed (understanding/editing, not generation): `ask`, `translateTranscript`, `generateTranscript`, `understand`, `reframe`, `clip`.
 
 ## Catalog
 
@@ -71,7 +72,7 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | `list_assets` | R | none — `GET /assets` through `Connection.vhttp` (`lib/videodb/assets.ts`) | account-wide when `collection_id` omitted; type/regex/duration/size filters, sort, pagination |
 | `list_videos` ★ / `list_audios` / `list_images` | R | `Collection.getVideos/getAudios/getImages` | `pick` with `VIDEO_KEYS/AUDIO_KEYS/IMAGE_KEYS` |
 | `get_video` ★ / `get_audio` / `get_image` | R | `Collection.getVideo/getAudio/getImage` | |
-| `upload_media` ★ | C | `Collection.uploadURL` | + `callback_url` → returns `{accepted:true}` |
+| `upload_media` ★ | C | `startJob(["collection", id, "upload"])` (same body as `Collection.uploadURL`) | job handle → `get_job_result`; `callback_url` → `{accepted:true}` |
 | `search_youtube` | R | `Connection.youtubeSearch(query, resultThreshold, duration)` | to find URLs to upload |
 | `search_videos_by_title` | R | `Collection.searchTitle` | |
 | `update_video` | U | `Video.update({name})` | |
@@ -86,20 +87,18 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
 | `get_transcript` ★ | R | `Video.getTranscript(start,end,segmenter,length)` / `Audio.getTranscript` | `media_id` accepts m- or a- (`mediaKind`); keep `video_id` as alias for compatibility; `segmenter` word/sentence/time |
-| `generate_transcript` | C | `Video.generateTranscript(force, languageCode)` / `Audio.generateTranscript` | |
-| `translate_transcript` | C | `Video.translateTranscript(language, additionalNotes, callbackUrl)` | |
+| `generate_transcript` | C | `startJob([kind, id, "transcription"])` | job handle; existing transcript → `{status:"done"}`; text via `get_transcript` |
+| `translate_transcript` | C | `startJob(["collection", cid, "video", id, "translate"])` | job handle → `translated_transcript` via `get_job_result` |
 
 ### indexing (default on) — owner: agent D
 
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
-| `index_spoken_words` ★ | C | `Video.indexSpokenWords` | + `segmentation_type` sentence/llm, `callback_url` |
-| `index_scenes` ★ | C | `Video.indexVisuals` | + `model_name`, `callback_url` |
 | `list_scene_indexes` ★ / `get_scene_index` / `delete_scene_index` | R / R / D | `Video.listSceneIndex/getSceneIndex/deleteSceneIndex` | get = per-scene records |
-| `understand_video` | C | `Video.understand(analyzers, options)` | analyzers `[{type, name?, ...config}]`; types documented in description (speech_transcription, vlm, ocr, object_detection, brand_detection, activity_recognition, location_detection); `segmentation`, `callback_url` |
+| `understand_video` | C | `Video.understand(analyzers, options)` | analyzers `[{type, name?, config?, inputs?, sampling?}]`; prompts/model options belong in `config`; shot/time `segmentation` object and `callback_url`; object detection requires a compatible active sandbox |
 | `get_understanding` / `list_understandings` / `delete_understanding` | R / R / D | `Video.getUnderstanding/listUnderstandings/deleteUnderstanding` | |
 | `get_analyzer_output` | R | `Understanding.getAnalyzerOutput(nameOrId)` | raw records; cap output size (first N + `truncated`) |
-| `create_index` | C | `Video.index(source, {name, useFor, fields})` | `source` = `{understanding_id, analyzer_id?, analyzer_name?}` resolved via `Understanding.getAnalyzer(...).toIndexSource()` |
+| `create_index` | C | `Video.index(source, {name, useFor, fields})` | `source` = `{understanding_id, analyzer_id?, analyzer_name?}` resolved via `Understanding.getAnalyzer(...).toIndexSource()`; `fields` maps capability groups to field names |
 | `get_index` / `list_indexes` / `delete_index` | R / R / D | `Video.getIndex/listIndexes/deleteIndex` | |
 | `get_index_records` | R | `Index.records(limit, cursor)` | cursor pagination |
 
@@ -118,17 +117,25 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
-| `generate_clip` ★ / `compile_clips` ★ / `add_subtitles` ★ | C | `Video.generateStream` / `vhttp.post(["compile"])` / `Video.addSubtitle` | `add_subtitles`: expose full `SubtitleStyleProps` (colours, alignment enum, margins, border_style) |
-| `create_highlight_clip` | C | `Video.clip(prompt, contentType, modelName)` | returns shots + compiled stream via `SearchResult.compile()` |
-| `reframe_video` | C | `Video.reframe({start,end,target,mode,callbackUrl})` | target preset enum or `{width,height}` |
-| `download_stream` | C | `Connection.download(streamLink, name)` | MP4 render of any stream_url |
+| `generate_clip` ★ / `compile_clips` ★ / `add_subtitles` ★ | C | `startJob(["video", id, "stream"])` / `startJob(["compile"])` / `Video.addSubtitle` (workflow answers inline) | `add_subtitles`: expose full `SubtitleStyleProps` (colours, alignment enum, margins, border_style) |
+| `create_highlight_clip` | C | `startJob(["video", id, "clip"])` | job handle → shots; the model renders them with `compile_clips` |
+| `reframe_video` | C | `startJob(["video", id, "reframe"])` | target preset enum or `{width,height}`; job handle → new video record |
+| `download_stream` | C | `startJob(["download"])` | MP4 render of any stream_url; job handle → `download_url` |
 
 ### editor (default on) — owner: agent G
 
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
-| `render_timeline` | C | `EditorTimeline` + `Track/Clip/*Asset` classes → `generateStream()` | whole spec in one call; zod mirrors B6 example in the SDK inventory (tracks → clips → asset union video/image/audio/text/caption; enums Fit/Position/Filter/CaptionAnimation…) |
-| `download_timeline_render` | C | `EditorTimeline.downloadStream(streamUrl)` | |
+| `render_timeline` | C | `EditorTimeline` + `Track/Clip/*Asset` classes → `startJob(["editor"], timeline.toJSON())` | whole spec in one call; zod mirrors B6 example in the SDK inventory (tracks → clips → asset union video/image/audio/text/caption; enums Fit/Position/Filter/CaptionAnimation…) |
+| `download_timeline_render` | C | `startJob(["editor", "download"])` | job handle → `download_url` (needs the async `/editor/download` backend; older backends answer inline) |
+
+### jobs (always on)
+
+| Tool | Kind | SDK | Notes |
+| --- | --- | --- | --- |
+| `get_job_result` | R | `vhttp.get([output_url], {wait:false})` | accepts only VideoDB URLs (the API key travels with the request); `processing` echoes the same `output_url`, done → shaped result, failed → tool error |
+
+Every tool that starts a job names `get_job_result`; `enabledToolsets()` appends `jobs` whatever `VIDEODB_MCP_TOOLSETS` says.
 
 ### rtstream (default on) — owner: agent H
 
@@ -176,7 +183,7 @@ Found by live testing against the dev API. These belong to VideoDB's server or t
 | `search_youtube` | `result_threshold` ignored | `Connection.youtubeSearch` always returns 10 results |
 | `set_rtstream_scene_index_status` | Echoes a status that may not be real | SDK hardcodes `status = 'connected'` after the scene-index status PATCH instead of reading the response |
 | `create_rtstream_alert` | Accepts a nonexistent `index_id` and creates an undeletable alert | Alert is created against a bogus index; there is no delete-alert endpoint |
-| `search_videos_by_title`, `list_thumbnails`, `list_invoices` | `fromSnakeToCamel` converted top-level arrays into objects | Fixed upstream on `fix/snake-to-camel-array` in `videodb-node-main`, unreleased; this connector still runs the published 0.3.1 until that ships |
+| `search_videos_by_title`, `list_thumbnails`, `list_invoices` | `fromSnakeToCamel` converted top-level arrays into objects | Fixed in SDK 0.3.2 (`e4c2b5c`), which this checkout currently installs; verify the dependency version on the deployed connector |
 
 ## Coverage gaps
 

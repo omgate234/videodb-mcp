@@ -20,7 +20,7 @@ const INDEX_RAW = {
   status: "ready",
   use_for: ["semantic", "query"],
   record_count: 12,
-  fields: { description: ["semantic"] },
+  fields: { semantic: ["description"] },
   field_schema: { description: { type: "string", groups: [], operators: ["eq"] } },
   video_id: "m-1",
   collection_id: "c-1",
@@ -31,66 +31,13 @@ const INDEX_PLAIN = {
   status: "ready",
   use_for: ["semantic", "query"],
   record_count: 12,
-  fields: { description: ["semantic"] },
+  fields: { semantic: ["description"] },
   field_schema: { description: { type: "string", groups: [], operators: ["eq"] } },
 };
 
 const tool = (name: string) => toolNamed(indexing, name);
 
-describe("indexing (v1)", () => {
-  it("index_spoken_words posts segmentation_type/callback_url and returns accepted", async () => {
-    const vdb = fakeConnection({
-      ...GET_VIDEO,
-      "POST video/m-1/index": (body: any) => {
-        expect(body).toEqual({ index_type: "spoken_word", language_code: "en", segmentation_type: "llm", force: false, callback_url: "https://cb.example/x" });
-        return { success: true };
-      },
-    });
-    const { data, isError } = await call(
-      tool("index_spoken_words"),
-      { video_id: "m-1", collection_id: "c-1", language_code: "en", segmentation_type: "llm", callback_url: "https://cb.example/x" },
-      vdb
-    );
-    expect(isError).toBe(false);
-    expect(data).toEqual({ accepted: true, video_id: "m-1", index_type: "spoken_word" });
-    expect(vdb.http.get).toHaveBeenCalledWith(["video", "m-1"], COLL);
-  });
-
-  it("index_spoken_words without callback keeps the legacy result", async () => {
-    const vdb = fakeConnection({
-      ...GET_VIDEO,
-      "POST video/m-1/index": (body: any) => {
-        expect(body).toEqual({ index_type: "spoken_word", force: true });
-        return {};
-      },
-    });
-    const { data } = await call(tool("index_spoken_words"), { video_id: "m-1", collection_id: "c-1", force: true }, vdb);
-    expect(data).toEqual({ indexed: true, video_id: "m-1", index_type: "spoken_word" });
-  });
-
-  it("index_scenes posts model_name/callback_url and returns the scene index id", async () => {
-    const vdb = fakeConnection({
-      ...GET_VIDEO,
-      "POST video/m-1/index/scene": (body: any) => {
-        expect(body).toMatchObject({
-          extraction_type: "shot",
-          extraction_config: { threshold: 20, frame_count: 1 },
-          prompt: "products",
-          model_name: "pro",
-          callback_url: "https://cb.example/x",
-        });
-        return { sceneIndexId: "si-1" };
-      },
-    });
-    const { data, isError } = await call(
-      tool("index_scenes"),
-      { video_id: "m-1", collection_id: "c-1", prompt: "products", model_name: "pro", callback_url: "https://cb.example/x" },
-      vdb
-    );
-    expect(isError).toBe(false);
-    expect(data).toEqual({ accepted: true, scene_index_id: "si-1", video_id: "m-1" });
-  });
-
+describe("existing legacy scene indexes", () => {
   it("list_scene_indexes reads GET /video/{id}/index/scene", async () => {
     const vdb = fakeConnection({ ...GET_VIDEO, "GET video/m-1/index/scene": { sceneIndexes: [{ sceneIndexId: "si-1", name: "shots", status: "done" }] } });
     const { data, isError } = await call(tool("list_scene_indexes"), { video_id: "m-1", collection_id: "c-1" }, vdb);
@@ -126,7 +73,7 @@ describe("indexing (v2 understand)", () => {
         expect(body).toEqual({
           analyzers: [
             { type: "speech_transcription", name: "transcript" },
-            { type: "vlm", name: "scene", prompt: "Describe the scene" },
+            { type: "vlm", name: "scene", config: { prompt: "Describe the scene" } },
           ],
           segmentation: { type: "time", seconds: 5 },
         });
@@ -138,7 +85,7 @@ describe("indexing (v2 understand)", () => {
       {
         video_id: "m-1",
         collection_id: "c-1",
-        analyzers: [{ type: "spoken_words" }, { type: "vlm", prompt: "Describe the scene" }],
+        analyzers: [{ type: "spoken_words" }, { type: "vlm", config: { prompt: "Describe the scene" } }],
         segmentation: { type: "time", seconds: 5 },
       },
       vdb
@@ -227,7 +174,7 @@ describe("indexing (v2 index)", () => {
           source: { understanding_id: "u-1", analyzer_id: "an-2", analyzer_type: "vlm" },
           name: "scenes",
           use_for: ["semantic", "query"],
-          fields: { description: ["semantic"] },
+          fields: { semantic: ["description"] },
           callback_url: undefined,
         });
         return { ...INDEX_RAW, status: "building", record_count: 0 };
@@ -242,7 +189,7 @@ describe("indexing (v2 index)", () => {
         analyzer_name: "scene",
         name: "scenes",
         use_for: ["semantic", "query"],
-        fields: { description: ["semantic"] },
+        fields: { semantic: ["description"] },
       },
       vdb
     );

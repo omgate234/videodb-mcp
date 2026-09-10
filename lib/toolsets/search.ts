@@ -45,9 +45,9 @@ const V2 = {
 };
 
 const V2_NOTE =
-  " Uses Search V2 over indexes built by create_index. For the older spoken-word/scene indexes built by index_spoken_words / index_scenes, use the legacy_search_* tools instead.";
+  " Uses Search V2 over indexes built by create_index. For existing legacy spoken-word/scene indexes, use the legacy_search_* tools instead.";
 const LEGACY_NOTE =
-  " Searches the legacy v1 indexes built by index_spoken_words / index_scenes. For indexes built by create_index, use search_video / search_collection instead.";
+  " Searches existing legacy v1 spoken-word/scene indexes. For indexes built by create_index, use search_video / search_collection instead.";
 
 const v2Options = (a: { top_k?: number; mode?: string; include_clip?: boolean; session_id?: string }) =>
   defined({ topK: a.top_k, mode: a.mode, includeClip: a.include_clip, sessionId: a.session_id });

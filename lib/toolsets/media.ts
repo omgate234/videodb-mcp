@@ -5,6 +5,7 @@ import { AUDIO_ID, CALLBACK_URL, COLLECTION_ID, IMAGE_ID, MEDIA_ID, PAGE, PAGE_S
 import { ASSET_KEYS, AUDIO_KEYS, IMAGE_KEYS, VIDEO_KEYS, cap, pick } from "@/lib/videodb/serialize";
 import { collection, fetchAudio, fetchImage, fetchVideo } from "@/lib/videodb/resolve";
 import { listAssets } from "@/lib/videodb/assets";
+import { isJobStarted, shapeResult, startJob } from "@/lib/videodb/jobs";
 import type { Connection } from "@/lib/videodb/client";
 
 type VideoConfig = NonNullable<Parameters<Connection["transcode"]>[3]>;
@@ -91,7 +92,7 @@ const uploadMedia = defineTool({
   name: "upload_media",
   title: "Upload media from URL",
   description:
-    "Upload a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Waits for processing and returns the created media object with its ID and player URL; long videos may take a few minutes. With callback_url the upload runs in the background and the call returns immediately.",
+    "Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns the created media record with its ID and player URL. Do not call upload_media again while the job is processing. With callback_url VideoDB calls your webhook instead.",
   kind: "create",
   input: z.object({
     url: z.string().url().describe("Public URL of the media (or a YouTube link)."),
@@ -106,15 +107,15 @@ const uploadMedia = defineTool({
   }),
   retryWith: "list_videos",
   handler: async ({ url, collection_id, name, description, media_type, callback_url }, vdb) => {
-    const media = await collection(vdb, collection_id).uploadURL({
-      url,
-      name,
-      description,
-      mediaType: media_type,
-      callbackUrl: callback_url,
-    });
+    // Same wire body the SDK's uploadURL sends; posting directly lets us skip its 500 s poll.
+    const out = await startJob(
+      vdb,
+      ["collection", collection_id, "upload"],
+      { url, name, description, callback_url, media_type },
+      "Upload"
+    );
     if (callback_url) return { accepted: true, collection_id, url, callback_url };
-    return media;
+    return isJobStarted(out) ? out.job : shapeResult(out.data);
   },
 });
 
@@ -211,15 +212,15 @@ const transcodeMedia = defineTool({
   name: "transcode_media",
   title: "Transcode media",
   description:
-    "Start a transcode job for a video at a public URL: change resolution, quality, framerate or aspect ratio, or mute audio. Runs asynchronously — VideoDB calls callback_url when done; poll with get_transcode_status.",
+    "Start a transcode job from a directly downloadable media URL (e.g. MP4): change resolution, quality, framerate or aspect ratio, or mute audio. For YouTube watch URLs, ingest with upload_media first, then get_video → download_stream to obtain an MP4 source. VideoDB calls callback_url when done; poll with get_transcode_status.",
   kind: "create",
   input: z.object({
-    source: z.string().url().describe("Public, downloadable URL of the source video."),
+    source: z.string().url().describe("Direct media URL; YouTube watch pages are not supported by the transcoder."),
     callback_url: z.string().url().describe("Webhook URL VideoDB calls when the job finishes (required)."),
     mode: z.enum(["economy", "lightning"]).default("economy").describe("economy = cheaper/slower, lightning = faster."),
-    resolution: z.number().int().min(1).max(4320).optional().describe("Output height in pixels, e.g. 720 or 1080 (max 4K)."),
-    quality: z.number().int().min(0).max(51).optional().describe("Encoder CRF quality, lower = better (default 23)."),
-    framerate: z.number().int().min(1).max(100).optional().describe("Output frames per second."),
+    resolution: z.number().int().min(240).max(1080).optional().describe("Output height in pixels, 240–1080."),
+    quality: z.number().int().min(1).max(51).optional().describe("Encoder CRF quality, 1–51; lower = better (default 23)."),
+    framerate: z.number().int().min(1).max(60).optional().describe("Output frames per second, 1–60."),
     aspect_ratio: z.string().optional().describe('Output aspect ratio, e.g. "16:9", "9:16", "1:1".'),
     resize_mode: z.enum(["crop", "fit", "pad"]).optional().describe("How to reach aspect_ratio: crop edges, fit (letterbox) or pad with bars."),
     mute: z.boolean().optional().describe("Strip the audio track."),

@@ -16,8 +16,12 @@ import { invoke, type ToolDef } from "@/lib/mcp/tool";
  *   expect(vdb.http.get).toHaveBeenCalledWith(["video", "m-1"], expect.anything(), undefined);
  *
  * A stub may be a function `(body, options) => data` to assert on request bodies.
- * A stub value of `Error` instance is thrown.
+ * A stub value of `Error` instance is thrown. Wrap a stub in `raw(body)` to
+ * return the body verbatim (no {success, data} envelope) — what the SDK yields
+ * for unpolled `{wait:false}` calls in lib/videodb/jobs.ts.
  */
+const RAW = Symbol("raw");
+export const raw = (body: unknown) => ({ [RAW]: body });
 type Stub = unknown | ((body: unknown, options: unknown) => unknown);
 type Verb = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
@@ -33,6 +37,7 @@ export function fakeConnection(stubs: Record<string, Stub> = {}): FakeConnection
     const stub = stubs[key];
     const data = typeof stub === "function" ? (stub as any)(body, options) : stub;
     if (data instanceof Error) throw data;
+    if (data && typeof data === "object" && RAW in data) return Promise.resolve((data as Record<symbol, unknown>)[RAW]);
     return Promise.resolve({ success: true, data });
   };
   const http = {

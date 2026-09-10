@@ -26,7 +26,7 @@ export interface ToolDef<S extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.Zo
   input: S;
   /**
    * Return anything JSON-able or an SDK object — it is flattened by toPlain().
-   * `deadline` (default 240s) races the SDK's internal polling; on timeout the
+   * `deadline` (default 50s) races the SDK's internal polling; on timeout the
    * tool returns a "processing" result naming `retryWith`.
    */
   handler: (args: z.infer<S>, vdb: Connection) => Promise<unknown>;

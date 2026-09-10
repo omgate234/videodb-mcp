@@ -4,29 +4,27 @@ import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { COLLECTION_ID, VIDEO_ID, TIMELINE, CALLBACK_URL } from "@/lib/mcp/schemas";
 import { fetchVideo } from "@/lib/videodb/resolve";
-import { pick, playerUrlFor, shotsToPlain, VIDEO_KEYS } from "@/lib/videodb/serialize";
+import { isJobStarted, shapeResult, shotsFromRaw, startJob, streamResult } from "@/lib/videodb/jobs";
 
 /**
  * Stream generation & simple edits: clips, compilations, subtitles,
- * prompt-driven highlights, reframe, downloads.
+ * prompt-driven highlights, reframe, downloads. Renders are async-first:
+ * the tool returns a job handle and get_job_result reads the stream.
  */
 
-const stream = (stream_url: string, player_url?: string) => ({ stream_url, player_url: player_url || playerUrlFor(stream_url) });
+const POLL = "Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns";
 
 const generateClip = defineTool({
   name: "generate_clip",
   title: "Generate clip",
   description:
-    "Cut a clip (or a supercut of several segments) from a single video without re-encoding. Returns a streamable URL and a player URL that can be watched in any browser.",
+    `Cut a clip (or a supercut of several segments) from a single video without re-encoding. ${POLL} stream_url and player_url (watchable in any browser).`,
   kind: "create",
   input: z.object({ video_id: VIDEO_ID, collection_id: COLLECTION_ID, timeline: TIMELINE }),
   handler: async ({ video_id, collection_id, timeline }, vdb) => {
     const video = await fetchVideo(vdb, collection_id, video_id);
-    // The SDK keeps the video's own playerUrl when the clip response omits one, so only
-    // adopt it if this call changed it — otherwise synthesize a player URL for the clip.
-    const before = video.playerUrl;
-    const streamUrl = await video.generateStream(timeline as [number, number][]);
-    return stream(streamUrl, video.playerUrl === before ? undefined : video.playerUrl);
+    const out = await startJob(vdb, ["video", video_id, "stream"], { length: video.length, timeline }, "Clip");
+    return isJobStarted(out) ? out.job : streamResult(out.data, "clip");
   },
 });
 
@@ -34,7 +32,7 @@ const compileClips = defineTool({
   name: "compile_clips",
   title: "Compile clips across videos",
   description:
-    "Stitch moments from one or more videos into a single new stream — e.g. turn search results into a highlight reel. Returns stream and player URLs.",
+    `Stitch moments from one or more videos into a single new stream — e.g. turn search results or create_highlight_clip shots into a highlight reel. ${POLL} stream_url and player_url.`,
   kind: "create",
   input: z.object({
     clips: z
@@ -44,11 +42,9 @@ const compileClips = defineTool({
   }),
   handler: async ({ clips }, vdb) => {
     // The SDK only compiles from a SearchResult; POST /compile is the same wire call.
-    const res = await vdb.vhttp.post<{ streamUrl: string; playerUrl?: string }, unknown[]>(
-      ["compile"],
-      clips.map((c) => ({ video_id: c.video_id, collection_id: c.collection_id, shots: c.shots }))
-    );
-    return res.data?.streamUrl ? stream(res.data.streamUrl, res.data.playerUrl) : res.data;
+    const body = clips.map((c) => ({ video_id: c.video_id, collection_id: c.collection_id, shots: c.shots }));
+    const out = await startJob(vdb, ["compile"], body, "Compilation");
+    return isJobStarted(out) ? out.job : streamResult(out.data, "compilation");
   },
 });
 
@@ -101,7 +97,7 @@ const addSubtitles = defineTool({
   name: "add_subtitles",
   title: "Add subtitles",
   description:
-    "Burn subtitles into a video from its transcript (requires index_spoken_words first). Styling follows ASS subtitle conventions; unset fields keep VideoDB defaults. Returns a new stream + player URL with subtitles rendered.",
+    "Burn subtitles into a video from its transcript (requires an existing spoken-word index). Styling follows ASS subtitle conventions; unset fields keep VideoDB defaults. Returns a new stream + player URL with subtitles rendered.",
   kind: "create",
   input: z.object({ video_id: VIDEO_ID, collection_id: COLLECTION_ID, ...SUBTITLE_STYLE }),
   handler: async ({ video_id, collection_id, border_style, alignment, ...s }, vdb) => {
@@ -131,7 +127,7 @@ const addSubtitles = defineTool({
     };
     for (const k of Object.keys(style) as (keyof SubtitleStyle)[]) if (style[k] === undefined) delete style[k];
     const video = await fetchVideo(vdb, collection_id, video_id);
-    return stream(await video.addSubtitle(style));
+    return streamResult({ stream_url: await video.addSubtitle(style) }, "subtitle render");
   },
 });
 
@@ -139,7 +135,7 @@ const createHighlightClip = defineTool({
   name: "create_highlight_clip",
   title: "Create highlight clip from a prompt",
   description:
-    "Pick the moments of a video that match a natural-language prompt and compile them into one stream. Works on spoken content (requires index_spoken_words), visual content (requires index_scenes), or both. Returns the selected shots with timestamps plus stream and player URLs.",
+    `Pick the moments of a video that match a natural-language prompt. Works on spoken content (requires an existing spoken-word index), visual content (requires an existing legacy scene index), or both. ${POLL} the selected shots with timestamps; pass those shots to compile_clips to render them into one stream.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
@@ -149,11 +145,11 @@ const createHighlightClip = defineTool({
     model_name: z.enum(["basic", "pro", "ultra"]).default("basic").describe("Selection model quality tier."),
   }),
   handler: async ({ video_id, collection_id, prompt, content_type, model_name }, vdb) => {
-    const video = await fetchVideo(vdb, collection_id, video_id);
-    const result = await video.clip(prompt, content_type, model_name);
-    if (!result.shots.length) return { shots: [] };
-    const stream_url = await result.compile();
-    return { shots: shotsToPlain(result.shots), ...stream(stream_url, result.playerUrl) };
+    await fetchVideo(vdb, collection_id, video_id); // access check under the caller's collection scope
+    const out = await startJob(vdb, ["video", video_id, "clip"], { prompt, content_type, model_name }, "Highlight selection");
+    if (isJobStarted(out)) return out.job;
+    const shots = shotsFromRaw(out.data);
+    return shots.length ? { shots, next: "compile_clips" } : { shots };
   },
 });
 
@@ -161,7 +157,7 @@ const reframeVideo = defineTool({
   name: "reframe_video",
   title: "Reframe video",
   description:
-    "Re-crop a video (or a segment of it) to a new aspect ratio — vertical, square, landscape or custom dimensions — and save it as a new video in the same collection. Smart mode tracks subjects; simple mode centre-crops. Returns the new video, or {accepted: true} when callback_url is given.",
+    `Re-crop a video (or a segment of it) to a new aspect ratio — vertical, square, landscape or custom dimensions — and save it as a new video in the same collection. Smart mode tracks subjects; simple mode centre-crops. ${POLL} the new video record; {accepted: true} when callback_url is given.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
@@ -177,11 +173,10 @@ const reframeVideo = defineTool({
   }),
   retryWith: "list_videos",
   handler: async ({ video_id, collection_id, start, end, target, mode, callback_url }, vdb) => {
-    const video = await fetchVideo(vdb, collection_id, video_id);
-    const out = await video.reframe({ start, end, target, mode, callbackUrl: callback_url });
+    await fetchVideo(vdb, collection_id, video_id); // access check under the caller's collection scope
+    const out = await startJob(vdb, ["video", video_id, "reframe"], { start, end, target, mode, callback_url }, "Reframe");
     if (callback_url) return { accepted: true, video_id, collection_id, callback_url };
-    if (!out) throw new Error("VideoDB returned no reframed video. Retry, or check the source video is playable.");
-    return pick(out, VIDEO_KEYS);
+    return isJobStarted(out) ? out.job : shapeResult(out.data);
   },
 });
 
@@ -189,13 +184,16 @@ const downloadStream = defineTool({
   name: "download_stream",
   title: "Download stream as MP4",
   description:
-    "Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles, create_highlight_clip or get_video) into a downloadable MP4 file. Returns the download job details including the file URL when ready.",
+    `Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles or get_video) into a downloadable MP4 file. ${POLL} download_url. A stream that was already exported answers with download_url at once.`,
   kind: "create",
   input: z.object({
     stream_url: z.string().url().describe("A VideoDB stream URL (.m3u8)."),
     name: z.string().describe("File name for the download, e.g. 'highlights.mp4'."),
   }),
-  handler: async ({ stream_url, name }, vdb) => vdb.download(stream_url, name),
+  handler: async ({ stream_url, name }, vdb) => {
+    const out = await startJob(vdb, ["download"], { stream_link: stream_url, name }, "MP4 export");
+    return isJobStarted(out) ? out.job : out.data;
+  },
 });
 
 export const streams: Toolset = {

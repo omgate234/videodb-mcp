@@ -9,6 +9,7 @@ import { streams } from "@/lib/toolsets/streams";
 import { editor } from "@/lib/toolsets/editor";
 import { rtstream } from "@/lib/toolsets/rtstream";
 import { meetings } from "@/lib/toolsets/meetings";
+import { jobs } from "@/lib/toolsets/jobs";
 
 /**
  * A toolset is one file in lib/toolsets owning a coherent slice of the SDK.
@@ -22,7 +23,7 @@ export interface Toolset {
   tools: ToolDef<any>[];
 }
 
-export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, meetings];
+export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, meetings, jobs];
 
 export function enabledToolsets(env = process.env.VIDEODB_MCP_TOOLSETS): Toolset[] {
   const raw = env?.trim();
@@ -31,6 +32,8 @@ export function enabledToolsets(env = process.env.VIDEODB_MCP_TOOLSETS): Toolset
   const wanted = new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
   const unknown = [...wanted].filter((w) => !TOOLSETS.some((t) => t.name === w));
   if (unknown.length) throw new Error(`Unknown toolset(s) in VIDEODB_MCP_TOOLSETS: ${unknown.join(", ")}`);
+  // Every job-starting tool hands back an output_url that only get_job_result can read.
+  wanted.add(jobs.name);
   return TOOLSETS.filter((t) => wanted.has(t.name));
 }
 

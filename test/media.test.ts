@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { media } from "@/lib/toolsets/media";
-import { call, fakeConnection, toolNamed } from "./harness";
+import { call, fakeConnection, raw, toolNamed } from "./harness";
 
 const VIDEO = { id: "m-1", collectionId: "c-1", name: "Keynote", length: 120, size: "1", streamUrl: "https://stream/x.m3u8", playerUrl: "https://player/x", userId: "u", thumbnail: "https://img/t.png" };
 const VIDEO_OUT = { id: "m-1", collection_id: "c-1", name: "Keynote", length: 120, size: "1", stream_url: VIDEO.streamUrl, player_url: VIDEO.playerUrl, thumbnail: VIDEO.thumbnail };
@@ -74,16 +74,22 @@ describe("media", () => {
     expect(vdb.http.get).toHaveBeenCalledWith(["image", "img-1"], PARAMS);
   });
 
-  it("upload_media posts the upload body and returns the media; callback_url short-circuits", async () => {
+  it("upload_media posts the upload body unpolled and hands back the job; callback_url short-circuits", async () => {
     const vdb = fakeConnection({
       "POST collection/c-1/upload": (body: any) => {
         expect(body).toEqual({ url: "https://x/y.mp4", name: "Y", description: undefined, callback_url: undefined, media_type: "video" });
-        return VIDEO;
+        return raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } });
       },
     });
     const { data, isError } = await call(t("upload_media"), { url: "https://x/y.mp4", collection_id: "c-1", name: "Y", media_type: "video" }, vdb);
     expect(isError).toBe(false);
-    expect(data).toMatchObject({ id: "m-1", stream_url: VIDEO.streamUrl });
+    expect(vdb.http.post.mock.calls[0][3]).toEqual({ wait: false, convert: false });
+    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
+
+    // A backend that answers inline (tiny file) still yields the trimmed media record.
+    const inline = fakeConnection({ "POST collection/c-1/upload": () => ({ id: "m-1", collection_id: "c-1", name: "Y", length: 3, stream_url: "https://stream/y.m3u8", user_id: "u" }) });
+    const done = await call(t("upload_media"), { url: "https://x/y.mp4", collection_id: "c-1", name: "Y" }, inline);
+    expect(done.data).toEqual({ id: "m-1", collection_id: "c-1", name: "Y", length: 3, stream_url: "https://stream/y.m3u8", player_url: expect.stringContaining("y.m3u8") });
 
     const async = fakeConnection({
       "POST collection/c-1/upload": (body: any) => {

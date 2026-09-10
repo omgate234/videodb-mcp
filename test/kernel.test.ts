@@ -34,7 +34,7 @@ describe("registry", () => {
   it("gates toolsets by env", () => {
     expect(enabledToolsets("").every((t) => t.defaultEnabled)).toBe(true);
     expect(enabledToolsets("all")).toHaveLength(TOOLSETS.length);
-    expect(enabledToolsets("media,search").map((t) => t.name)).toEqual(["media", "search"]);
+    expect(enabledToolsets("media,search").map((t) => t.name)).toEqual(["media", "search", "jobs"]); // jobs rides along: it reads what the others start
     expect(() => enabledToolsets("nope")).toThrow(/Unknown toolset/);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { editor } from "@/lib/toolsets/editor";
-import { call, fakeConnection, toolNamed } from "./harness";
+import { call, fakeConnection, raw, toolNamed } from "./harness";
 
 // CaptionAsset(src="auto") logs a console.warn in the SDK; keep test output clean.
 vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -151,13 +151,14 @@ describe("editor", () => {
     const vdb = fakeConnection({
       "POST editor": (body: unknown) => {
         posted = JSON.parse(JSON.stringify(body)); // what goes on the wire
-        return { streamUrl: "https://stream/edit.m3u8", playerUrl: "https://player/edit" };
+        return { stream_url: "https://stream/edit.m3u8", player_url: "https://player/edit" };
       },
     });
     const { data, isError } = await call(render, TWO_TRACKS, vdb);
     expect(isError, String(data)).toBe(false);
     expect(vdb.http.post).toHaveBeenCalledTimes(1);
     expect(vdb.http.post.mock.calls[0][0]).toEqual(["editor"]);
+    expect(vdb.http.post.mock.calls[0][3]).toEqual({ wait: false, convert: false }); // never block on the SDK poll
     expect(posted).toEqual(EXPECTED_BODY);
     expect(data).toEqual({ stream_url: "https://stream/edit.m3u8", player_url: "https://player/edit" });
   });
@@ -166,11 +167,18 @@ describe("editor", () => {
     const vdb = fakeConnection({
       "POST editor": (body: any) => {
         expect(body.timeline).toMatchObject({ background: "#000000", resolution: "1280x720" });
-        return { streamUrl: "https://stream/plain.m3u8" };
+        return { stream_url: "https://stream/plain.m3u8" };
       },
     });
     const { data } = await call(render, { tracks: [{ clips: [{ start: 0, duration: 3, asset: { type: "image", id: "img-1" } }] }] }, vdb);
     expect(data).toEqual({ stream_url: "https://stream/plain.m3u8", player_url: expect.stringContaining("plain.m3u8") });
+  });
+
+  it("render_timeline hands back the job when the API answers processing", async () => {
+    const vdb = fakeConnection({ "POST editor": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
+    const { data, isError } = await call(render, { tracks: [{ clips: [{ start: 0, duration: 3, asset: { type: "image", id: "img-1" } }] }] }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
   });
 
   it("render_timeline rejects out-of-range values before any wire call", () => {
@@ -192,7 +200,7 @@ describe("editor", () => {
     const vdb = fakeConnection({
       "POST editor/download": (body: unknown) => {
         expect(body).toEqual({ stream_url: "https://stream/edit.m3u8" });
-        return { downloadUrl: "https://dl/edit.mp4", status: "done" };
+        return { download_url: "https://dl/edit.mp4", status: "done" };
       },
     });
     const { data, isError } = await call(download, { stream_url: "https://stream/edit.m3u8" }, vdb);
