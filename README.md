@@ -102,6 +102,10 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | rtstream | on | `list_rtstream_indexes` | read | List the understanding-backed indexes on a real-time stream with their status, source understanding and capabilities. |
 | rtstream | on | `set_rtstream_index_status` | update | Resume or pause an understanding-backed index on a real-time stream. |
 | rtstream | on | `get_rtstream_index_records` | read | Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. |
+| sandbox | on | `create_sandbox` | create | Start a GPU sandbox: VideoDB's managed runtime for open-weight models. |
+| sandbox | on | `get_sandbox` | read | Get one sandbox: its status, tier, prepared models and lifetime. |
+| sandbox | on | `list_sandboxes` | read | List the account's sandboxes with their status, tier and prepared models. |
+| sandbox | on | `stop_sandbox` | destructive | Stop a sandbox and end its billing. |
 | jobs | on | `get_job_result` | read | Fetch the result of a background job started by upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript or translate_transcript. |
 <!-- tools:end -->
 

@@ -52,4 +52,4 @@ Run-level `sampling` was added alongside `transform`, and both per-analyzer and 
 
 ## Kernel requests
 
-Object detection requires an active compatible Open Compute sandbox, provisioned outside this connector. Select one using `analyzers[].config.sandbox_id`; hosted VLM models need no sandbox. This tool documents the prerequisite without provisioning compute.
+Object detection requires an active Open Compute sandbox. The `sandbox` toolset provisions one — `create_sandbox` (small tier) → `get_sandbox` until `active` → `stop_sandbox` when the run is done — and its id goes in the analyzer's `config.sandbox_id`. Hosted VLM tiers need no sandbox.
