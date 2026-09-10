@@ -5,7 +5,7 @@ export const SITE = {
   name: "VideoDB MCP Server",
   title: "VideoDB MCP Server — Search, edit and stream video from Claude and any MCP client",
   description:
-    "The hosted VideoDB MCP server connects Claude, Claude Code, Cursor and any MCP client to your video library. Upload from URLs, transcribe and index video, search moments by meaning, cut clips and highlight reels, and get streamable links — from a conversation. OAuth sign-in, no install.",
+    "The hosted VideoDB MCP server connects Claude, Claude Code, Cursor and any MCP client to your video library. Upload from URLs, transcribe and index video, search moments by meaning, cut clips and highlight reels, and get streamable links from a conversation. Sign in with your VideoDB account.",
   links: {
     videodb: "https://videodb.io",
     console: "https://console.videodb.io",

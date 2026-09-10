@@ -27,8 +27,6 @@ export const metadata: Metadata = {
     "highlight reel",
     "clip generation",
     "RTSP stream analysis",
-    "Streamable HTTP",
-    "OAuth 2.1",
     "VideoDB",
   ],
   authors: [{ name: "VideoDB", url: SITE.links.videodb }],
