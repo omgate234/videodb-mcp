@@ -94,6 +94,69 @@ describe("indexing (v2 understand)", () => {
     expect(data).toEqual({ ...UNDERSTANDING_PLAIN, status: "pending" });
   });
 
+  it("understand_video forwards the documented run-level and analyzer-level options", async () => {
+    const vdb = fakeConnection({
+      ...GET_VIDEO,
+      "POST video/m-1/understand": (body: any) => {
+        // The shape from the Understanding docs: inputs is a list of analyzer names,
+        // sampling is per analyzer or run-wide, transform is run-level.
+        expect(body).toEqual({
+          analyzers: [
+            { type: "speech_transcription", name: "transcript", config: { language: "en" } },
+            {
+              type: "vlm",
+              name: "scene",
+              inputs: ["transcript"],
+              sampling: { strategy: "uniform", frame_count: 4 },
+              config: { model: "pro", prompt: "Describe. {{inputs.transcript}}" },
+            },
+          ],
+          segmentation: { type: "shot", threshold: 30 },
+          sampling: { strategy: "interval", every: 2 },
+          transform: { resolution: "480p" },
+        });
+        return { ...UNDERSTANDING, status: "pending" };
+      },
+    });
+    const { isError, data } = await call(
+      tool("understand_video"),
+      {
+        video_id: "m-1",
+        collection_id: "c-1",
+        segmentation: { type: "shot", threshold: 30 },
+        sampling: { strategy: "interval", every: 2 },
+        transform: { resolution: "480p" },
+        analyzers: [
+          { type: "spoken_words", name: "transcript", config: { language: "en" } },
+          {
+            type: "vlm",
+            name: "scene",
+            inputs: ["transcript"],
+            sampling: { strategy: "uniform", frame_count: 4 },
+            config: { model: "pro", prompt: "Describe. {{inputs.transcript}}" },
+          },
+        ],
+      },
+      vdb
+    );
+    expect(isError, String(data)).toBe(false);
+  });
+
+  it("understand_video rejects the input shapes that look plausible but the server refuses", () => {
+    const parse = (analyzer: unknown, rest: Record<string, unknown> = {}) =>
+      tool("understand_video").input.safeParse({ video_id: "m-1", analyzers: [analyzer], ...rest });
+    // inputs is a list of analyzer names, never a bindings object.
+    expect(parse({ type: "vlm", inputs: { transcript: "..." } }).success).toBe(false);
+    expect(parse({ type: "vlm", inputs: ["transcript"] }).success).toBe(true);
+    // sampling strategies carry their own required field.
+    expect(parse({ type: "vlm", sampling: { strategy: "uniform" } }).success).toBe(false);
+    expect(parse({ type: "vlm", sampling: { strategy: "every_frame" } }).success).toBe(false);
+    expect(parse({ type: "vlm", sampling: { strategy: "interval", every: 2 } }).success).toBe(true);
+    // transform is run-level and typed, so a stray key cannot be silently dropped.
+    expect(parse({ type: "vlm" }, { transform: { resolution: "480p" } }).success).toBe(true);
+    expect(parse({ type: "vlm" }, { transform: { size: "480p" } }).success).toBe(false);
+  });
+
   it("understand_video with callback_url returns accepted", async () => {
     const vdb = fakeConnection({
       ...GET_VIDEO,

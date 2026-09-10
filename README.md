@@ -48,12 +48,12 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | indexing | on | `list_scene_indexes` | read | List the visual (scene) indexes that exist for a video, including their IDs, names and status. |
 | indexing | on | `get_scene_index` | read | Return the per-scene records (start, end, description) of an existing legacy visual scene index. |
 | indexing | on | `delete_scene_index` | destructive | Permanently delete one visual scene index of a video (the video itself is kept). |
-| indexing | on | `understand_video` | create | Run one or more analyzers over a video to extract artifacts (transcript, scene descriptions, on-screen text, objects, brands, activities, locations). |
+| indexing | on | `understand_video` | create | Run analyzers over a video to extract timestamped artifacts: speech, scene descriptions, on-screen text, objects, brands, activities, locations. |
 | indexing | on | `get_understanding` | read | Get the status of one understanding run and of each analyzer in it (pending, running, done, failed). |
 | indexing | on | `list_understandings` | read | List every understanding run of a video with its status and analyzers. |
 | indexing | on | `delete_understanding` | destructive | Permanently delete an understanding run and its stored analyzer artifacts (indexes built from it keep their own data). |
 | indexing | on | `get_analyzer_output` | read | Return the raw artifact one analyzer produced in an understanding run, such as transcript segments or per-scene descriptions with start/end. |
-| indexing | on | `create_index` | create | Build a retrieval-ready index from one analyzer's output of an understanding run (requires understand_video with that analyzer done). |
+| indexing | on | `create_index` | create | Build a retrieval-ready index from one analyzer's artifact of an understanding run; that analyzer must be done (get_understanding). |
 | indexing | on | `get_index` | read | Get one v2 index manifest by ID or name: status (building/ready/failed), record count, capabilities and field schema. |
 | indexing | on | `list_indexes` | read | List the v2 indexes of a video (ID, name, status, capabilities, record count). |
 | indexing | on | `delete_index` | destructive | Permanently delete a v2 index (its retrieval structures only; the video and understanding artifacts are kept). |

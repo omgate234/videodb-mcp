@@ -109,15 +109,38 @@ const deleteSceneIndex = defineTool({
   },
 });
 
+const SAMPLING = z
+  .union([
+    z.strictObject({
+      strategy: z.literal("uniform"),
+      frame_count: z.number().int().min(1).describe("Frames taken evenly across each scene. 4-8 for scene description, 1 for a single representative frame."),
+    }),
+    z.strictObject({
+      strategy: z.literal("interval"),
+      every: z.number().positive().describe("Seconds between sampled frames inside each scene."),
+    }),
+  ])
+  .describe('Frame selection inside each scene: {"strategy":"uniform","frame_count":4} or {"strategy":"interval","every":2}.');
+
+const TRANSFORM = z
+  .strictObject({ resolution: z.string().describe('Frame resolution for visual analyzers, e.g. "480p" or "720p".') })
+  .describe("Media preprocessing applied before any analyzer runs.");
+
 const ANALYZER = z
   .strictObject({
     type: z
       .enum(ANALYZER_TYPES)
       .describe(`Analyzer type: ${ANALYZER_TYPES.join(", ")} (spoken_words is an alias of speech_transcription). Default output names: transcript, scene, text, objects, brands, activity, location.`),
     name: z.string().optional().describe("Output name for this analyzer; needed when running two analyzers of the same type."),
-    config: z.record(z.string(), z.unknown()).optional().describe("Analyzer configuration, e.g. {prompt:'Describe the scene', model:'pro'}. Object detection requires an active compatible sandbox; select it with sandbox_id here."),
-    inputs: z.record(z.string(), z.unknown()).optional().describe("Input bindings for VLM analyzers."),
-    sampling: z.record(z.string(), z.unknown()).optional().describe("Frame sampling for visual analyzers, e.g. {strategy:'uniform', frame_count:3}."),
+    config: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe("Analyzer options; the accepted keys depend on type — see the tool description. Prompts, models, schemas, languages, labels and sandbox_id all belong in here, never at the top level."),
+    inputs: z
+      .array(z.string().min(1))
+      .optional()
+      .describe('Names of earlier analyzers in this run whose artifacts this one may use, e.g. ["transcript"] — a list of names, not an object. Reference them in a VLM prompt as {{inputs.<name>}}.'),
+    sampling: SAMPLING.optional().describe("Frame selection for this analyzer; overrides the run-level sampling."),
   })
   .describe("Analyzer spec. Put model, language, labels and other analyzer options inside config.");
 
@@ -129,22 +152,86 @@ const SEGMENTATION = z.union([
 const understandVideo = defineTool({
   name: "understand_video",
   title: "Understand video (run analyzers)",
-  description:
-    `Run one or more analyzers over a video to extract artifacts (transcript, scene descriptions, on-screen text, objects, brands, activities, locations). Returns the understanding run with its analyzers; artifacts are not searchable until create_index is run on them. ${V2_FLOW} With callback_url the call returns immediately. Object detection requires an active Open Compute sandbox supporting its model; create or resume it outside this connector, then optionally pass config.sandbox_id. Hosted VLM models need no sandbox.`,
+  description: `Run analyzers over a video to extract timestamped artifacts: speech, scene descriptions, on-screen text, objects, brands, activities, locations. Artifacts are stored but NOT searchable until create_index runs on them. ${V2_FLOW}
+
+Returns the run and each analyzer's status (pending, running, done, failed). Poll get_understanding, then read an artifact with get_analyzer_output. With callback_url the call returns immediately.
+
+## Shape
+
+Run-level options apply to the whole run; analyzer options apply to one entry in \`analyzers\`.
+
+\`\`\`json
+{
+  "segmentation": {"type": "shot", "threshold": 30},
+  "transform": {"resolution": "480p"},
+  "analyzers": [
+    {"type": "spoken_words", "name": "transcript", "config": {"language": "en"}},
+    {"type": "vlm", "name": "scene", "inputs": ["transcript"],
+     "sampling": {"strategy": "uniform", "frame_count": 4},
+     "config": {"model": "pro", "prompt": "Describe this scene. Spoken words: {{inputs.transcript}}"}}
+  ]
+}
+\`\`\`
+
+## Analyzer types
+
+| type | default name | produces |
+| --- | --- | --- |
+| spoken_words | transcript | timed speech text plus word timestamps |
+| vlm | scene | your own prompt or JSON schema over sampled frames |
+| ocr | text | text visible on screen |
+| object_detection | objects | labels, scores, normalized xyxy boxes |
+| brand_detection | brands | brand_names plus mentions |
+| activity_recognition | activity | the action in each scene |
+| location_detection | location | the setting of each scene |
+
+Set \`name\` to run two analyzers of the same type, or to reference one from \`inputs\`.
+
+## config keys, by type
+
+| type | keys |
+| --- | --- |
+| spoken_words | language ("en", "hi", ...), speaker_labels |
+| vlm | model, prompt, schema, sandbox_id |
+| object_detection | sandbox_id (required), labels, confidence_threshold, include_bounding_boxes |
+| ocr, brand_detection, activity_recognition, location_detection | model |
+
+\`model\` is a hosted tier — mini, basic, pro, ultra — or a provider id such as "google/gemini-2.5-flash". Hosted tiers need no sandbox_id.
+
+object_detection runs on Open Compute only: start a small-tier sandbox outside this connector and pass its id as config.sandbox_id. An open-weight VLM (e.g. "google/gemma-4-31B-it-FP8") needs one too. Its labels come from the COCO 80-label vocabulary ("person", "laptop", "cell phone", ...).
+
+A vlm config.schema returns JSON instead of prose: \`{"activity": "string", "visible_objects": ["string"], "confidence": {"type": "number", "min": 0, "max": 1}}\`.
+
+## inputs
+
+A list of earlier analyzer names whose artifacts this analyzer may read. Reference one in the prompt as \`{{inputs.transcript}}\`; if you list inputs without a placeholder, VideoDB appends the context after the prompt.
+
+## segmentation, sampling, transform
+
+segmentation sets the time ranges every visual analyzer attaches output to; it is shared by the whole run. Default \`{"type":"shot","threshold":30}\`. Use shot for edited video (higher threshold means fewer splits, min_scene_len sets a floor) and \`{"type":"time","seconds":N}\` for streams, surveillance and long unedited footage.
+
+sampling picks frames inside each scene. Pass it per analyzer or once at run level. uniform with frame_count 4-8 suits scene description, frame_count 1 gives one representative frame; interval with every N seconds catches text or motion that appears briefly. spoken_words ignores sampling.
+
+transform \`{"resolution":"480p"}\` lowers cost and latency; keep the source resolution when small text or fine detail matters.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
-    analyzers: z.array(ANALYZER).min(1).describe("Analyzers to run, e.g. [{type:'spoken_words'}, {type:'vlm', config:{prompt:'Describe the scene'}}]."),
+    analyzers: z
+      .array(ANALYZER)
+      .min(1)
+      .describe('Analyzers to run, e.g. [{"type":"spoken_words"}, {"type":"vlm","config":{"prompt":"Describe the scene"}}]. See the tool description for the config keys each type accepts.'),
     segmentation: SEGMENTATION
       .optional()
-      .describe("One object (not an array): {type:'time', seconds:5} or {type:'shot', threshold:30}."),
+      .describe('One object, not an array: {"type":"shot","threshold":30} (default) or {"type":"time","seconds":5}. Shared by every visual analyzer in the run.'),
+    sampling: SAMPLING.optional().describe("Default frame selection for every visual analyzer; an analyzer's own sampling wins."),
+    transform: TRANSFORM.optional().describe('Preprocessing for the whole run, e.g. {"resolution":"480p"} to cut cost and latency.'),
     callback_url: CALLBACK_URL,
   }),
   retryWith: "get_understanding",
-  handler: async ({ video_id, collection_id, analyzers, segmentation, callback_url }, vdb) => {
+  handler: async ({ video_id, collection_id, analyzers, segmentation, sampling, transform, callback_url }, vdb) => {
     const v = await fetchVideo(vdb, collection_id, video_id);
-    const u = await v.understand(analyzers, { segmentation, callbackUrl: callback_url });
+    const u = await v.understand(analyzers, { segmentation, sampling, transform, callbackUrl: callback_url });
     const plain = understandingToPlain(u);
     if (callback_url) return { accepted: true, understanding_id: u.id, video_id, analyzers: plain.analyzers };
     return plain;
@@ -204,8 +291,39 @@ const getAnalyzerOutput = defineTool({
 const createIndex = defineTool({
   name: "create_index",
   title: "Create index from analyzer output",
-  description:
-    `Build a retrieval-ready index from one analyzer's output of an understanding run (requires understand_video with that analyzer done). ${V2_FLOW} use_for picks capabilities (default semantic + query + aggregate); fields maps each capability to record field names. With callback_url the call returns immediately.`,
+  description: `Build a retrieval-ready index from one analyzer's artifact of an understanding run; that analyzer must be done (get_understanding). ${V2_FLOW} With callback_url the call returns immediately.
+
+## use_for — what the index may be used for
+
+| value | enables |
+| --- | --- |
+| semantic | semantic_search and search (embeddings) |
+| query | query_index — exact filters and ranges |
+| aggregate | aggregate_index — counts, group_by, facets |
+
+Omit it for all three. Drop semantic (e.g. ["query"]) to skip embeddings: cheaper, and ready instantly. get_index reports the index's EFFECTIVE capability, so it can be narrower than what you asked for — aggregate only appears once a field is groupable, and an index with no records reports [].
+
+## fields — which artifact fields join which group
+
+fields maps a group to the field names in it, not the reverse: \`{"semantic":["description"],"filter":["label"],"aggregate":["label"]}\`. Groups are semantic (embedded), fts, filter, aggregate, sort, hydrate and return. A field may join several. Names may be dotted paths into nested data — \`frames.detections.label\` reaches inside every detection. A name that resolves nowhere fails with a 400 listing the fields that do exist.
+
+fields is optional per group: a group you declare is used verbatim, a group you omit is derived from the data.
+
+| artifact field | derived groups |
+| --- | --- |
+| text, scene_description | semantic |
+| language, brand_names | filter, aggregate |
+| activity, location | semantic, filter, aggregate |
+| frames.detections.label | filter, aggregate |
+| frames.detections.score | filter, sort |
+
+Anything else is classified by shape: prose to semantic, short strings and scalar lists to filter and aggregate, numbers also to sort, nested objects stored only. An explicitly empty group opts out and is not refilled — \`{"filter":[]}\` means no filter fields.
+
+## After it returns
+
+The build is rows-first: records are stored before this returns, so query_index and aggregate_index already work while get_index reports "building". Only semantic_search waits for "ready".
+
+Reuse one index name across videos to form a logical group that collection-scoped search can target. Indexes sharing a name must share a field structure; a mismatch is rejected with a 400 showing both.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
@@ -213,11 +331,14 @@ const createIndex = defineTool({
     understanding_id: UNDERSTANDING_ID,
     ...ANALYZER_REF,
     name: z.string().optional().describe("Index name; used by semantic_search index_names and get_index."),
-    use_for: z.array(USE_FOR).optional().describe("Retrieval capabilities: semantic (embeddings), query (filter/sort), aggregate (group/count)."),
+    use_for: z
+      .array(USE_FOR)
+      .optional()
+      .describe("Capabilities to build: semantic (embeddings), query (filters), aggregate (group/count). Omit for all three; drop semantic to skip embeddings."),
     fields: z
       .partialRecord(FIELD_CAP, z.array(z.string().min(1)))
       .optional()
-      .describe("One object mapping capabilities to field names, e.g. {semantic:['description'], filter:['label'], aggregate:['label']}. Other groups: fts, sort, hydrate, return. Empty arrays disable a group; omit fields for defaults."),
+      .describe('One object mapping each group to the field names in it, e.g. {"semantic":["description"],"filter":["label"],"aggregate":["label"]} — not field to groups. Other groups: fts, sort, hydrate, return. Names may be dotted paths such as "frames.detections.label". An empty array opts a group out; an omitted group is derived from the data.'),
     callback_url: CALLBACK_URL,
   }),
   retryWith: "get_index",
