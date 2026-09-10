@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { transcripts } from "@/lib/toolsets/transcripts";
-import { call, fakeConnection, toolNamed } from "./harness";
+import { call, fakeConnection, raw, toolNamed } from "./harness";
 
 const VIDEO = { id: "m-1", collectionId: "c-1", name: "Keynote", length: 120, size: "1", streamUrl: "https://stream/x.m3u8", playerUrl: "https://player/x", userId: "u" };
 const AUDIO = { id: "a-1", collectionId: "c-1", name: "Podcast", length: 60, size: "1", userId: "u" };
@@ -59,7 +59,17 @@ describe("transcripts", () => {
     expect(t.retryWith).toBe("get_transcript");
     const { data, isError } = await call(t, { media_id: "m-1", force: true, language_code: "en" }, vdb);
     expect(isError).toBe(false);
-    expect(data).toEqual({ media_id: "m-1", media_type: "video", success: true, message: "Transcript generated successfully" });
+    // An existing transcript answers inline; the text is never echoed — get_transcript pages it.
+    expect(data).toEqual({ media_id: "m-1", media_type: "video", status: "done", message: expect.stringContaining("get_transcript") });
+  });
+
+  it("generate_transcript hands back the job when the API answers processing", async () => {
+    const vdb = fakeConnection({
+      "GET video/m-1": VIDEO,
+      "POST video/m-1/transcription": () => raw({ status: "processing", data: { output_url: "https://api.test/video/m-1/transcription/?engine=x" } }),
+    });
+    const { data } = await call(toolNamed(transcripts, "generate_transcript"), { media_id: "m-1" }, vdb);
+    expect(data).toEqual({ media_id: "m-1", media_type: "video", status: "processing", output_url: "https://api.test/video/m-1/transcription/?engine=x", poll_with: "get_job_result", message: expect.any(String) });
   });
 
   it("generate_transcript dispatches a- IDs to the audio endpoint", async () => {
@@ -71,7 +81,7 @@ describe("transcripts", () => {
       },
     });
     const { data } = await call(toolNamed(transcripts, "generate_transcript"), { media_id: "a-1" }, vdb);
-    expect(data).toEqual({ media_id: "a-1", media_type: "audio", success: true, message: "Transcript generated successfully" });
+    expect(data).toEqual({ media_id: "a-1", media_type: "audio", status: "done", message: expect.stringContaining("get_transcript") });
   });
 
   it("translate_transcript posts to the collection-scoped translate path and returns segments", async () => {
@@ -79,7 +89,7 @@ describe("transcripts", () => {
       "GET video/m-1": VIDEO,
       "POST collection/c-1/video/m-1/translate": (body: any) => {
         expect(body).toEqual({ language: "Spanish", additional_notes: "formal", callback_url: undefined });
-        return { translatedTranscript: [{ start: 0, end: 1, text: "hola mundo" }] };
+        return { translated_transcript: [{ start: 0, end: 1, text: "hola mundo" }] };
       },
     });
     const t = toolNamed(transcripts, "translate_transcript");
@@ -87,6 +97,10 @@ describe("transcripts", () => {
     const { data, isError } = await call(t, { video_id: "m-1", collection_id: "c-1", language: "Spanish", additional_notes: "formal" }, vdb);
     expect(isError).toBe(false);
     expect(data).toEqual({ video_id: "m-1", language: "Spanish", translated_transcript: [{ start: 0, end: 1, text: "hola mundo" }] });
+
+    const pending = fakeConnection({ "GET video/m-1": VIDEO, "POST collection/c-1/video/m-1/translate": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
+    const job = await call(t, { video_id: "m-1", collection_id: "c-1", language: "Spanish" }, pending);
+    expect(job.data).toEqual({ video_id: "m-1", language: "Spanish", ...{ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") } });
   });
 
   it("translate_transcript with callback_url passes it through and returns accepted", async () => {

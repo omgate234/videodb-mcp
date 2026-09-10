@@ -4,6 +4,7 @@ import type { Toolset } from "@/lib/mcp/registry";
 import { cap } from "@/lib/videodb/serialize";
 import { CALLBACK_URL, COLLECTION_ID, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
 import { fetchAudio, fetchVideo } from "@/lib/videodb/resolve";
+import { isJobStarted, startJob } from "@/lib/videodb/jobs";
 
 /** Transcripts for video and audio: fetch, (re)generate, translate. */
 
@@ -76,7 +77,7 @@ const generateTranscript = defineTool({
   name: "generate_transcript",
   title: "Generate transcript",
   description:
-    "Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. Read the result with get_transcript.",
+    "Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until status is done, then read the text with get_transcript. Media that already has a transcript answers done at once.",
   kind: "create",
   input: z
     .object({
@@ -90,11 +91,12 @@ const generateTranscript = defineTool({
     const { collection_id, force, language_code } = args;
     const id = targetId(args);
     const kind = transcribableKind(id);
-    const result =
-      kind === "audio"
-        ? await (await fetchAudio(vdb, collection_id, id)).generateTranscript(force, language_code)
-        : await (await fetchVideo(vdb, collection_id, id)).generateTranscript(force, language_code);
-    return { media_id: id, media_type: kind, ...(result ?? { success: true }) };
+    if (kind === "audio") await fetchAudio(vdb, collection_id, id);
+    else await fetchVideo(vdb, collection_id, id); // access check under the caller's collection scope
+    const out = await startJob(vdb, [kind, id, "transcription"], { force, language_code }, "Transcription");
+    if (isJobStarted(out)) return { media_id: id, media_type: kind, ...out.job };
+    // The transcript itself can run to tens of thousands of words; get_transcript pages it.
+    return { media_id: id, media_type: kind, status: "done", message: "Transcript is ready — read it with get_transcript." };
   },
 });
 
@@ -102,7 +104,7 @@ const translateTranscript = defineTool({
   name: "translate_transcript",
   title: "Translate transcript",
   description:
-    "Translate a video's transcript into another language and return the translated segments (requires a transcript — get_transcript or generate_transcript first). Video only; the translation is returned, not stored.",
+    "Translate a video's transcript into another language (requires a transcript — get_transcript or generate_transcript first). Video only; the translation is returned, not stored. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns translated_transcript.",
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
@@ -112,15 +114,18 @@ const translateTranscript = defineTool({
     callback_url: CALLBACK_URL,
   }),
   handler: async ({ video_id, collection_id, language, additional_notes, callback_url }, vdb) => {
+    // The route is collection-scoped and does not resolve the "default" alias; use the video's canonical collection.
     const video = await fetchVideo(vdb, collection_id, video_id);
-    const translated = await video.translateTranscript(language, additional_notes ?? "", callback_url);
+    const out = await startJob(
+      vdb,
+      ["collection", video.collectionId, "video", video_id, "translate"],
+      { language, additional_notes: additional_notes ?? "", callback_url },
+      "Translation"
+    );
     if (callback_url) return { accepted: true, video_id, language };
-    const segments = translated ?? [];
-    return {
-      video_id,
-      language,
-      ...cap(segments, "translated_transcript", MAX_SEGMENTS),
-    };
+    if (isJobStarted(out)) return { video_id, language, ...out.job };
+    const segments = Array.isArray(out.data.translated_transcript) ? out.data.translated_transcript : [];
+    return { video_id, language, ...cap(segments, "translated_transcript", MAX_SEGMENTS) };
   },
 });
 

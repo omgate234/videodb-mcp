@@ -25,7 +25,7 @@ import {
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { AUDIO_ID, IMAGE_ID, VIDEO_ID } from "@/lib/mcp/schemas";
-import { playerUrlFor } from "@/lib/videodb/serialize";
+import { isJobStarted, startJob, streamResult } from "@/lib/videodb/jobs";
 
 /** Multi-track editor timeline (SDK EditorTimeline) → rendered stream. */
 
@@ -136,7 +136,7 @@ const CAPTION_ASSET = z.object({
     .literal("auto")
     .default("auto")
     .describe(
-      "Caption source. 'auto' generates captions from the video's spoken-word index; that video must have been indexed with index_spoken_words first. Without an index the render still succeeds but produces zero captions and no error."
+      "Caption source. 'auto' generates captions from the video's spoken-word index; that video must already have a spoken-word index. Without an index the render still succeeds but produces zero captions and no error."
     ),
   font: z
     .object({
@@ -289,7 +289,7 @@ const renderTimeline = defineTool({
   name: "render_timeline",
   title: "Render editor timeline",
   description:
-    "Render a multi-track editor timeline into a new stream in one call. Tracks stack by z_index; each clip places an asset at a start time for a duration with optional transitions, effects, filters, scale, opacity, fit and position. Asset kinds: video, image, audio (ids must be existing VideoDB media ids from this account), text (styled overlay text) and caption. Two behaviours to plan for: caption src 'auto' needs the video indexed with index_spoken_words first, otherwise the render succeeds with zero captions and no error; and a text asset's width/height are only honoured under fit 'contain', because the default fit 'crop' scales that box up to fill the frame. Returns stream_url and player_url; use download_timeline_render for an MP4.",
+    "Render a multi-track editor timeline into a new stream in one call. Tracks stack by z_index; each clip places an asset at a start time for a duration with optional transitions, effects, filters, scale, opacity, fit and position. Asset kinds: video, image, audio (ids must be existing VideoDB media ids from this account), text (styled overlay text) and caption. Two behaviours to plan for: caption src 'auto' needs an existing spoken-word index on the video, otherwise the render succeeds with zero captions and no error; and a text asset's width/height are only honoured under fit 'contain', because the default fit 'crop' scales that box up to fill the frame. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns stream_url and player_url. Use download_timeline_render for an MP4.",
   kind: "create",
   input: z.object({
     tracks: z.array(TRACK).min(1).describe("Tracks in the timeline; the whole edit is described here."),
@@ -309,19 +309,22 @@ const renderTimeline = defineTool({
       for (const c of t.clips) track.addClip(c.start, buildClip(c));
       timeline.addTrack(track);
     }
-    const streamUrl = await timeline.generateStream();
-    if (!streamUrl) throw new Error("VideoDB returned no stream for this timeline.");
-    return { stream_url: streamUrl, player_url: timeline.playerUrl ?? playerUrlFor(streamUrl) };
+    const out = await startJob(vdb, ["editor"], timeline.toJSON(), "Timeline render");
+    return isJobStarted(out) ? out.job : streamResult(out.data, "timeline");
   },
 });
 
 const downloadTimelineRender = defineTool({
   name: "download_timeline_render",
   title: "Download timeline render",
-  description: "Request an MP4 download of a stream produced by render_timeline. Returns the download details VideoDB reports for that stream.",
+  description:
+    "Start an MP4 export of a stream produced by render_timeline. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns download_url. Older backends answer with download_url directly.",
   kind: "create",
   input: z.object({ stream_url: z.string().url().describe("stream_url returned by render_timeline.") }),
-  handler: async ({ stream_url }, vdb) => new EditorTimeline(vdb).downloadStream(stream_url),
+  handler: async ({ stream_url }, vdb) => {
+    const out = await startJob(vdb, ["editor", "download"], { stream_url }, "MP4 export");
+    return isJobStarted(out) ? out.job : out.data;
+  },
 });
 
 export const editor: Toolset = {
