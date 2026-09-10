@@ -36,7 +36,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | media | on | `generate_thumbnail` | create | Get the default thumbnail of a video, or generate one from a specific timestamp (in seconds). |
 | media | on | `list_thumbnails` | read | List every thumbnail image generated for a video (see generate_thumbnail), with image IDs and URLs. |
 | media | on | `get_media_download_url` | read | Get a signed, time-limited download URL for an audio file (a-) or image (img-). |
-| media | on | `transcode_media` | create | Start a transcode job for a video at a public URL: change resolution, quality, framerate or aspect ratio, or mute audio. |
+| media | on | `transcode_media` | create | Start a transcode job from a directly downloadable media URL (e.g. |
 | media | on | `get_transcode_status` | read | Get the status and output of a transcode job started by transcode_media. |
 | media | on | `delete_video` | destructive | Permanently delete a video from a VideoDB collection. |
 | media | on | `delete_audio` | destructive | Permanently delete an audio file from a VideoDB collection. |
@@ -45,10 +45,8 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | transcripts | on | `get_transcript` | read | Get the transcript of a video or audio file, either as plain text or with timestamped segments (per word, sentence, or time window). |
 | transcripts | on | `generate_transcript` | create | Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. |
 | transcripts | on | `translate_transcript` | create | Translate a video's transcript into another language and return the translated segments (requires a transcript — get_transcript or generate_transcript first). |
-| indexing | on | `index_spoken_words` | create | Transcribe and index everything spoken in a video so it becomes searchable with legacy_search_video / legacy_search_collection (legacy v1 index). |
-| indexing | on | `index_scenes` | create | Visually index a video (legacy v1 scene index): samples frames per shot or per time window and describes what's on screen so visual moments become searchable (legacy_search_video with index_type='scene'). |
 | indexing | on | `list_scene_indexes` | read | List the visual (scene) indexes that exist for a video, including their IDs, names and status. |
-| indexing | on | `get_scene_index` | read | Return the per-scene records (start, end, description) of one visual scene index created by index_scenes. |
+| indexing | on | `get_scene_index` | read | Return the per-scene records (start, end, description) of an existing legacy visual scene index. |
 | indexing | on | `delete_scene_index` | destructive | Permanently delete one visual scene index of a video (the video itself is kept). |
 | indexing | on | `understand_video` | create | Run one or more analyzers over a video to extract artifacts (transcript, scene descriptions, on-screen text, objects, brands, activities, locations). |
 | indexing | on | `get_understanding` | read | Get the status of one understanding run and of each analyzer in it (pending, running, done, failed). |

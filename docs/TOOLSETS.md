@@ -32,7 +32,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 - Optional and defaulted params must tolerate an explicit `null`: clients send one for a param the model chose not to fill. `defineTool()` rewrites every tool's top-level params to read `null` as "not provided", so schemas are written with plain `.optional()`/`.default()` and nothing else is needed.
 - Inputs snake_case; outputs snake_case via `toPlain`/`pick`. Trim large SDK objects with `pick(obj, *_KEYS)`; cap unbounded lists with `cap(items, key, max)` — truncated results always carry `truncated: true` + `total`.
 - Long-running writes set `retryWith` to the read tool that shows the result.
-- Descriptions state what the tool does and its prerequisite (e.g. "requires index_spoken_words"). No behavioural instructions to the model.
+- Descriptions state what the tool does and its prerequisite (e.g. "requires an existing spoken-word index"). No behavioural instructions to the model.
 - Every tool: one unit test through `test/harness.ts` asserting the SDK wire call (`vdb.http.get/post…`) and the flattened output.
 
 ## Excluded from the connector
@@ -45,8 +45,9 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | Desktop capture in full: the capture client (`videodb/capture`), capture sessions (`Collection.listCaptureSessions`/`getCaptureSession`, `CaptureSession.*`), `WebSocketConnection`, `generateClientToken` | Capture is driven by a local native binary over a long-lived socket, with `generateClientToken` minting the secret for it. None of that surface — including the sessions it produces — belongs in a remote connector |
 | `uploadFile` (local path), `play()` | Filesystem / spawns browser |
 | Scene collections (`extractScenes` & CRUD), `Scene/Frame.describe`, `indexAudio`, `insertVideo` | v1 manual pipeline internals — deferred to v2 backlog |
+| `index_spoken_words`, `index_scenes` | Removed from MCP; new indexes use `understand_video` → `create_index`. Existing legacy search and scene-index management remain available. |
 
-Kept although model-backed (understanding/editing, not generation): `ask`, `translateTranscript`, `generateTranscript`, scene/visual indexing, `understand`, `reframe`, `clip`.
+Kept although model-backed (understanding/editing, not generation): `ask`, `translateTranscript`, `generateTranscript`, `understand`, `reframe`, `clip`.
 
 ## Catalog
 
@@ -92,13 +93,11 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
-| `index_spoken_words` ★ | C | `Video.indexSpokenWords` | + `segmentation_type` sentence/llm, `callback_url` |
-| `index_scenes` ★ | C | `Video.indexVisuals` | + `model_name`, `callback_url` |
 | `list_scene_indexes` ★ / `get_scene_index` / `delete_scene_index` | R / R / D | `Video.listSceneIndex/getSceneIndex/deleteSceneIndex` | get = per-scene records |
-| `understand_video` | C | `Video.understand(analyzers, options)` | analyzers `[{type, name?, ...config}]`; types documented in description (speech_transcription, vlm, ocr, object_detection, brand_detection, activity_recognition, location_detection); `segmentation`, `callback_url` |
+| `understand_video` | C | `Video.understand(analyzers, options)` | analyzers `[{type, name?, config?, inputs?, sampling?}]`; prompts/model options belong in `config`; shot/time `segmentation` object and `callback_url`; object detection requires a compatible active sandbox |
 | `get_understanding` / `list_understandings` / `delete_understanding` | R / R / D | `Video.getUnderstanding/listUnderstandings/deleteUnderstanding` | |
 | `get_analyzer_output` | R | `Understanding.getAnalyzerOutput(nameOrId)` | raw records; cap output size (first N + `truncated`) |
-| `create_index` | C | `Video.index(source, {name, useFor, fields})` | `source` = `{understanding_id, analyzer_id?, analyzer_name?}` resolved via `Understanding.getAnalyzer(...).toIndexSource()` |
+| `create_index` | C | `Video.index(source, {name, useFor, fields})` | `source` = `{understanding_id, analyzer_id?, analyzer_name?}` resolved via `Understanding.getAnalyzer(...).toIndexSource()`; `fields` maps capability groups to field names |
 | `get_index` / `list_indexes` / `delete_index` | R / R / D | `Video.getIndex/listIndexes/deleteIndex` | |
 | `get_index_records` | R | `Index.records(limit, cursor)` | cursor pagination |
 
@@ -167,7 +166,7 @@ Found by live testing against the dev API. These belong to VideoDB's server or t
 | `delete_image` | Destructive op reports a false failure on thumbnail-derived records | HTTP 500 returned, but the image record is actually deleted |
 | `set_rtstream_scene_index_status` | Echoes a status that may not be real | SDK hardcodes `status = 'connected'` after the scene-index status PATCH instead of reading the response |
 | `create_rtstream_alert` | Accepts a nonexistent `index_id` and creates an undeletable alert | Alert is created against a bogus index; there is no delete-alert endpoint |
-| `search_videos_by_title`, `list_thumbnails`, `list_invoices` | `fromSnakeToCamel` converted top-level arrays into objects | Fixed upstream on `fix/snake-to-camel-array` in `videodb-node-main`, unreleased; this connector still runs the published 0.3.1 until that ships |
+| `search_videos_by_title`, `list_thumbnails`, `list_invoices` | `fromSnakeToCamel` converted top-level arrays into objects | Fixed in SDK 0.3.2 (`e4c2b5c`), which this checkout currently installs; verify the dependency version on the deployed connector |
 
 ## Coverage gaps
 
