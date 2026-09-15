@@ -40,6 +40,7 @@ async function readParams(req: Request): Promise<Record<string, string>> {
 
 function tokenResponse(p: {
   key: string;
+  email?: string;
   client_id: string;
   scope: string;
   aud: string;
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
     }
     return tokenResponse({
       key: code.key,
+      email: code.email,
       client_id: code.client_id,
       scope: code.scope,
       aud: code.aud,
@@ -99,6 +101,7 @@ export async function POST(req: Request) {
     // Rotation: issue a fresh access + refresh token pair.
     return tokenResponse({
       key: refresh.key,
+      email: refresh.email,
       client_id: refresh.client_id,
       scope: refresh.scope,
       aud: refresh.aud,
