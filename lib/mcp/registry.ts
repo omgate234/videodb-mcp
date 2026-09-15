@@ -48,5 +48,6 @@ export function allTools(toolsets = TOOLSETS): ToolDef<any>[] {
 }
 
 export function registerAll(server: McpServer, toolsets = enabledToolsets()): void {
-  for (const tool of allTools(toolsets)) register(server, tool);
+  allTools(toolsets); // rejects duplicate names across toolsets
+  for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
 }

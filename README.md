@@ -127,6 +127,10 @@ Every artifact (client ID, auth code, access/refresh token) is an **AES-256-GCM-
 
 Trade-off to know: with no server-side state, individual tokens can't be revoked before expiry — rotating `AUTH_SECRET` revokes *all* connections at once (users just reconnect). If you later need per-user revocation, add a token-ID denylist in Vercel KV.
 
+## Telemetry (optional)
+
+Set `TELEMETRY_URL` and `TELEMETRY_KEY` to record every tool call — tool name, arguments, latency, and whether it succeeded, failed (with the reason and upstream HTTP status) or timed out into a `processing` hand-back. Records are POSTed to `${TELEMETRY_URL}/v1/mcp/calls` after the response is sent, so they never slow a call down or fail one. The caller is identified by a hash of their API key plus the account email; the key itself is never sent. Leave both unset and nothing is recorded.
+
 ## Deploy to Vercel
 
 1. Push this repo to GitHub, then **Import** it at [vercel.com/new](https://vercel.com/new) (or run `npx vercel` from the repo root — no GitHub needed).
