@@ -8,6 +8,7 @@ import { search } from "@/lib/toolsets/search";
 import { streams } from "@/lib/toolsets/streams";
 import { editor } from "@/lib/toolsets/editor";
 import { rtstream } from "@/lib/toolsets/rtstream";
+import { sandbox } from "@/lib/toolsets/sandbox";
 import { jobs } from "@/lib/toolsets/jobs";
 
 /**
@@ -22,7 +23,7 @@ export interface Toolset {
   tools: ToolDef<any>[];
 }
 
-export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, jobs];
+export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, sandbox, jobs];
 
 export function enabledToolsets(env = process.env.VIDEODB_MCP_TOOLSETS): Toolset[] {
   const raw = env?.trim();
@@ -47,5 +48,6 @@ export function allTools(toolsets = TOOLSETS): ToolDef<any>[] {
 }
 
 export function registerAll(server: McpServer, toolsets = enabledToolsets()): void {
-  for (const tool of allTools(toolsets)) register(server, tool);
+  allTools(toolsets); // rejects duplicate names across toolsets
+  for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
 }

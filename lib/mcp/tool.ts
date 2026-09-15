@@ -3,7 +3,8 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { describeError, isGatewayTimeout } from "@/lib/videodb/errors";
+import { describeError, httpStatus, isGatewayTimeout } from "@/lib/videodb/errors";
+import { recordToolCall, type Outcome } from "@/lib/telemetry";
 
 /**
  * Tool kinds map 1:1 onto the annotations the Anthropic directory requires.
@@ -60,11 +61,15 @@ export function defineTool<S extends z.ZodObject<z.ZodRawShape>>(def: ToolDef<S>
   return { ...def, input: nullTolerant(def.input) };
 }
 
+/** The verified bearer token's claims for this request, if any. */
+function authInfoFrom(ctx: unknown): Record<string, any> | undefined {
+  const c = ctx as Record<string, any> | undefined;
+  return c?.http?.authInfo ?? c?.authInfo ?? c?.requestInfo?.authInfo;
+}
+
 /** Pull the VideoDB API key out of the verified bearer token for this request. */
 export function apiKeyFrom(ctx: unknown): string {
-  const c = ctx as Record<string, any> | undefined;
-  const authInfo = c?.http?.authInfo ?? c?.authInfo ?? c?.requestInfo?.authInfo;
-  const key = authInfo?.extra?.videodbApiKey;
+  const key = authInfoFrom(ctx)?.extra?.videodbApiKey;
   if (typeof key !== "string" || !key) {
     throw new Error("Not authenticated with VideoDB. Connect the VideoDB connector first.");
   }
@@ -79,30 +84,51 @@ const text = (data: unknown): Content => ({
   text: typeof data === "string" ? data : JSON.stringify(data, null, 2),
 });
 
+const errorType = (e: unknown) => (e instanceof Error ? e.constructor.name : typeof e);
+
+/** Map a thrown error to the result the client sees plus the outcome telemetry records. */
+export function settleError(e: unknown, def: ToolDef<any>): { result: ToolResult; outcome: Outcome } {
+  if (e instanceof StillProcessing) {
+    return { result: { content: [text(e.toResult())] }, outcome: { status: "processing", errorType: e.reason } };
+  }
+  // An upstream gateway timeout killed the request, not the job — reporting it as a
+  // failure makes agents retry and duplicate a write that already succeeded.
+  if (isGatewayTimeout(e)) {
+    const still = new StillProcessing(def.deadlineLabel ?? def.title, def.retryWith, "gateway");
+    return { result: { content: [text(still.toResult())] }, outcome: { status: "processing", errorType: "gateway", httpStatus: httpStatus(e) } };
+  }
+  const message = describeError(e);
+  return {
+    result: { content: [text(`Error: ${message}`)], isError: true },
+    outcome: { status: "error", errorType: errorType(e), errorMessage: message, httpStatus: httpStatus(e) },
+  };
+}
+
 /** Run a tool handler with deadline, serialization and error mapping applied. */
+export async function run<S extends z.ZodObject<z.ZodRawShape>>(
+  def: ToolDef<S>,
+  args: z.infer<S>,
+  vdb: Connection
+): Promise<{ result: ToolResult; outcome: Outcome }> {
+  try {
+    const result = await withDeadline(def.handler(args, vdb), def.deadlineLabel ?? def.title, {
+      retryWith: def.retryWith,
+    });
+    return { result: { content: [text(toPlain(result) ?? { ok: true })] }, outcome: { status: "success" } };
+  } catch (e) {
+    return settleError(e, def);
+  }
+}
+
 export async function invoke<S extends z.ZodObject<z.ZodRawShape>>(
   def: ToolDef<S>,
   args: z.infer<S>,
   vdb: Connection
 ): Promise<ToolResult> {
-  try {
-    const result = await withDeadline(def.handler(args, vdb), def.deadlineLabel ?? def.title, {
-      retryWith: def.retryWith,
-    });
-    return { content: [text(toPlain(result) ?? { ok: true })] };
-  } catch (e) {
-    if (e instanceof StillProcessing) return { content: [text(e.toResult())] };
-    // An upstream gateway timeout killed the request, not the job — reporting it as a
-    // failure makes agents retry and duplicate a write that already succeeded.
-    if (isGatewayTimeout(e)) {
-      const still = new StillProcessing(def.deadlineLabel ?? def.title, def.retryWith, "gateway");
-      return { content: [text(still.toResult())] };
-    }
-    return { content: [text(`Error: ${describeError(e)}`)], isError: true };
-  }
+  return (await run(def, args, vdb)).result;
 }
 
-export function register(server: McpServer, def: ToolDef<any>): void {
+export function register(server: McpServer, def: ToolDef<any>, toolset?: string): void {
   server.registerTool(
     def.name,
     {
@@ -111,6 +137,30 @@ export function register(server: McpServer, def: ToolDef<any>): void {
       inputSchema: def.input,
       annotations: { title: def.title, ...ANNOTATIONS[def.kind] },
     },
-    async (args: unknown, ctx: unknown) => invoke(def, args as never, client(apiKeyFrom(ctx)))
+    async (args: unknown, ctx: unknown) => {
+      const started = performance.now();
+      const auth = authInfoFrom(ctx);
+      let apiKey: string | undefined;
+      let settled: { result: ToolResult; outcome: Outcome };
+      try {
+        apiKey = apiKeyFrom(ctx);
+        settled = await run(def, args as never, client(apiKey));
+      } catch (e) {
+        settled = settleError(e, def); // no credential in the token
+      }
+      recordToolCall({
+        tool: def.name,
+        toolset,
+        kind: def.kind,
+        args,
+        result: settled.result,
+        outcome: settled.outcome,
+        latencyMs: performance.now() - started,
+        apiKey,
+        email: typeof auth?.extra?.email === "string" ? auth.extra.email : undefined,
+        clientId: typeof auth?.clientId === "string" ? auth.clientId : undefined,
+      });
+      return settled.result;
+    }
   );
 }

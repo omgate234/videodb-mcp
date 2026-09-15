@@ -198,7 +198,7 @@ Set \`name\` to run two analyzers of the same type, or to reference one from \`i
 
 \`model\` is a hosted tier — mini, basic, pro, ultra — or a provider id such as "google/gemini-2.5-flash". Hosted tiers need no sandbox_id.
 
-object_detection runs on Open Compute only: start a small-tier sandbox outside this connector and pass its id as config.sandbox_id. An open-weight VLM (e.g. "google/gemma-4-31B-it-FP8") needs one too. Its labels come from the COCO 80-label vocabulary ("person", "laptop", "cell phone", ...).
+object_detection runs on Open Compute only: create_sandbox (small tier) -> get_sandbox until status is \"active\" -> pass its id as config.sandbox_id. Stop it with stop_sandbox afterwards; a sandbox bills for as long as it runs. An open-weight VLM (e.g. "google/gemma-4-31B-it-FP8") needs one too. Its labels come from the COCO 80-label vocabulary ("person", "laptop", "cell phone", ...).
 
 A vlm config.schema returns JSON instead of prose: \`{"activity": "string", "visible_objects": ["string"], "confidence": {"type": "number", "min": 0, "max": 1}}\`.
 

@@ -22,7 +22,7 @@ function apiDetail(e: unknown): string {
   return typeof body === "string" ? body : "";
 }
 
-const httpStatus = (e: unknown): number | undefined => (e as { response?: { status?: number } }).response?.status;
+export const httpStatus = (e: unknown): number | undefined => (e as { response?: { status?: number } }).response?.status;
 
 /**
  * A gateway timeout means the HTTP request died in transit, not the job: the write

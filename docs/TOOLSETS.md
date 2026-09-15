@@ -128,6 +128,16 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | `render_timeline` | C | `EditorTimeline` + `Track/Clip/*Asset` classes → `startJob(["editor"], timeline.toJSON())` | whole spec in one call; zod mirrors B6 example in the SDK inventory (tracks → clips → asset union video/image/audio/text/caption; enums Fit/Position/Filter/CaptionAnimation…) |
 | `download_timeline_render` | C | `startJob(["editor", "download"])` | job handle → `download_url` (needs the async `/editor/download` backend; older backends answer inline) |
 
+### sandbox (default on)
+
+| Tool | Kind | SDK | Notes |
+| --- | --- | --- | --- |
+| `create_sandbox` | C | `Connection.createSandbox(tier, name, callbackUrl, modelCategories, models)` | returns while `provisioning`; poll `get_sandbox` for `active` |
+| `get_sandbox` / `list_sandboxes` | R | `Connection.getSandbox` / `listSandboxes(status, page, pageSize)` | `status="active"` finds a sandbox to reuse |
+| `stop_sandbox` | D | `Sandbox.stop(grace)` + `refresh()` | terminal, no restart; ends runtime billing |
+
+GPU runtimes for open-weight models, addressed by `config.sandbox_id` in `understand_video`. Hosted model tiers need none. No tool wraps `waitForReady`/`waitForStop` — see docs/toolsets/sandbox.md.
+
 ### jobs (always on)
 
 | Tool | Kind | SDK | Notes |
