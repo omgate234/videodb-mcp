@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { describeError, httpStatus, isGatewayTimeout } from "@/lib/videodb/errors";
+import { asAccountBlocked, describeError, httpStatus, isGatewayTimeout } from "@/lib/videodb/errors";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
 
 /**
@@ -97,6 +97,10 @@ export function settleError(e: unknown, def: ToolDef<any>): { result: ToolResult
     const still = new StillProcessing(def.deadlineLabel ?? def.title, def.retryWith, "gateway");
     return { result: { content: [text(still.toResult())] }, outcome: { status: "processing", errorType: "gateway", httpStatus: httpStatus(e) } };
   }
+  // The account is out of credit — the user's to fix, so it is a result, not an error.
+  // Telemetry's status enum has no slot for it; `result.status` tells the two apart.
+  const blocked = asAccountBlocked(e);
+  if (blocked) return { result: { content: [text(blocked)] }, outcome: { status: "success" } };
   const message = describeError(e);
   return {
     result: { content: [text(`Error: ${message}`)], isError: true },

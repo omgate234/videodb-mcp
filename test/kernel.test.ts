@@ -182,3 +182,48 @@ describe("gateway timeouts", () => {
     expect(res.data).toBe("Error: VideoDB rejected the request (HTTP 500): Internal server error");
   });
 });
+
+describe("insufficient credit", () => {
+  const apiError = (status: number, message: string) =>
+    new InvalidRequestError({ status, statusText: "", data: {} } as never, { cause: message } as never);
+
+  const failingTool = (err: Error) =>
+    defineTool({
+      name: "upload_media",
+      title: "Upload media",
+      description: "a billed write that this test fails on the account's credit balance",
+      kind: "create",
+      input: z.object({}),
+      handler: async () => {
+        throw err;
+      },
+    });
+
+  const BALANCE = "Insufficient credit: your balance is $-13.50. Please add credits to continue";
+
+  it("returns the balance message as a result, not an error", async () => {
+    const res = await call(failingTool(apiError(400, BALANCE)), {}, fakeConnection());
+    expect(res.isError).toBe(false);
+    expect(res.data).toMatchObject({ status: "insufficient_credit", action_required: "add_credits" });
+    const { message } = res.data as { message: string };
+    expect(message).toContain("$-13.50");
+    expect(message).toMatch(/add credits/i);
+  });
+
+  it("catches a plain job failure carrying the same wording", async () => {
+    const res = await call(failingTool(new Error(BALANCE)), {}, fakeConnection());
+    expect(res.isError).toBe(false);
+    expect(res.data).toMatchObject({ status: "insufficient_credit" });
+  });
+
+  it("catches a 402 whatever its wording", async () => {
+    const res = await call(failingTool(apiError(402, "Payment required")), {}, fakeConnection());
+    expect(res.isError).toBe(false);
+    expect(res.data).toMatchObject({ status: "insufficient_credit" });
+  });
+
+  it("leaves unrelated failures as errors", async () => {
+    const res = await call(failingTool(apiError(400, "Invalid start time")), {}, fakeConnection());
+    expect(res.isError).toBe(true);
+  });
+});
