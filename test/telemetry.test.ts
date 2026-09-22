@@ -40,6 +40,17 @@ describe("outcome classification", () => {
     expect(settled.outcome).toEqual({ status: "processing", errorType: "gateway", httpStatus: 504 });
     expect(settled.result.isError).toBeUndefined();
   });
+
+  it("an out-of-credit account is not counted as a failure", () => {
+    const err = new InvalidRequestError({ status: 400, statusText: "", data: {} } as never, {
+      cause: "Insufficient credit: your balance is $-13.50. Please add credits to continue",
+    } as never);
+    const settled = settleError(err, tool(async () => 1));
+    expect(settled.outcome).toEqual({ status: "success" });
+    expect(settled.result.isError).toBeUndefined();
+    // The result blob is what separates it from a real success in the collector.
+    expect(JSON.parse(settled.result.content[0].text)).toMatchObject({ status: "insufficient_credit" });
+  });
 });
 
 describe("payload", () => {
