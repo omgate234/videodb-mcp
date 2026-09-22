@@ -51,3 +51,37 @@ export function describeError(e: unknown): string {
   if (e instanceof Error) return e.message;
   return String(e);
 }
+
+/**
+ * Running out of credit is an account state the user fixes in the console, not a
+ * tool failure. Reporting it as an MCP error counts against this server's error
+ * rate — and a single unfunded account retrying in a loop would dominate it — so
+ * it comes back as a normal result carrying the instruction instead.
+ */
+export interface AccountBlocked {
+  status: "insufficient_credit";
+  message: string;
+  action_required: "add_credits";
+  console_url: string;
+}
+
+const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
+
+/** The API's own wording, unprefixed — `describeError` decorates it for the failure path. */
+function rawMessage(e: unknown): string {
+  const detail = apiDetail(e);
+  if (detail) return detail;
+  return e instanceof Error ? e.message : String(e);
+}
+
+export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
+  if (e instanceof StillProcessing) return undefined;
+  const detail = rawMessage(e).trim();
+  if (!CREDIT_PATTERN.test(detail) && httpStatus(e) !== 402) return undefined;
+  return {
+    status: "insufficient_credit",
+    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user to add credits, then retry — retrying before that will fail the same way.`,
+    action_required: "add_credits",
+    console_url: "https://console.videodb.io",
+  };
+}
