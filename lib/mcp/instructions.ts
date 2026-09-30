@@ -14,7 +14,8 @@ Every stream_url has a matching player_url that opens in a browser.`;
 const DATASET_SEARCH = `
 
 Robot-learning datasets: dataset_search searches a hosted corpus of public robot-learning and human-activity datasets (currently RoboDojo robot manipulation episodes, real and sim, and Ego-Exo4D egocentric/exocentric human skilled-activity video). Use it whenever the user wants data for robotics, embodied AI, imitation learning, VLA or policy training, or wants to find, count, curate, verify or export episodes, demonstrations or clips from such datasets, even without naming one. It never touches the user's own videos; search_* and semantic_search cover those.
-Flow: dataset_search(message) → poll get_search_status(msg_id) every ~10 s → result_sets[].content_id → get_result_set (totals, breakdowns) / list_result_shots (rows, watch_url links) / stream_result_shot (clip when watch_url is null) → export_result_set(content_id) → poll get_export_status(export_id) → hand download.url to the user.
+Flow: dataset_search(message) → poll get_search_status(msg_id) every ~10 s → result_sets[].content_id → get_result_set (totals, breakdowns) / list_result_shots (rows, watch_url links) / stream_result_shot (clip when watch_url is null) → export_result_set(content_id, formats) → poll get_export_status(export_id) → hand download.url to the user.
+Export output follows each row's dataset field: robodojo rows → lerobot, rlds or mcap (one per export; use the user's choice or ask); egoexo4d rows → MP4 clips only, no format to pick.
 Send the user's ask as a plain search; the agent plans the search itself. Ask it to judge or verify hits only when the user asks for that.
 Keep the session_id from dataset_search and pass it on every follow-up ("only the sim ones", "verify each", "export the confirmed tier") so the agent refines its earlier sets instead of starting over.`;
 

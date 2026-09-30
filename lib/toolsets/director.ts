@@ -40,7 +40,7 @@ const getResultSet = defineTool({
   name: "get_result_set",
   title: "Get result set",
   description:
-    "Summary of a stored result set from dataset_search: name, count (rows), video_count, scope (the query and filters that built it), complete (false when a cap cut it short), tiers (confirmed/partial/rejected/unjudged counts, when the set was judged), score range, and the top value counts of each low-cardinality stored field (e.g. dataset, task_slug, tier). Use it to answer \"how many\" and \"what's in it\" without paging rows, and to pick values for list_result_shots `where`. Sets belong to the caller and persist across conversations.",
+    "Summary of a stored result set from dataset_search: name, count (rows), video_count, scope (the query and filters that built it), complete (false when a cap cut it short), tiers (confirmed/partial/rejected/unjudged counts, when the set was judged), score range, and the top value counts of each low-cardinality stored field (e.g. dataset, task_slug, tier). Use it to answer \"how many\" and \"what's in it\" without paging rows, and to pick values for list_result_shots `where`. The dataset counts also say what export_result_set can produce: robodojo rows export as lerobot, rlds or mcap; egoexo4d rows export as MP4 clips only. Sets belong to the caller and persist across conversations.",
   kind: "read",
   input: z.object({ content_id: CONTENT_ID }),
   handler: ({ content_id }, vdb) => forward(vdb, "GET", `/result-sets/${seg(content_id)}`),
@@ -50,7 +50,7 @@ const listResultShots = defineTool({
   name: "list_result_shots",
   title: "List result shots",
   description:
-    "Rows of a result set, at most 200 per page. Each row is one annotated time span: video_id, start/end (seconds), text (the instruction or annotation sentence that matched), score, index_name (which dataset), rank, its stored fields (e.g. episode_index, task_slug, tier) and watch_url, a direct link to the source video seeked to the span, or null when the source is not browser-playable. Present watch_url as a clickable link; when it is null, call stream_result_shot for that row.\n\n" +
+    "Rows of a result set, at most 200 per page. Each row is one annotated time span: video_id, start/end (seconds), text (the instruction or annotation sentence that matched), score, index_name and dataset (robodojo or egoexo4d, which decides the export format), rank, its stored fields (e.g. episode_index, task_slug, tier) and watch_url, a direct link to the source video seeked to the span, or null when the source is not browser-playable. Present watch_url as a clickable link; when it is null, call stream_result_shot for that row.\n\n" +
     "`where` matches stored fields exactly ({tier:'confirmed'}); take values from get_result_set. `q` is a case-insensitive text match on the sentence. Returns {shots, next_cursor}; pass next_cursor back for the next page, null means the last page. Page only as far as the user needs; export_result_set takes the whole set by content_id, so rows never need to be collected for export.",
   kind: "read",
   input: z.object({
@@ -88,12 +88,12 @@ const exportResultSet = defineTool({
   title: "Export result set",
   description:
     "Export a whole result set from dataset_search as downloadable training data, by content_id; there is no row cap. Export a finished set only (after get_search_status reports success); to export a subset such as the confirmed tier, ask dataset_search for that set in the same session and export its content_id.\n\n" +
-    "Robot rows (RoboDojo) become the training format you pick: lerobot, rlds or mcap (default mcap; one format per export). Each row exports its whole episode with the recorded state, action and every camera; nothing is inferred or synthesized. Human-video rows (Ego-Exo4D) become frame-accurate MP4 clips of their span plus clips/manifest.json with the annotation text; omit formats for a clip-only set. A set mixing embodiments writes one dataset per embodiment inside the format folder.\n\n" +
+    "The output depends on each row's dataset (see get_result_set's dataset counts or a row's dataset field):\n- robodojo (robot manipulation): one training format per export, lerobot, rlds or mcap. Each row exports its whole episode with the recorded state, action and every camera; nothing is inferred or synthesized.\n- egoexo4d (human video): MP4 only, frame-accurate clips of each span plus clips/manifest.json with the annotation text. formats does not apply; omit it.\nA set with robodojo rows needs a format: use the one the user named, or ask them (LeRobot/Hugging Face → lerobot, RLDS/TFDS/Open X-Embodiment → rlds, ROS 2/Foxglove → mcap); left out, it falls back to mcap. A mixed set writes the robot format and the MP4 clips side by side, one dataset per embodiment.\n\n" +
     "Returns {export_id, status:'queued'} at once. Next: poll get_export_status(export_id).",
   kind: "create",
   input: z.object({
     content_id: CONTENT_ID,
-    formats: z.array(z.enum(["lerobot", "rlds", "mcap"])).optional().describe("Training format for robot rows; select one. Omit for a clip-only export of human-video rows."),
+    formats: z.array(z.enum(["lerobot", "rlds", "mcap"])).optional().describe("robodojo rows only: exactly one of lerobot, rlds, mcap (falls back to mcap if omitted). egoexo4d rows are always MP4 clips; omit for an egoexo4d-only set."),
     fps: z.number().positive().default(5).describe("Frame rate the exported episodes are sampled at."),
     mcap_profile: z.enum(["foxglove", "ros2"]).default("foxglove").describe("MCAP message encoding: foxglove for Foxglove Studio, ros2 for ROS 2 tooling."),
     rlds_observation_names: z.record(z.string(), z.string()).optional().describe("RLDS only: source stream → observation key, default {front:'image', wrist:'hand_image', state:'robot_state'}."),
