@@ -142,7 +142,7 @@ GPU runtimes for open-weight models, addressed by `config.sandbox_id` in `unders
 
 | Tool | Kind | Wire | Notes |
 | --- | --- | --- | --- |
-| `director_search` / `get_search_status` | C / R | `POST /search` / `GET /search/{msg_id}` | fire-and-poll; `session_id` continues a conversation |
+| `dataset_search` / `get_search_status` | C / R | `POST /search` / `GET /search/{msg_id}` | fire-and-poll; `session_id` continues a conversation |
 | `get_result_set` / `list_result_shots` | R | `GET /result-sets/{id}` / `POST /result-sets/{id}/shots` | cursor pagination, ≤200 rows |
 | `stream_result_shot` | C | `POST /result-sets/{id}/stream` | rows of that set only |
 | `export_result_set` / `get_export_status` | C / R | `POST /result-sets/{id}/export` / `GET /exports/{id}` | queued; status carries a one-hour download link |
