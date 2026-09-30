@@ -175,7 +175,6 @@ export function redirectUriAllowed(candidate: string, registered: string[]): boo
   } catch {
     return false;
   }
-  const isLoopback = (h: string) => h === "localhost" || h === "127.0.0.1" || h === "[::1]";
   return registered.some((r) => {
     try {
       const ru = new URL(r);
@@ -187,6 +186,33 @@ export function redirectUriAllowed(candidate: string, registered: string[]): boo
       return false;
     }
   });
+}
+
+const isLoopback = (h: string) => h === "localhost" || h === "127.0.0.1" || h === "[::1]";
+
+/**
+ * Token-time redirect_uri check. Loopback hosts are interchangeable because the
+ * browser can reach the client as localhost while the client itself sends
+ * 127.0.0.1; port and path must still match the authorization request.
+ */
+export function sameRedirectUri(sent: string, bound: string): boolean {
+  if (sent === bound) return true;
+  try {
+    const a = new URL(sent);
+    const b = new URL(bound);
+    return (
+      isLoopback(a.hostname) &&
+      isLoopback(b.hostname) &&
+      a.protocol === b.protocol &&
+      a.username === b.username &&
+      a.password === b.password &&
+      a.port === b.port &&
+      a.pathname === b.pathname &&
+      a.search === b.search
+    );
+  } catch {
+    return false;
+  }
 }
 
 // ---------- DirectorFE bridge ----------

@@ -46,12 +46,6 @@ export async function GET(req: Request) {
   const clientId = p.get("client_id") ?? "";
   const redirectUri = p.get("redirect_uri") ?? "";
   const client = openClientId(clientId);
-  console.warn("[oauth/authorize] GET", {
-    redirect_uri: redirectUri,
-    registered: client?.ru,
-    ua: req.headers.get("user-agent"),
-    referer: req.headers.get("referer"),
-  });
 
   // Never redirect to an unvalidated URI — hard-fail instead (OAuth 2.1 §4.1.2.1).
   if (!client) {
