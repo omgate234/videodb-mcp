@@ -8,6 +8,7 @@ import {
   oauthError,
   CORS_HEADERS,
   ACCESS_TOKEN_TTL,
+  sameRedirectUri,
 } from "@/lib/oauth";
 import { sha256base64url, safeEqual } from "@/lib/crypto";
 
@@ -74,8 +75,7 @@ export async function POST(req: Request) {
     if (!openClientId(code.client_id)) {
       return oauthError(400, "invalid_client", "Unknown client.");
     }
-    if (params.redirect_uri && params.redirect_uri !== code.redirect_uri) {
-      console.warn("[oauth/token] redirect_uri mismatch", { sent: params.redirect_uri, code: code.redirect_uri });
+    if (params.redirect_uri && !sameRedirectUri(params.redirect_uri, code.redirect_uri)) {
       return oauthError(400, "invalid_grant", "redirect_uri does not match the authorization request.");
     }
     const verifier = params.code_verifier ?? "";
