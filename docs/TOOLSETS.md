@@ -138,6 +138,17 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 
 GPU runtimes for open-weight models, addressed by `config.sandbox_id` in `understand_video`. Hosted model tiers need none. No tool wraps `waitForReady`/`waitForStop` — see docs/toolsets/sandbox.md.
 
+### director (on when `DIRECTOR_SEARCH_URL` and `DIRECTOR_SEARCH_KEY` are set)
+
+| Tool | Kind | Wire | Notes |
+| --- | --- | --- | --- |
+| `director_search` / `get_search_status` | C / R | `POST /search` / `GET /search/{msg_id}` | fire-and-poll; `session_id` continues a conversation |
+| `get_result_set` / `list_result_shots` | R | `GET /result-sets/{id}` / `POST /result-sets/{id}/shots` | cursor pagination, ≤200 rows |
+| `stream_result_shot` | C | `POST /result-sets/{id}/stream` | rows of that set only |
+| `export_result_set` / `get_export_status` | C / R | `POST /result-sets/{id}/export` / `GET /exports/{id}` | queued; status carries a one-hour download link |
+
+Not the VideoDB API: `lib/director.ts` forwards each call to the configured search service with the shared key and the caller's VideoDB `user_id`, read from `GET /user` with the caller's own key. The service scopes every session, result set and export to that user.
+
 ### jobs (always on)
 
 | Tool | Kind | SDK | Notes |
