@@ -26,10 +26,10 @@ const sent = () => {
 };
 
 describe("director toolset", () => {
-  it("forwards director_search with the shared key and the caller's own user id", async () => {
+  it("forwards dataset_search with the shared key and the caller's own user id", async () => {
     fetchMock.mockReturnValue(reply(200, { session_id: "s-1", msg_id: "m-1", status: "running" }));
     const vdb = fakeConnection(USER);
-    const { data, isError } = await call(toolNamed(director, "director_search"), { message: "kitchens" }, vdb);
+    const { data, isError } = await call(toolNamed(director, "dataset_search"), { message: "kitchens" }, vdb);
     expect(isError).toBe(false);
     expect(data).toMatchObject({ msg_id: "m-1", status: "running" });
     expect(vdb.http.get).toHaveBeenCalledWith(["user"], undefined, { convert: false });
