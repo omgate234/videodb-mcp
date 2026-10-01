@@ -30,7 +30,7 @@ const getSearchStatus = defineTool({
   title: "Get search status",
   description:
     "Poll a dataset_search turn by its msg_id; returns immediately. Call about every 10 s while status is 'running' (actions lists what the agent has done so far; show progress to the user if the wait is long). 'success' carries the answer: reply (what was searched, counts, top score, whether anything was capped, a suggested next step) and result_sets, one per set the agent produced, each with content_id, name, count, video_count and up to 10 preview rows. 'error' carries a reply saying what to do next; the conversation stays usable.\n\n" +
-    "Relay reply to the user. Then, per result set's content_id: get_result_set for totals and field breakdowns, list_result_shots for every row with a watch_url to present as a link, stream_result_shot for a playable clip only when a row's watch_url is null, export_result_set to turn the set into training files. For a refinement, call dataset_search again with the same session_id.",
+    "Relay reply to the user. Then, per result set's content_id: get_result_set for totals and field breakdowns, list_result_shots for every row with a watch_url to present as a link, export_result_set to turn the set into training files. For a refinement, call dataset_search again with the same session_id.",
   kind: "read",
   input: z.object({ msg_id: z.string().min(1).describe("msg_id returned by dataset_search.") }),
   handler: ({ msg_id }, vdb) => forward(vdb, "GET", `/search/${seg(msg_id)}`),
@@ -50,7 +50,7 @@ const listResultShots = defineTool({
   name: "list_result_shots",
   title: "List result shots",
   description:
-    "Rows of a result set, at most 200 per page. Each row is one annotated time span: video_id, start/end (seconds), text (the instruction or annotation sentence that matched), score, index_name and dataset (e.g. robodojo, libero, egoexo4d; it decides what export_result_set produces), rank, its stored fields (e.g. episode_index, task_slug, tier) and watch_url, a direct link to the source video seeked to the span, or null when the source is not browser-playable. Present watch_url as a clickable link; when it is null, call stream_result_shot for that row.\n\n" +
+    "Rows of a result set, at most 200 per page. Each row is one annotated time span: video_id, start/end (seconds), text (the instruction or annotation sentence that matched), score, index_name and dataset (e.g. robodojo, libero, egoexo4d; it decides what export_result_set produces), rank, its stored fields (e.g. episode_index, task_slug, tier) and watch_url, a direct link to the source video seeked to the span, or null when the source is not browser-playable. Present watch_url as a clickable link.\n\n" +
     "`where` matches stored fields exactly ({tier:'confirmed'}); take values from get_result_set. `q` is a case-insensitive text match on the sentence. Returns {shots, next_cursor}; pass next_cursor back for the next page, null means the last page. Page only as far as the user needs; export_result_set reads rows by content_id, so rows never need to be collected for export.",
   kind: "read",
   input: z.object({
@@ -67,28 +67,12 @@ const listResultShots = defineTool({
   handler: ({ content_id, ...query }, vdb) => forward(vdb, "POST", `/result-sets/${seg(content_id)}/shots`, query),
 });
 
-const streamResultShot = defineTool({
-  name: "stream_result_shot",
-  title: "Stream result shot",
-  description:
-    "Create a playable, trimmed clip for one row of a result set, when that row's watch_url from list_result_shots is null. Pass the row's video_id, start and end; `pad` adds seconds of context on each side, clamped to the video. Only rows of that set can be streamed. Returns {stream_url, player_url}; present player_url as a clickable link. Create one at a time, when someone will actually watch it.",
-  kind: "create",
-  input: z.object({
-    content_id: CONTENT_ID,
-    video_id: z.string().min(1).describe("The row's video_id."),
-    start: z.number().min(0).describe("Row start, seconds."),
-    end: z.number().min(0).describe("Row end, seconds."),
-    pad: z.number().min(0).default(0).describe("Seconds of context on each side."),
-  }),
-  handler: ({ content_id, ...shot }, vdb) => forward(vdb, "POST", `/result-sets/${seg(content_id)}/stream`, shot),
-});
-
 const exportResultSet = defineTool({
   name: "export_result_set",
   title: "Export result set",
   description:
     "Export a result set from dataset_search as downloadable training data, by content_id, in the set's rank order: at most 50 rows per call for lerobot or rlds, 10 for mcap (also the fallback when formats is omitted). For a larger set, call again with offset set to the previous reply's rows.next_offset until it is null; each call is its own export and download. A slice that is still too large to export at once is refused with a smaller limit to use. Export a finished set only (after get_search_status reports success); to export a subset such as the confirmed tier, ask dataset_search for that set in the same session and export its content_id.\n\n" +
-    "The output depends on each row's dataset (see get_result_set's dataset counts or a row's dataset field), not on its index or annotation layer:\n- Robot datasets: robodojo, robocasa, agibotworld2026, molmoact_dataset, calvin, libero, mobilealoha, dreamdojo_gr1, habit, humanoid_everyday. One training format per export: lerobot, rlds or mcap. Each row exports its whole episode, whatever layer matched (step, task, subtask…), with the recorded state, action and every camera; rows from the same episode become one episode. Only what the source records is exported (a dataset without a state stream has none); multi-dimensional sensor arrays such as depth maps, LiDAR and tactile grids are left out; nothing is inferred or synthesized.\n- Human video: egoexo4d. MP4 only, frame-accurate clips of each annotated span plus clips/manifest.json with the annotation text. formats does not apply; omit it.\n- Not exportable: epickitchens100, egoinfinity (no RGB video at the source) and cognitivedrone_dataset (image frames only, no video). Their rows can be searched, inspected and streamed; in an export they are skipped and listed in errors.json while the rest of the set exports.\nA set with robot rows needs a format: use the one the user named, or ask them (LeRobot/Hugging Face → lerobot, RLDS/TFDS/Open X-Embodiment → rlds, ROS 2/Foxglove → mcap); left out, it falls back to mcap. A mixed set writes the robot format and the MP4 clips side by side, one dataset per embodiment.\n\n" +
+    "The output depends on each row's dataset (see get_result_set's dataset counts or a row's dataset field), not on its index or annotation layer:\n- Robot datasets: robodojo, robocasa, agibotworld2026, molmoact_dataset, calvin, libero, mobilealoha, dreamdojo_gr1, habit, humanoid_everyday. One training format per export: lerobot, rlds or mcap. Each row exports its whole episode, whatever layer matched (step, task, subtask…), with the recorded state, action and every camera; rows from the same episode become one episode. Only what the source records is exported (a dataset without a state stream has none); multi-dimensional sensor arrays such as depth maps, LiDAR and tactile grids are left out; nothing is inferred or synthesized.\n- Human video: egoexo4d. MP4 only, frame-accurate clips of each annotated span plus clips/manifest.json with the annotation text. formats does not apply; omit it.\n- Not exportable: epickitchens100, egoinfinity (no RGB video at the source) and cognitivedrone_dataset (image frames only, no video). Their rows can be searched and inspected; in an export they are skipped and listed in errors.json while the rest of the set exports.\nA set with robot rows needs a format: use the one the user named, or ask them (LeRobot/Hugging Face → lerobot, RLDS/TFDS/Open X-Embodiment → rlds, ROS 2/Foxglove → mcap); left out, it falls back to mcap. A mixed set writes the robot format and the MP4 clips side by side, one dataset per embodiment.\n\n" +
     "Returns {export_id, status:'queued', rows:{offset, limit, total, next_offset}} at once. Next: poll get_export_status(export_id).",
   kind: "create",
   input: z.object({
@@ -124,5 +108,5 @@ export const director: Toolset = {
   name: "director",
   description: "Dataset search over the robot-learning corpus, its stored result sets and exports; on when the search service is configured.",
   defaultEnabled: directorConfigured(),
-  tools: [startSearch, getSearchStatus, getResultSet, listResultShots, streamResultShot, exportResultSet, getExportStatus],
+  tools: [startSearch, getSearchStatus, getResultSet, listResultShots, exportResultSet, getExportStatus],
 };

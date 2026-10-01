@@ -45,8 +45,6 @@ describe("director toolset", () => {
       ["get_result_set", { content_id: "srs-1" }, "GET", "/result-sets/srs-1", undefined],
       ["list_result_shots", { content_id: "srs-1", where: { tier: "confirmed" } }, "POST", "/result-sets/srs-1/shots",
         { where: { tier: "confirmed" }, sort: "score", order: "desc", limit: 100 }],
-      ["stream_result_shot", { content_id: "srs-1", video_id: "m-1", start: 1, end: 2 }, "POST", "/result-sets/srs-1/stream",
-        { video_id: "m-1", start: 1, end: 2, pad: 0 }],
       ["export_result_set", { content_id: "srs-1", formats: ["mcap"] }, "POST", "/result-sets/srs-1/export",
         { formats: ["mcap"], fps: 5, mcap_profile: "foxglove", offset: 0 }],
       ["export_result_set", { content_id: "srs-1", formats: ["lerobot"], offset: 200, limit: 25 }, "POST", "/result-sets/srs-1/export",
