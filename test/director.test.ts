@@ -48,7 +48,9 @@ describe("director toolset", () => {
       ["stream_result_shot", { content_id: "srs-1", video_id: "m-1", start: 1, end: 2 }, "POST", "/result-sets/srs-1/stream",
         { video_id: "m-1", start: 1, end: 2, pad: 0 }],
       ["export_result_set", { content_id: "srs-1", formats: ["mcap"] }, "POST", "/result-sets/srs-1/export",
-        { formats: ["mcap"], fps: 5, mcap_profile: "foxglove" }],
+        { formats: ["mcap"], fps: 5, mcap_profile: "foxglove", offset: 0 }],
+      ["export_result_set", { content_id: "srs-1", formats: ["lerobot"], offset: 200, limit: 25 }, "POST", "/result-sets/srs-1/export",
+        { formats: ["lerobot"], fps: 5, mcap_profile: "foxglove", offset: 200, limit: 25 }],
       ["get_export_status", { export_id: "a".repeat(32), portable: true }, "GET", `/exports/${"a".repeat(32)}?portable=true`, undefined],
     ];
     for (const [name, args, method, path, body] of cases) {

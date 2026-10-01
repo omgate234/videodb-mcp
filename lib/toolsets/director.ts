@@ -51,7 +51,7 @@ const listResultShots = defineTool({
   title: "List result shots",
   description:
     "Rows of a result set, at most 200 per page. Each row is one annotated time span: video_id, start/end (seconds), text (the instruction or annotation sentence that matched), score, index_name and dataset (robodojo or egoexo4d, which decides the export format), rank, its stored fields (e.g. episode_index, task_slug, tier) and watch_url, a direct link to the source video seeked to the span, or null when the source is not browser-playable. Present watch_url as a clickable link; when it is null, call stream_result_shot for that row.\n\n" +
-    "`where` matches stored fields exactly ({tier:'confirmed'}); take values from get_result_set. `q` is a case-insensitive text match on the sentence. Returns {shots, next_cursor}; pass next_cursor back for the next page, null means the last page. Page only as far as the user needs; export_result_set takes the whole set by content_id, so rows never need to be collected for export.",
+    "`where` matches stored fields exactly ({tier:'confirmed'}); take values from get_result_set. `q` is a case-insensitive text match on the sentence. Returns {shots, next_cursor}; pass next_cursor back for the next page, null means the last page. Page only as far as the user needs; export_result_set reads rows by content_id, so rows never need to be collected for export.",
   kind: "read",
   input: z.object({
     content_id: CONTENT_ID,
@@ -87,9 +87,9 @@ const exportResultSet = defineTool({
   name: "export_result_set",
   title: "Export result set",
   description:
-    "Export a whole result set from dataset_search as downloadable training data, by content_id; there is no row cap. Export a finished set only (after get_search_status reports success); to export a subset such as the confirmed tier, ask dataset_search for that set in the same session and export its content_id.\n\n" +
+    "Export a result set from dataset_search as downloadable training data, by content_id, in the set's rank order: at most 50 rows per call for lerobot or rlds, 10 for mcap (also the fallback when formats is omitted). For a larger set, call again with offset set to the previous reply's rows.next_offset until it is null; each call is its own export and download. A slice that is still too large to export at once is refused with a smaller limit to use. Export a finished set only (after get_search_status reports success); to export a subset such as the confirmed tier, ask dataset_search for that set in the same session and export its content_id.\n\n" +
     "The output depends on each row's dataset (see get_result_set's dataset counts or a row's dataset field):\n- robodojo (robot manipulation): one training format per export, lerobot, rlds or mcap. Each row exports its whole episode with the recorded state, action and every camera; nothing is inferred or synthesized.\n- egoexo4d (human video): MP4 only, frame-accurate clips of each span plus clips/manifest.json with the annotation text. formats does not apply; omit it.\nA set with robodojo rows needs a format: use the one the user named, or ask them (LeRobot/Hugging Face → lerobot, RLDS/TFDS/Open X-Embodiment → rlds, ROS 2/Foxglove → mcap); left out, it falls back to mcap. A mixed set writes the robot format and the MP4 clips side by side, one dataset per embodiment.\n\n" +
-    "Returns {export_id, status:'queued'} at once. Next: poll get_export_status(export_id).",
+    "Returns {export_id, status:'queued', rows:{offset, limit, total, next_offset}} at once. Next: poll get_export_status(export_id).",
   kind: "create",
   input: z.object({
     content_id: CONTENT_ID,
@@ -98,6 +98,8 @@ const exportResultSet = defineTool({
     mcap_profile: z.enum(["foxglove", "ros2"]).default("foxglove").describe("MCAP message encoding: foxglove for Foxglove Studio, ros2 for ROS 2 tooling."),
     rlds_observation_names: z.record(z.string(), z.string()).optional().describe("RLDS only: source stream → observation key, default {front:'image', wrist:'hand_image', state:'robot_state'}."),
     rlds_action_fields: z.record(z.string(), z.union([z.number().int(), z.array(z.number().int())])).optional().describe("RLDS only: split the action vector into named fields, an index for a scalar or a list of indices for a vector. Omit to keep the vector whole."),
+    offset: z.number().int().min(0).default(0).describe("First row to export, in rank order; use the previous reply's rows.next_offset."),
+    limit: z.number().int().min(1).max(50).optional().describe("Rows to export in this call: at most 50 for lerobot/rlds, 10 for mcap. Omit for that maximum."),
   }),
   handler: ({ content_id, ...request }, vdb) => forward(vdb, "POST", `/result-sets/${seg(content_id)}/export`, request),
   retryWith: "get_export_status",
