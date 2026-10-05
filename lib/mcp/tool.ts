@@ -162,6 +162,8 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
         latencyMs: performance.now() - started,
         apiKey,
         email: typeof auth?.extra?.email === "string" ? auth.extra.email : undefined,
+        userId: typeof auth?.extra?.userId === "string" ? auth.extra.userId : undefined,
+        userName: typeof auth?.extra?.userName === "string" ? auth.extra.userName : undefined,
         clientId: typeof auth?.clientId === "string" ? auth.clientId : undefined,
       });
       return settled.result;

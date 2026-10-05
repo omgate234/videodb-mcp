@@ -129,7 +129,7 @@ Trade-off to know: with no server-side state, individual tokens can't be revoked
 
 ## Telemetry (optional)
 
-Set `TELEMETRY_URL` and `TELEMETRY_KEY` to record every tool call — tool name, arguments, latency, and whether it succeeded, failed (with the reason and upstream HTTP status) or timed out into a `processing` hand-back. Records are POSTed to `${TELEMETRY_URL}/v1/mcp/calls` after the response is sent, so they never slow a call down or fail one. The caller is identified by a hash of their API key plus the account email; the key itself is never sent. Leave both unset and nothing is recorded.
+Set `TELEMETRY_URL` and `TELEMETRY_KEY` to record every tool call — tool name, arguments, latency, and whether it succeeded, failed (with the reason and upstream HTTP status) or timed out into a `processing` hand-back. Records are POSTed to `${TELEMETRY_URL}/v1/mcp/calls` after the response is sent, so they never slow a call down or fail one. The caller is identified by a hash of their API key plus their VideoDB user id, name and email; the key itself is never sent. Leave both unset and nothing is recorded.
 
 ## Deploy to Vercel
 
