@@ -10,7 +10,8 @@ import type { ToolResult } from "@/lib/mcp/tool";
  * failed (and why) or timed out into a "processing" hand-back. Unset → no-op.
  *
  * Never blocks or fails a tool call, and never sends the user's API key: the
- * caller is identified by a hash of the key plus the email sealed in the token.
+ * caller is identified by a hash of the key plus the VideoDB user id, name and
+ * email sealed in the token.
  */
 export type CallStatus = "success" | "error" | "processing";
 
@@ -31,6 +32,8 @@ export interface CallRecord {
   latencyMs: number;
   apiKey?: string;
   email?: string;
+  userId?: string;
+  userName?: string;
   clientId?: string;
 }
 
@@ -81,6 +84,8 @@ export function toPayload(r: CallRecord): Record<string, unknown> {
         : null,
     user_key: r.apiKey ? userKey(r.apiKey) : null,
     user_email: r.email ?? null,
+    user_id: r.userId ?? null,
+    user_name: r.userName ?? null,
     client: clientName ?? null,
     metadata: { server: "videodb-mcp/2.0.0" },
     timestamp: new Date().toISOString(),

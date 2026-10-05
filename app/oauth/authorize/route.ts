@@ -140,6 +140,8 @@ export async function POST(req: Request) {
   const code = mintCode({
     key: apiKey,
     email: check.email,
+    user_id: check.user_id,
+    user_name: check.user_name,
     client_id: consent.client_id,
     redirect_uri: consent.redirect_uri,
     cc: consent.cc,
