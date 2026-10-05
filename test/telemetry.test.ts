@@ -67,6 +67,8 @@ describe("payload", () => {
       latencyMs: 12.6,
       apiKey: "sk-secret",
       email: "ada@example.com",
+      userId: "u-1",
+      userName: "Ada",
       clientId,
     });
     expect(p).toMatchObject({
@@ -80,6 +82,8 @@ describe("payload", () => {
       error: null,
       user_key: userKey("sk-secret"),
       user_email: "ada@example.com",
+      user_id: "u-1",
+      user_name: "Ada",
       client: "Claude",
     });
     expect(JSON.stringify(p)).not.toContain("sk-secret");

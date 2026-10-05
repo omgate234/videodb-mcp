@@ -50,6 +50,8 @@ export interface CodePayload {
   typ: "code";
   key: string;
   email?: string; // account email verified with the key; used for telemetry attribution
+  user_id?: string;
+  user_name?: string;
   client_id: string;
   redirect_uri: string;
   cc: string;
@@ -62,6 +64,8 @@ export interface AccessPayload {
   typ: "access";
   key: string;
   email?: string; // account email verified with the key; used for telemetry attribution
+  user_id?: string;
+  user_name?: string;
   client_id: string;
   scope: string;
   aud: string;
@@ -73,6 +77,8 @@ export interface RefreshPayload {
   typ: "refresh";
   key: string;
   email?: string; // account email verified with the key; used for telemetry attribution
+  user_id?: string;
+  user_name?: string;
   client_id: string;
   scope: string;
   aud: string;

@@ -11,6 +11,7 @@ import {
   sameRedirectUri,
 } from "@/lib/oauth";
 import { sha256base64url, safeEqual } from "@/lib/crypto";
+import { fetchIdentity } from "@/lib/videodb/auth";
 
 /**
  * OAuth 2.1 token endpoint (public clients, PKCE, refresh rotation).
@@ -42,6 +43,8 @@ async function readParams(req: Request): Promise<Record<string, string>> {
 function tokenResponse(p: {
   key: string;
   email?: string;
+  user_id?: string;
+  user_name?: string;
   client_id: string;
   scope: string;
   aud: string;
@@ -85,6 +88,8 @@ export async function POST(req: Request) {
     return tokenResponse({
       key: code.key,
       email: code.email,
+      user_id: code.user_id,
+      user_name: code.user_name,
       client_id: code.client_id,
       scope: code.scope,
       aud: code.aud,
@@ -99,10 +104,14 @@ export async function POST(req: Request) {
     if (params.client_id && params.client_id !== refresh.client_id) {
       return oauthError(400, "invalid_grant", "client_id does not match the refresh token.");
     }
+    // Connections made before identity was sealed pick it up on their next refresh.
+    const who = refresh.user_id ? refresh : { ...refresh, ...(await fetchIdentity(refresh.key)) };
     // Rotation: issue a fresh access + refresh token pair.
     return tokenResponse({
       key: refresh.key,
-      email: refresh.email,
+      email: who.email ?? refresh.email,
+      user_id: who.user_id,
+      user_name: who.user_name,
       client_id: refresh.client_id,
       scope: refresh.scope,
       aud: refresh.aud,

@@ -32,7 +32,7 @@ const verifyToken = async (req: Request, bearerToken?: string) => {
     clientId: payload.client_id,
     scopes: payload.scope ? payload.scope.split(" ") : ["videodb"],
     expiresAt: payload.exp,
-    extra: { videodbApiKey: payload.key, email: payload.email },
+    extra: { videodbApiKey: payload.key, email: payload.email, userId: payload.user_id, userName: payload.user_name },
   };
 };
 
