@@ -44,7 +44,7 @@ export async function validateApiKey(
   const who = await fetchIdentity(apiKey);
   return {
     valid: true,
-    email: who.email ?? str(json?.data?.user_email),
+    email: who.email ?? str(json?.data?.email) ?? str(json?.data?.user_email),
     user_id: who.user_id ?? str(json?.data?.user_id),
     user_name: who.user_name,
   };
