@@ -169,4 +169,66 @@ describe("recordToolCall", () => {
       expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer svc" }) })
     );
   });
+
+  it("names the caller from GET /user once per key, in the after-response send", async () => {
+    vi.stubEnv("TELEMETRY_URL", "https://o.example");
+    vi.stubEnv("TELEMETRY_KEY", "svc");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) =>
+      String(url).endsWith("/user")
+        ? Response.json({ success: true, data: { user_id: "u-1", name: "Ada", email: "ada@example.com" } })
+        : new Response(null, { status: 202 })
+    );
+    const call = () =>
+      recordToolCall({ tool: "t", kind: "read", args: {}, result: { content: [] }, outcome: { status: "success" }, latencyMs: 1, apiKey: "sk-cache-test" });
+    call();
+    await new Promise((r) => setTimeout(r, 0));
+    call();
+    await new Promise((r) => setTimeout(r, 0));
+    const urls = fetchSpy.mock.calls.map(([u]) => String(u));
+    expect(urls.filter((u) => u.endsWith("/user"))).toHaveLength(1);
+    const posts = fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/v1/mcp/calls"));
+    expect(posts).toHaveLength(2);
+    expect(JSON.parse(String(posts[1][1]?.body))).toMatchObject({ user_id: "u-1", user_name: "Ada", user_email: "ada@example.com" });
+  });
+
+  it.each([
+    ["network failure", () => Promise.reject(new Error("ECONNRESET"))],
+    ["5xx", async () => new Response("bad gateway", { status: 502 })],
+    ["401", async () => Response.json({ success: false }, { status: 401 })],
+    ["non-JSON body", async () => new Response("<html>", { status: 200 })],
+    ["wrong field types", async () => Response.json({ data: { user_id: 42, name: null, email: {} } })],
+  ])("a failed GET /user (%s) still sends the record with default identity", async (label, userResponse) => {
+    vi.stubEnv("TELEMETRY_URL", "https://o.example");
+    vi.stubEnv("TELEMETRY_KEY", "svc");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) =>
+      String(url).endsWith("/user") ? (userResponse as () => Promise<Response>)() : new Response(null, { status: 202 })
+    );
+    expect(() =>
+      recordToolCall({
+        tool: "t", kind: "read", args: {}, result: { content: [] }, outcome: { status: "success" }, latencyMs: 1,
+        apiKey: `sk-fail-${label}`, email: "sealed@example.com",
+      })
+    ).not.toThrow();
+    await new Promise((r) => setTimeout(r, 0));
+    const posts = fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/v1/mcp/calls"));
+    expect(posts).toHaveLength(1);
+    expect(JSON.parse(String(posts[0][1]?.body))).toMatchObject({
+      user_key: userKey(`sk-fail-${label}`), user_id: null, user_name: null, user_email: "sealed@example.com",
+    });
+  });
+
+  it("does not retry a failed lookup on every call", async () => {
+    vi.stubEnv("TELEMETRY_URL", "https://o.example");
+    vi.stubEnv("TELEMETRY_KEY", "svc");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) =>
+      String(url).endsWith("/user") ? new Response("down", { status: 503 }) : new Response(null, { status: 202 })
+    );
+    for (let i = 0; i < 3; i++) {
+      recordToolCall({ tool: "t", kind: "read", args: {}, result: { content: [] }, outcome: { status: "success" }, latencyMs: 1, apiKey: "sk-backoff" });
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/user"))).toHaveLength(1);
+    expect(fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/v1/mcp/calls"))).toHaveLength(3);
+  });
 });

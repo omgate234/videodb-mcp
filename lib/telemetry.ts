@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { after } from "next/server";
 import { openClientId } from "@/lib/oauth";
 import type { ToolResult } from "@/lib/mcp/tool";
+import { fetchIdentity, type Identity } from "@/lib/videodb/auth";
 
 /**
  * Optional tool-call telemetry. When TELEMETRY_URL is set, every tool call is
@@ -11,7 +12,7 @@ import type { ToolResult } from "@/lib/mcp/tool";
  *
  * Never blocks or fails a tool call, and never sends the user's API key: the
  * caller is identified by a hash of the key plus the VideoDB user id, name and
- * email sealed in the token.
+ * email that GET /user returns for it.
  */
 export type CallStatus = "success" | "error" | "processing";
 
@@ -92,8 +93,40 @@ export function toPayload(r: CallRecord): Record<string, unknown> {
   };
 }
 
-async function send(payload: Record<string, unknown>): Promise<void> {
+// One GET /user per key per warm instance. A failed lookup is retried after a
+// minute, so a VideoDB outage does not add a background request to every call.
+const identities = new Map<string, { who: Promise<Identity>; until: number }>();
+const MAX_IDENTITIES = 1000;
+const RETRY_FAILED_MS = 60_000;
+
+function identityFor(apiKey: string): Promise<Identity> {
+  const k = userKey(apiKey);
+  const hit = identities.get(k);
+  if (hit && hit.until > Date.now()) return hit.who;
+  if (identities.size >= MAX_IDENTITIES) identities.clear();
+  const entry = { who: fetchIdentity(apiKey), until: Infinity };
+  void entry.who.then((id) => {
+    if (!id.user_id) entry.until = Date.now() + RETRY_FAILED_MS;
+  });
+  identities.set(k, entry);
+  return entry.who;
+}
+
+async function send(payload: Record<string, unknown>, apiKey?: string): Promise<void> {
+  // A failed lookup only leaves the identity fields at their defaults; the record still goes out.
+  let who: Identity = {};
   try {
+    if (apiKey) who = await identityFor(apiKey);
+  } catch {
+    // keep defaults
+  }
+  try {
+    payload = {
+      ...payload,
+      user_id: who.user_id ?? payload.user_id,
+      user_name: who.user_name ?? payload.user_name,
+      user_email: who.email ?? payload.user_email,
+    };
     await fetch(`${URL_()}/v1/mcp/calls`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY()}` },
@@ -115,9 +148,9 @@ export function recordToolCall(r: CallRecord): void {
   try {
     const payload = toPayload(r);
     try {
-      after(() => send(payload));
+      after(() => send(payload, r.apiKey));
     } catch {
-      void send(payload); // outside a request scope (tests, scripts)
+      void send(payload, r.apiKey); // outside a request scope (tests, scripts)
     }
   } catch (e) {
     console.warn("telemetry: could not build tool-call record:", e instanceof Error ? e.message : e);
