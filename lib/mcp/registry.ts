@@ -49,8 +49,8 @@ export function allTools(toolsets = TOOLSETS): ToolDef<any>[] {
   return tools;
 }
 
-export function registerAll(server: McpServer, toolsets = enabledToolsets()): void {
+export async function registerAll(server: McpServer, toolsets = enabledToolsets()): Promise<void> {
   allTools(toolsets); // rejects duplicate names across toolsets
   for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
-  registerEditorApp(server);
+  await registerEditorApp(server);
 }

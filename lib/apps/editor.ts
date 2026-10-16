@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
@@ -10,8 +11,9 @@ import { BASE_URL } from "@/lib/videodb/client";
  * The app reaches its backends only through `editor_api`, with the caller's own key.
  */
 
-const RESOURCE_URI = "ui://videodb/editor";
-const MANIFEST_TTL_MS = 5 * 60_000;
+// Hosts cache UI resources by URI, so each build is served under its own content hash.
+const RESOURCE_BASE = "ui://videodb/editor";
+const MANIFEST_TTL_MS = 60_000;
 const API_TIMEOUT_MS = 50_000;
 
 interface Manifest {
@@ -20,7 +22,7 @@ interface Manifest {
   permissions?: Record<string, object>;
 }
 
-let cached: { at: number; html: string; meta: Omit<Manifest, "html"> } | undefined;
+let cached: { at: number; uri: string; html: string; meta: Omit<Manifest, "html"> } | undefined;
 
 async function loadApp(manifestUrl: string) {
   if (cached && Date.now() - cached.at < MANIFEST_TTL_MS) return cached;
@@ -29,7 +31,9 @@ async function loadApp(manifestUrl: string) {
   const { html, csp, permissions } = (await res.json()) as Manifest;
   const page = await fetch(new URL(html, manifestUrl), { cache: "no-store" });
   if (!page.ok) throw new Error(`Editor bundle fetch failed: ${page.status}`);
-  cached = { at: Date.now(), html: await page.text(), meta: { csp, permissions } };
+  const text = await page.text();
+  const version = createHash("sha256").update(text).digest("hex").slice(0, 12);
+  cached = { at: Date.now(), uri: `${RESOURCE_BASE}/${version}`, html: text, meta: { csp, permissions } };
   return cached;
 }
 
@@ -68,13 +72,22 @@ async function callApi(args: z.infer<typeof API_INPUT>, apiKey: string, director
   return { status: res.status, ok: res.ok, body };
 }
 
-export function registerEditorApp(server: McpServer, env = process.env): void {
+export async function registerEditorApp(server: McpServer, env = process.env): Promise<void> {
   const manifestUrl = env.VIDEODB_EDITOR_APP_URL;
   const directorBase = env.VIDEODB_EDITOR_API_URL;
   if (!manifestUrl || !directorBase) return;
 
+  let app: Awaited<ReturnType<typeof loadApp>>;
+  try {
+    app = await loadApp(manifestUrl);
+  } catch (e) {
+    console.error("[editor-app] not registered:", (e as Error).message);
+    return;
+  }
+  const { uri: RESOURCE_URI } = app;
+
   registerAppResource(server, "VideoDB editor", RESOURCE_URI, { description: "Multi-track video editor." }, async () => {
-    const { html, meta } = await loadApp(manifestUrl);
+    const { html, meta } = app;
     return { contents: [{ uri: RESOURCE_URI, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: { ui: meta } }] };
   });
 
