@@ -18,6 +18,7 @@
     "tools:sync": "tsx scripts/sync-readme.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
     "@modelcontextprotocol/server": "^2.0.0",
     "mcp-handler": "^2.1.0",
     "next": "^15.4.0",
