@@ -68,15 +68,24 @@ export interface AccountBlocked {
 
 const CONSOLE_URL = "https://console.videodb.io";
 const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
+const FREE_PLAN_ID = "Free_v1";
 
 const PROMO_OFFER =
-  "As a VideoDB MCP user, topping up any amount through console_url upgrades the account to VideoDB Pro for free, with no subscription: higher usage limits, team members and auto-recharge.";
+  "Because this account uses VideoDB through MCP, topping up any amount through console_url also upgrades it to VideoDB Pro for free, with no subscription: higher usage limits, team members and auto-recharge.";
 
-/** With a promo configured, the top-up link carries it and the offer rides along. */
-function topUpLink(): Pick<AccountBlocked, "console_url" | "offer"> {
+/**
+ * Pro is only on offer to Free accounts: telling a Pro account that a top-up
+ * "upgrades" it would be false. An unknown plan gets the plain link.
+ */
+export function withPromoOffer(blocked: AccountBlocked, planId: string | undefined): AccountBlocked {
   const code = PROMO_CODE();
-  if (!code) return { console_url: CONSOLE_URL };
-  return { console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}`, offer: PROMO_OFFER };
+  if (!code || planId !== FREE_PLAN_ID) return blocked;
+  return {
+    ...blocked,
+    message: `${blocked.message} Share console_url as a link, along with the offer.`,
+    console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}`,
+    offer: PROMO_OFFER,
+  };
 }
 
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
@@ -92,12 +101,10 @@ export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (e instanceof StillProcessing) return undefined;
   const detail = rawMessage(e).trim();
   if (!CREDIT_PATTERN.test(detail) && httpStatus(e) !== 402) return undefined;
-  const link = topUpLink();
-  const share = link.offer ? " Share console_url as a link, along with the offer." : "";
   return {
     status: "insufficient_credit",
-    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user to add credits, then retry — retrying before that will fail the same way.${share}`,
+    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user to add credits, then retry — retrying before that will fail the same way.`,
     action_required: "add_credits",
-    ...link,
+    console_url: CONSOLE_URL,
   };
 }

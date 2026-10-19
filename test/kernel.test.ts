@@ -3,7 +3,7 @@ import { z } from "zod";
 import { defineTool, ANNOTATIONS } from "@/lib/mcp/tool";
 import { allTools, TOOLSETS, enabledToolsets } from "@/lib/mcp/registry";
 import { toPlain, cap } from "@/lib/videodb/serialize";
-import { describeError } from "@/lib/videodb/errors";
+import { asAccountBlocked, describeError, withPromoOffer } from "@/lib/videodb/errors";
 import { InvalidRequestError } from "videodb";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
 import { call, fakeConnection } from "./harness";
@@ -227,22 +227,39 @@ describe("insufficient credit", () => {
     expect(res.isError).toBe(true);
   });
 
-  it("links to the plain console when no promo is configured", async () => {
+  it("links to the plain console", async () => {
     const res = await call(failingTool(apiError(400, BALANCE)), {}, fakeConnection());
     expect(res.data).toMatchObject({ console_url: "https://console.videodb.io" });
     expect(res.data).not.toHaveProperty("offer");
   });
+});
 
-  it("carries the promo on the top-up link and offers Pro", async () => {
+describe("withPromoOffer", () => {
+  const blocked = asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))!;
+
+  it("offers Pro to a Free account through the promo link", () => {
     vi.stubEnv("PRO_PROMO_CODE", "test-promo");
     try {
-      const res = await call(failingTool(apiError(400, BALANCE)), {}, fakeConnection());
-      const data = res.data as { console_url: string; offer: string; message: string };
-      expect(data.console_url).toBe("https://console.videodb.io/?page=billing&promo=test-promo");
-      expect(data.offer).toMatch(/Pro/);
-      expect(data.message).toMatch(/offer/);
+      const offered = withPromoOffer(blocked, "Free_v1");
+      expect(offered.console_url).toBe("https://console.videodb.io/?page=billing&promo=test-promo");
+      expect(offered.offer).toMatch(/Pro/);
+      expect(offered.message).toMatch(/offer/);
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+
+  it("never offers an upgrade to an account that is not on Free, or whose plan is unknown", () => {
+    vi.stubEnv("PRO_PROMO_CODE", "test-promo");
+    try {
+      expect(withPromoOffer(blocked, "Pro_v1")).toBe(blocked);
+      expect(withPromoOffer(blocked, undefined)).toBe(blocked);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("leaves the result alone when no promo is configured", () => {
+    expect(withPromoOffer(blocked, "Free_v1")).toBe(blocked);
   });
 });
