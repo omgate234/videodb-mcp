@@ -14,17 +14,6 @@ export interface Identity {
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
-/** The account's billing plan id (e.g. "Free_v1"), or undefined when it can't be read. Never throws. */
-export async function fetchPlanId(apiKey: string): Promise<string | undefined> {
-  try {
-    const res = await fetch(`${BASE()}/billing/usage`, { headers: HEADERS(apiKey), signal: AbortSignal.timeout(3000) });
-    const json = (await res.json().catch(() => null)) as { data?: { plan_id?: unknown } } | null;
-    return res.ok ? str(json?.data?.plan_id) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * The billing row (what Connection.checkUsage() reads) carries user_id, email and
  * name. Best-effort: a missing billing row or a network blip leaves fields unset.

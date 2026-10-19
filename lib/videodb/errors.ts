@@ -67,15 +67,11 @@ export interface AccountBlocked {
 
 const CONSOLE_URL = "https://console.videodb.io";
 const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
-const FREE_PLAN_ID = "Free_v1";
 
-/**
- * Free accounts get the billing page with the promo code attached; anyone else,
- * or an account whose plan is unknown, gets the plain console link.
- */
-export function withPromoLink(blocked: AccountBlocked, planId: string | undefined): AccountBlocked {
+/** With a promo code configured, every out-of-credit result links the billing page carrying it. */
+export function withPromoLink(blocked: AccountBlocked): AccountBlocked {
   const code = PROMO_CODE();
-  if (!code || planId !== FREE_PLAN_ID) return blocked;
+  if (!code) return blocked;
   return { ...blocked, console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}` };
 }
 
