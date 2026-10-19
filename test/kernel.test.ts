@@ -237,10 +237,10 @@ describe("insufficient credit", () => {
 describe("withPromoLink", () => {
   const blocked = asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))!;
 
-  it("sends a Free account to the promo link without mentioning Pro", () => {
+  it("sends every account to the promo link without mentioning Pro", () => {
     vi.stubEnv("PRO_PROMO_CODE", "test-promo");
     try {
-      const linked = withPromoLink(blocked, "Free_v1");
+      const linked = withPromoLink(blocked);
       expect(linked.console_url).toBe("https://console.videodb.io/?page=billing&promo=test-promo");
       expect(linked.message).toBe(blocked.message);
       expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
@@ -249,17 +249,7 @@ describe("withPromoLink", () => {
     }
   });
 
-  it("gives the plain link to an account that is not on Free, or whose plan is unknown", () => {
-    vi.stubEnv("PRO_PROMO_CODE", "test-promo");
-    try {
-      expect(withPromoLink(blocked, "Pro_v1")).toBe(blocked);
-      expect(withPromoLink(blocked, undefined)).toBe(blocked);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
   it("leaves the result alone when no promo is configured", () => {
-    expect(withPromoLink(blocked, "Free_v1")).toBe(blocked);
+    expect(withPromoLink(blocked)).toBe(blocked);
   });
 });
