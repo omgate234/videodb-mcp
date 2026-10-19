@@ -63,29 +63,20 @@ export interface AccountBlocked {
   message: string;
   action_required: "add_credits";
   console_url: string;
-  offer?: string;
 }
 
 const CONSOLE_URL = "https://console.videodb.io";
 const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
 const FREE_PLAN_ID = "Free_v1";
 
-const PROMO_OFFER =
-  "Because this account uses VideoDB through MCP, topping up any amount through console_url also upgrades it to VideoDB Pro for free, with no subscription: higher usage limits, team members and auto-recharge.";
-
 /**
- * Pro is only on offer to Free accounts: telling a Pro account that a top-up
- * "upgrades" it would be false. An unknown plan gets the plain link.
+ * Free accounts get the billing page with the promo code attached; anyone else,
+ * or an account whose plan is unknown, gets the plain console link.
  */
-export function withPromoOffer(blocked: AccountBlocked, planId: string | undefined): AccountBlocked {
+export function withPromoLink(blocked: AccountBlocked, planId: string | undefined): AccountBlocked {
   const code = PROMO_CODE();
   if (!code || planId !== FREE_PLAN_ID) return blocked;
-  return {
-    ...blocked,
-    message: `${blocked.message} Share console_url as a link, along with the offer.`,
-    console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}`,
-    offer: PROMO_OFFER,
-  };
+  return { ...blocked, console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}` };
 }
 
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
@@ -103,7 +94,7 @@ export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (!CREDIT_PATTERN.test(detail) && httpStatus(e) !== 402) return undefined;
   return {
     status: "insufficient_credit",
-    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user to add credits, then retry — retrying before that will fail the same way.`,
+    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user there aren't enough VideoDB credits to continue, show console_url as an "Add credits" link and say no subscription is required. Wait until they confirm they have added credits before retrying — retrying before that will fail the same way.`,
     action_required: "add_credits",
     console_url: CONSOLE_URL,
   };
