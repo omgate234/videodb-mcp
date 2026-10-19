@@ -4,7 +4,6 @@ import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
 import { asAccountBlocked, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
-import { fetchPlanId } from "@/lib/videodb/auth";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
 
 /**
@@ -153,11 +152,7 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
       try {
         apiKey = apiKeyFrom(ctx);
         settled = await run(def, args as never, client(apiKey));
-        // Only an out-of-credit stop pays for the plan lookup that picks the console link.
-        if (settled.blocked) {
-          const linked = withPromoLink(settled.blocked, await fetchPlanId(apiKey));
-          settled = { ...settled, result: { content: [text(linked)] } };
-        }
+        if (settled.blocked) settled = { ...settled, result: { content: [text(withPromoLink(settled.blocked))] } };
       } catch (e) {
         settled = settleError(e, def); // no credential in the token
       }
