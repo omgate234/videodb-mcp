@@ -65,6 +65,16 @@ export interface AccountBlocked {
   console_url: string;
 }
 
+const CONSOLE_URL = "https://console.videodb.io";
+const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
+
+/** With a promo code configured, every out-of-credit result links the billing page carrying it. */
+export function withPromoLink(blocked: AccountBlocked): AccountBlocked {
+  const code = PROMO_CODE();
+  if (!code) return blocked;
+  return { ...blocked, console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}` };
+}
+
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
 
 /** The API's own wording, unprefixed — `describeError` decorates it for the failure path. */
@@ -80,8 +90,8 @@ export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (!CREDIT_PATTERN.test(detail) && httpStatus(e) !== 402) return undefined;
   return {
     status: "insufficient_credit",
-    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user to add credits, then retry — retrying before that will fail the same way.`,
+    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user there aren't enough VideoDB credits to continue, show console_url as an "Add credits" link and say no subscription is required. Wait until they confirm they have added credits before retrying — retrying before that will fail the same way.`,
     action_required: "add_credits",
-    console_url: "https://console.videodb.io",
+    console_url: CONSOLE_URL,
   };
 }

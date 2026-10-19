@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { asAccountBlocked, describeError, httpStatus, isGatewayTimeout } from "@/lib/videodb/errors";
+import { asAccountBlocked, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
 
 /**
@@ -86,8 +86,11 @@ const text = (data: unknown): Content => ({
 
 const errorType = (e: unknown) => (e instanceof Error ? e.constructor.name : typeof e);
 
+/** What a tool call settles to: the client's result, telemetry's outcome, and the out-of-credit state if that's why it stopped. */
+type Settled = { result: ToolResult; outcome: Outcome; blocked?: AccountBlocked };
+
 /** Map a thrown error to the result the client sees plus the outcome telemetry records. */
-export function settleError(e: unknown, def: ToolDef<any>): { result: ToolResult; outcome: Outcome } {
+export function settleError(e: unknown, def: ToolDef<any>): Settled {
   if (e instanceof StillProcessing) {
     return { result: { content: [text(e.toResult())] }, outcome: { status: "processing", errorType: e.reason } };
   }
@@ -100,7 +103,7 @@ export function settleError(e: unknown, def: ToolDef<any>): { result: ToolResult
   // The account is out of credit — the user's to fix, so it is a result, not an error.
   // Telemetry's status enum has no slot for it; `result.status` tells the two apart.
   const blocked = asAccountBlocked(e);
-  if (blocked) return { result: { content: [text(blocked)] }, outcome: { status: "success" } };
+  if (blocked) return { result: { content: [text(blocked)] }, outcome: { status: "success" }, blocked };
   const message = describeError(e);
   return {
     result: { content: [text(`Error: ${message}`)], isError: true },
@@ -113,7 +116,7 @@ export async function run<S extends z.ZodObject<z.ZodRawShape>>(
   def: ToolDef<S>,
   args: z.infer<S>,
   vdb: Connection
-): Promise<{ result: ToolResult; outcome: Outcome }> {
+): Promise<Settled> {
   try {
     const result = await withDeadline(def.handler(args, vdb), def.deadlineLabel ?? def.title, {
       retryWith: def.retryWith,
@@ -145,10 +148,11 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
       const started = performance.now();
       const auth = authInfoFrom(ctx);
       let apiKey: string | undefined;
-      let settled: { result: ToolResult; outcome: Outcome };
+      let settled: Settled;
       try {
         apiKey = apiKeyFrom(ctx);
         settled = await run(def, args as never, client(apiKey));
+        if (settled.blocked) settled = { ...settled, result: { content: [text(withPromoLink(settled.blocked))] } };
       } catch (e) {
         settled = settleError(e, def); // no credential in the token
       }
