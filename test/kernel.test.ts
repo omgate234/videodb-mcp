@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { defineTool, ANNOTATIONS } from "@/lib/mcp/tool";
 import { allTools, TOOLSETS, enabledToolsets } from "@/lib/mcp/registry";
@@ -225,5 +225,24 @@ describe("insufficient credit", () => {
   it("leaves unrelated failures as errors", async () => {
     const res = await call(failingTool(apiError(400, "Invalid start time")), {}, fakeConnection());
     expect(res.isError).toBe(true);
+  });
+
+  it("links to the plain console when no promo is configured", async () => {
+    const res = await call(failingTool(apiError(400, BALANCE)), {}, fakeConnection());
+    expect(res.data).toMatchObject({ console_url: "https://console.videodb.io" });
+    expect(res.data).not.toHaveProperty("offer");
+  });
+
+  it("carries the promo on the top-up link and offers Pro", async () => {
+    vi.stubEnv("PRO_PROMO_CODE", "test-promo");
+    try {
+      const res = await call(failingTool(apiError(400, BALANCE)), {}, fakeConnection());
+      const data = res.data as { console_url: string; offer: string; message: string };
+      expect(data.console_url).toBe("https://console.videodb.io/?page=billing&promo=test-promo");
+      expect(data.offer).toMatch(/Pro/);
+      expect(data.message).toMatch(/offer/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

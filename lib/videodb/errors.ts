@@ -63,6 +63,20 @@ export interface AccountBlocked {
   message: string;
   action_required: "add_credits";
   console_url: string;
+  offer?: string;
+}
+
+const CONSOLE_URL = "https://console.videodb.io";
+const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
+
+const PROMO_OFFER =
+  "As a VideoDB MCP user, topping up any amount through console_url upgrades the account to VideoDB Pro for free, with no subscription: higher usage limits, team members and auto-recharge.";
+
+/** With a promo configured, the top-up link carries it and the offer rides along. */
+function topUpLink(): Pick<AccountBlocked, "console_url" | "offer"> {
+  const code = PROMO_CODE();
+  if (!code) return { console_url: CONSOLE_URL };
+  return { console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}`, offer: PROMO_OFFER };
 }
 
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
@@ -78,10 +92,12 @@ export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (e instanceof StillProcessing) return undefined;
   const detail = rawMessage(e).trim();
   if (!CREDIT_PATTERN.test(detail) && httpStatus(e) !== 402) return undefined;
+  const link = topUpLink();
+  const share = link.offer ? " Share console_url as a link, along with the offer." : "";
   return {
     status: "insufficient_credit",
-    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user to add credits, then retry — retrying before that will fail the same way.`,
+    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user to add credits, then retry — retrying before that will fail the same way.${share}`,
     action_required: "add_credits",
-    console_url: "https://console.videodb.io",
+    ...link,
   };
 }
