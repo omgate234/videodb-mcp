@@ -31,6 +31,13 @@ describe("get_job_result", () => {
     expect(data).toMatchObject({ status: "processing", output_url: URL_ });
   });
 
+  it("keeps polling the same URL when a processing reply omits output_url", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "in progress", data: "N/A" }) });
+    const { data, isError } = await call(get, { output_url: URL_ }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toMatchObject({ status: "processing", output_url: URL_ });
+  });
+
   it("unwraps a finished async-response and trims media records", async () => {
     const vdb = fakeConnection({
       [`GET ${URL_}`]: raw({ status: "done", response: { success: true, data: { id: "m-1", collection_id: "c-1", name: "Y", length: 3, stream_url: "https://s/y.m3u8", user_id: "u" } } }),
@@ -59,10 +66,26 @@ describe("get_job_result", () => {
 });
 
 describe("jobs kernel", () => {
-  it("settle: processing needs an output_url, otherwise the body is the result", () => {
-    expect(settle({ status: "processing", data: { id: "x" } }, "T")).toEqual({ data: { id: "x" } });
+  it("settle: processing keeps polling, reusing the last URL when output_url is missing", () => {
     expect(settle({ status: "queued", data: { id: "x", output_url: "u" } }, "T")).toMatchObject({ job: { job_id: "x", output_url: "u" } });
+    expect(settle({ status: "in progress" }, "T", "last")).toMatchObject({ job: { status: "processing", output_url: "last" } });
+    expect(settle({ status: "processing", data: { output_url: "new" } }, "T", "last")).toMatchObject({ job: { output_url: "last" } });
+    expect(() => settle({ status: "processing", data: { id: "x" } }, "T")).toThrow("no URL to poll");
+  });
+
+  it("settle: rejections win over status, at the top level and inside response", () => {
     expect(() => settle({ success: false, message: "nope" }, "T")).toThrow("nope");
+    expect(() => settle({ success: false, status: "processing", data: { output_url: "u" } }, "T")).toThrow("T failed.");
+    expect(() => settle({ status: "processing", response: { success: false, message: "bad" } }, "T", "u")).toThrow("bad");
+  });
+
+  it("settle: a finished job must carry a result object", () => {
+    expect(settle({ status: "done", response: { success: true, data: { id: "x" } } }, "T")).toEqual({ data: { id: "x" } });
+    expect(settle({ success: true, data: { id: "x" } }, "T")).toEqual({ data: { id: "x" } });
+    expect(() => settle({ status: "done", response: "N/A" }, "T")).toThrow("no result");
+    expect(() => settle({ status: "done", response: { success: true } }, "T")).toThrow("no result");
+    expect(() => settle({ success: true }, "T")).toThrow("no result");
+    expect(() => settle("N/A", "T")).toThrow("unexpected response");
   });
 
   it("isVideodbUrl accepts the configured API origin and *.videodb.io only", () => {
