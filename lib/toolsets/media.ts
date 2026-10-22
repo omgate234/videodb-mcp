@@ -94,6 +94,7 @@ const uploadMedia = defineTool({
   description:
     "Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns the created media record with its ID and player URL. Do not call upload_media again while the job is processing. With callback_url VideoDB calls your webhook instead.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     url: z.string().url().describe("Public URL of the media (or a YouTube link)."),
     collection_id: COLLECTION_ID,
@@ -198,6 +199,7 @@ const transcodeMedia = defineTool({
   description:
     "Start a transcode job from a directly downloadable media URL (e.g. MP4): change resolution, quality, framerate or aspect ratio, or mute audio. For YouTube watch URLs, ingest with upload_media first, then get_video → download_stream to obtain an MP4 source. VideoDB calls callback_url when done; poll with get_transcode_status.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     source: z.string().url().describe("Direct media URL; YouTube watch pages are not supported by the transcoder."),
     callback_url: z.string().url().describe("Webhook URL VideoDB calls when the job finishes (required)."),

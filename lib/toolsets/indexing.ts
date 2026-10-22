@@ -214,6 +214,7 @@ sampling picks frames inside each scene. Pass it per analyzer or once at run lev
 
 transform \`{"resolution":"480p"}\` lowers cost and latency; keep the source resolution when small text or fine detail matters.`,
   kind: "create",
+  openWorld: true,
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
@@ -325,6 +326,7 @@ The build is rows-first: records are stored before this returns, so query_index 
 
 Reuse one index name across videos to form a logical group that collection-scoped search can target. Indexes sharing a name must share a field structure; a mismatch is rejected with a 400 showing both.`,
   kind: "create",
+  openWorld: true,
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,

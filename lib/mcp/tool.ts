@@ -19,11 +19,15 @@ export const ANNOTATIONS: Record<ToolKind, { readOnlyHint: boolean; destructiveH
   destructive: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
 };
 
+export const annotationsFor = (def: ToolDef<any>) => ({ ...ANNOTATIONS[def.kind], ...(def.openWorld ? { openWorldHint: true } : {}) });
+
 export interface ToolDef<S extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.ZodRawShape>> {
   name: string;
   title: string;
   description: string;
   kind: ToolKind;
+  /** Reaches a user-supplied URL outside the account (media source, RTSP feed, webhook) → openWorldHint. */
+  openWorld?: boolean;
   input: S;
   /**
    * Return anything JSON-able or an SDK object — it is flattened by toPlain().
@@ -142,7 +146,7 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
       title: def.title,
       description: def.description,
       inputSchema: def.input,
-      annotations: { title: def.title, ...ANNOTATIONS[def.kind] },
+      annotations: { title: def.title, ...annotationsFor(def) },
     },
     async (args: unknown, ctx: unknown) => {
       const started = performance.now();

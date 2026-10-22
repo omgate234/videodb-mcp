@@ -32,11 +32,13 @@ function htmlError(status: number, message: string): Response {
   );
 }
 
-function redirectWith(redirectUri: string, params: Record<string, string | undefined>): Response {
+function redirectWith(req: Request, redirectUri: string, params: Record<string, string | undefined>): Response {
   const url = new URL(redirectUri);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined) url.searchParams.set(k, v);
   }
+  // RFC 9207: advertised in the AS metadata, so every response carries it — errors and denials included.
+  url.searchParams.set("iss", publicOrigin(req));
   return Response.redirect(url.toString(), 302);
 }
 
@@ -57,7 +59,7 @@ export async function GET(req: Request) {
 
   const state = p.get("state") ?? undefined;
   if (p.get("response_type") !== "code") {
-    return redirectWith(redirectUri, {
+    return redirectWith(req, redirectUri, {
       error: "unsupported_response_type",
       error_description: "Only response_type=code is supported.",
       state,
@@ -65,7 +67,7 @@ export async function GET(req: Request) {
   }
   const codeChallenge = p.get("code_challenge") ?? "";
   if (!codeChallenge || (p.get("code_challenge_method") ?? "S256") !== "S256") {
-    return redirectWith(redirectUri, {
+    return redirectWith(req, redirectUri, {
       error: "invalid_request",
       error_description: "PKCE with code_challenge_method=S256 is required.",
       state,
@@ -113,7 +115,7 @@ export async function POST(req: Request) {
   }
 
   if (action === "deny") {
-    return redirectWith(consent.redirect_uri, {
+    return redirectWith(req, consent.redirect_uri, {
       error: "access_denied",
       error_description: "The user denied the request.",
       state: consent.state,
@@ -149,9 +151,8 @@ export async function POST(req: Request) {
     aud,
   });
 
-  return redirectWith(consent.redirect_uri, {
+  return redirectWith(req, consent.redirect_uri, {
     code,
     state: consent.state,
-    iss: publicOrigin(req),
   });
 }
