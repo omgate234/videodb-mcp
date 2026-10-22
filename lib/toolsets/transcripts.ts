@@ -106,6 +106,7 @@ const translateTranscript = defineTool({
   description:
     "Translate a video's transcript into another language (requires a transcript — get_transcript or generate_transcript first). Video only; the translation is returned, not stored. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns translated_transcript.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,

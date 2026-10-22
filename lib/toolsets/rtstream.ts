@@ -62,6 +62,7 @@ const connectRTStream = defineTool({
   description:
     "Register a live RTSP/RTMP/HLS stream with VideoDB and start ingesting it. Returns the rtstream ID used by every other rtstream tool. Set store=true if you will later export the recording (export_rtstream_recording).",
   kind: "create",
+  openWorld: true,
   input: z.object({
     url: z.string().url().describe("Stream URL, e.g. rtsp://host:8554/cam1."),
     name: z.string().describe("Display name for the stream."),
@@ -336,6 +337,7 @@ const createRTStreamAlert = defineTool({
   description:
     "Attach an event (from create_event) to a stream index so VideoDB POSTs to callback_url each time the event is detected in a new window. Requires a running scene index or index; index_id is verified before the alert is created because alerts cannot be deleted. Returns the alert ID.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     rtstream_id: RTSTREAM_ID,
     index_id: z.string().describe("Scene index ID or index ID to watch."),

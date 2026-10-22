@@ -159,6 +159,7 @@ const reframeVideo = defineTool({
   description:
     `Re-crop a video (or a segment of it) to a new aspect ratio — vertical, square, landscape or custom dimensions — and save it as a new video in the same collection. Smart mode tracks subjects; simple mode centre-crops. ${POLL} the new video record; {accepted: true} when callback_url is given.`,
   kind: "create",
+  openWorld: true,
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,

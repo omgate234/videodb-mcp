@@ -69,6 +69,7 @@ Pick the smallest tier that supports the largest model you need; one medium sand
 
 Billing is runtime-based, recorded when the sandbox stops and measured from started_at to stopped_at: small $1/hour, medium $3.50/hour. A sandbox keeps billing until stop_sandbox runs, so reuse one across a workflow and stop it when the work is done. Limits: 5 concurrent small or 3 medium, 24 hours maximum runtime each.`,
   kind: "create",
+  openWorld: true,
   input: z.object({
     tier: TIER.default("small").describe("Compute tier. small covers object detection and the lighter VLMs; medium is needed for FLUX and the larger VLMs."),
     name: z.string().optional().describe("Human-readable name; VideoDB generates one if omitted."),
