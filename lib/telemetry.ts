@@ -173,6 +173,8 @@ export interface SignInRecord {
   clientName?: string;
   /** When the account was created, if the sign-in page reported it. */
   accountCreatedAt?: string;
+  /** Whether the account was created during this sign-in, if the sign-in page knows. */
+  signedUp?: boolean;
 }
 
 export function signInPayload(r: SignInRecord): Record<string, unknown> {
@@ -183,6 +185,7 @@ export function signInPayload(r: SignInRecord): Record<string, unknown> {
     user_name: r.userName ?? null,
     client: r.clientName ?? null,
     account_created_at: created && !isNaN(created.getTime()) ? created.toISOString() : null,
+    signed_up: r.signedUp ?? null,
     timestamp: new Date().toISOString(),
   };
 }

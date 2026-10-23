@@ -100,6 +100,7 @@ export async function POST(req: Request) {
     userName: check.user_name,
     clientName: client.name,
     accountCreatedAt: typeof body?.account_created_at === "string" ? body.account_created_at : undefined,
+    signedUp: typeof body?.signed_up === "boolean" ? body.signed_up : undefined,
   });
 
   const redirectTo = new URL(consent.redirect_uri);
