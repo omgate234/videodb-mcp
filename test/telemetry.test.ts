@@ -243,7 +243,7 @@ describe("recordSignIn", () => {
     vi.stubEnv("TELEMETRY_URL", "https://o.example/");
     vi.stubEnv("TELEMETRY_KEY", "k");
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
-    recordSignIn({ userId: "u-1", email: "a@x.io", clientName: "ChatGPT", accountCreatedAt: "2026-10-23T10:00:00+05:30" });
+    recordSignIn({ userId: "u-1", email: "a@x.io", clientName: "ChatGPT", accountCreatedAt: "2026-10-23T10:00:00+05:30", signedUp: true });
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://o.example/v1/mcp/connections");
@@ -252,11 +252,12 @@ describe("recordSignIn", () => {
       user_email: "a@x.io",
       client: "ChatGPT",
       account_created_at: "2026-10-23T04:30:00.000Z",
+      signed_up: true,
     });
   });
 
   it("drops an unparseable creation time and is a no-op when disabled", () => {
-    expect(signInPayload({ accountCreatedAt: "nope" }).account_created_at).toBeNull();
+    expect(signInPayload({ accountCreatedAt: "nope" })).toMatchObject({ account_created_at: null, signed_up: null });
     const fetchMock = vi.spyOn(globalThis, "fetch");
     recordSignIn({ userId: "u-1" });
     expect(fetchMock).not.toHaveBeenCalled();
