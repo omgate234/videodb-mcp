@@ -127,14 +127,27 @@ async function send(payload: Record<string, unknown>, apiKey?: string): Promise<
       user_name: who.user_name ?? payload.user_name,
       user_email: who.email ?? payload.user_email,
     };
-    await fetch(`${URL_()}/v1/mcp/calls`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY()}` },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(5000),
-    });
+    await post("/v1/mcp/calls", payload);
   } catch (e) {
     console.warn("telemetry: could not record tool call:", e instanceof Error ? e.message : e);
+  }
+}
+
+async function post(path: string, payload: Record<string, unknown>): Promise<void> {
+  await fetch(`${URL_()}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY()}` },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(5000),
+  });
+}
+
+/** Run after the response on Vercel; plain promise outside a request scope. */
+function later(task: () => Promise<void>): void {
+  try {
+    after(task);
+  } catch {
+    void task();
   }
 }
 
@@ -147,12 +160,45 @@ export function recordToolCall(r: CallRecord): void {
   if (!enabled()) return;
   try {
     const payload = toPayload(r);
-    try {
-      after(() => send(payload, r.apiKey));
-    } catch {
-      void send(payload, r.apiKey); // outside a request scope (tests, scripts)
-    }
+    later(() => send(payload, r.apiKey));
   } catch (e) {
     console.warn("telemetry: could not build tool-call record:", e instanceof Error ? e.message : e);
   }
+}
+
+export interface SignInRecord {
+  userId?: string;
+  email?: string;
+  userName?: string;
+  clientName?: string;
+  /** When the account was created, if the sign-in page reported it. */
+  accountCreatedAt?: string;
+}
+
+export function signInPayload(r: SignInRecord): Record<string, unknown> {
+  const created = r.accountCreatedAt ? new Date(r.accountCreatedAt) : null;
+  return {
+    user_id: r.userId ?? null,
+    user_email: r.email ?? null,
+    user_name: r.userName ?? null,
+    client: r.clientName ?? null,
+    account_created_at: created && !isNaN(created.getTime()) ? created.toISOString() : null,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * A completed authorization, so the collector can tell which accounts were
+ * created to connect an MCP client. Fire-and-forget, like recordToolCall.
+ */
+export function recordSignIn(r: SignInRecord): void {
+  if (!enabled()) return;
+  const payload = signInPayload(r);
+  later(async () => {
+    try {
+      await post("/v1/mcp/connections", payload);
+    } catch (e) {
+      console.warn("telemetry: could not record sign-in:", e instanceof Error ? e.message : e);
+    }
+  });
 }

@@ -14,6 +14,7 @@ import {
 } from "@/lib/oauth";
 import { safeEqual } from "@/lib/crypto";
 import { validateApiKey } from "@/lib/videodb/auth";
+import { recordSignIn } from "@/lib/telemetry";
 
 export const maxDuration = 30;
 
@@ -91,6 +92,14 @@ export async function POST(req: Request) {
     cc: consent.cc,
     scope: consent.scope,
     aud,
+  });
+
+  recordSignIn({
+    userId: check.user_id,
+    email: check.email,
+    userName: check.user_name,
+    clientName: client.name,
+    accountCreatedAt: typeof body?.account_created_at === "string" ? body.account_created_at : undefined,
   });
 
   const redirectTo = new URL(consent.redirect_uri);

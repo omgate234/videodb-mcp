@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AuthenticationError, InvalidRequestError } from "videodb";
 import { defineTool, run, settleError } from "@/lib/mcp/tool";
 import { StillProcessing } from "@/lib/videodb/deadline";
-import { enabled, recordToolCall, toPayload, userKey } from "@/lib/telemetry";
+import { enabled, recordSignIn, recordToolCall, signInPayload, toPayload, userKey } from "@/lib/telemetry";
 import { mintClientId } from "@/lib/oauth";
 import { fakeConnection } from "./harness";
 
@@ -230,5 +230,35 @@ describe("recordToolCall", () => {
     }
     expect(fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/user"))).toHaveLength(1);
     expect(fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/v1/mcp/calls"))).toHaveLength(3);
+  });
+});
+
+describe("recordSignIn", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("posts the sign-in with a normalised account creation time", async () => {
+    vi.stubEnv("TELEMETRY_URL", "https://o.example/");
+    vi.stubEnv("TELEMETRY_KEY", "k");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
+    recordSignIn({ userId: "u-1", email: "a@x.io", clientName: "ChatGPT", accountCreatedAt: "2026-10-23T10:00:00+05:30" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://o.example/v1/mcp/connections");
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      user_id: "u-1",
+      user_email: "a@x.io",
+      client: "ChatGPT",
+      account_created_at: "2026-10-23T04:30:00.000Z",
+    });
+  });
+
+  it("drops an unparseable creation time and is a no-op when disabled", () => {
+    expect(signInPayload({ accountCreatedAt: "nope" }).account_created_at).toBeNull();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    recordSignIn({ userId: "u-1" });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

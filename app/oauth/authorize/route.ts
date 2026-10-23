@@ -13,6 +13,7 @@ import {
 } from "@/lib/oauth";
 import { consentPage } from "@/lib/consent-page";
 import { validateApiKey } from "@/lib/videodb/auth";
+import { recordSignIn } from "@/lib/telemetry";
 
 export const maxDuration = 30;
 
@@ -150,6 +151,8 @@ export async function POST(req: Request) {
     scope: consent.scope,
     aud,
   });
+
+  recordSignIn({ userId: check.user_id, email: check.email, userName: check.user_name, clientName: client.name });
 
   return redirectWith(req, consent.redirect_uri, {
     code,
