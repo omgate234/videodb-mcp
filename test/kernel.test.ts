@@ -21,17 +21,21 @@ describe("registry", () => {
     }
   });
 
-  it("marks exactly the URL- and webhook-taking tools open-world", () => {
+  it("marks exactly the outward-reaching tools open-world", () => {
     const openWorld = allTools().filter((t) => annotationsFor(t).openWorldHint).map((t) => t.name).sort();
     expect(openWorld).toEqual([
       "connect_rtstream",
+      "create_collection",
       "create_index",
       "create_rtstream_alert",
       "create_sandbox",
       "reframe_video",
+      "set_rtstream_alert_status",
+      "set_rtstream_status",
       "transcode_media",
       "translate_transcript",
       "understand_video",
+      "update_collection",
       "upload_media",
     ]);
   });
