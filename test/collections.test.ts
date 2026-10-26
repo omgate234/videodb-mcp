@@ -46,7 +46,7 @@ describe("collections", () => {
       },
     });
     const t = toolNamed(collections, "update_collection");
-    expect(t.kind).toBe("update");
+    expect(t.kind).toBe("destructive");
     const { data, isError } = await call(t, { collection_id: "c-1", name: "Renamed", is_public: true }, vdb);
     expect(isError).toBe(false);
     expect(patches).toEqual([{ name: "Renamed", description: "Demo videos" }, { is_public: true }]);

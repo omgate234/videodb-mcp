@@ -136,7 +136,7 @@ const updateVideo = defineTool({
   name: "update_video",
   title: "Rename video",
   description: "Update a video's display name.",
-  kind: "update",
+  kind: "destructive",
   input: z.object({ video_id: VIDEO_ID, collection_id: COLLECTION_ID, name: z.string().min(1).describe("New display name.") }),
   handler: async ({ video_id, collection_id, name }, vdb) => {
     const video = await fetchVideo(vdb, collection_id, video_id);

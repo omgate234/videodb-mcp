@@ -134,7 +134,7 @@ describe("media", () => {
       },
     });
     const tool = t("update_video");
-    expect(tool.kind).toBe("update");
+    expect(tool.kind).toBe("destructive");
     const { data } = await call(tool, { video_id: "m-1", collection_id: "c-1", name: "Renamed" }, vdb);
     expect(data).toEqual({ ...VIDEO_OUT, name: "Renamed" });
   });

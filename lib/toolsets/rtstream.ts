@@ -506,7 +506,7 @@ const setRTStreamIndexStatus = defineTool({
 
 const getRTStreamIndexRecords = defineTool({
   name: "get_rtstream_index_records",
-  title: "Get index records",
+  title: "Get real-time stream index records",
   description: "Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. Paginated.",
   kind: "read",
   input: z.object({ rtstream_id: RTSTREAM_ID, index_id: z.string().describe("Index ID (idx-…)."), start: UNIX_START.optional(), end: UNIX_END.optional(), page: PAGE, page_size: PAGE_SIZE }),
