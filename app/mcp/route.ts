@@ -13,7 +13,14 @@ import { INSTRUCTIONS } from "@/lib/mcp/instructions";
 export const maxDuration = 300;
 
 const handler = createMcpHandler((server) => registerAll(server), {
-  serverInfo: { name: "videodb", version: "2.0.0" },
+  serverInfo: {
+    name: "videodb",
+    title: "VideoDB",
+    version: "2.0.0",
+    description: "Edit, clip, subtitle and search your videos",
+    websiteUrl: "https://videodb.io",
+    icons: [{ src: "https://mcp.videodb.io/videodb-icon.png", mimeType: "image/png" }],
+  },
   instructions: INSTRUCTIONS,
 });
 
