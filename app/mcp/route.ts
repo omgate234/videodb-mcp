@@ -1,3 +1,4 @@
+import type { Implementation } from "@modelcontextprotocol/server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { openAccessToken, mcpResourceUrl } from "@/lib/oauth";
 import { registerAll } from "@/lib/mcp/registry";
@@ -12,15 +13,18 @@ import { INSTRUCTIONS } from "@/lib/mcp/instructions";
 // Requires Fluid compute on Vercel (default on new projects); Pro plans can raise to 800.
 export const maxDuration = 300;
 
+// mcp-handler types serverInfo as {name, version} but passes it to McpServer as-is.
+const serverInfo: Implementation = {
+  name: "videodb",
+  title: "VideoDB",
+  version: "2.0.0",
+  description: "Edit, clip, subtitle and search your videos",
+  websiteUrl: "https://videodb.io",
+  icons: [{ src: "https://mcp.videodb.io/videodb-icon.png", mimeType: "image/png" }],
+};
+
 const handler = createMcpHandler((server) => registerAll(server), {
-  serverInfo: {
-    name: "videodb",
-    title: "VideoDB",
-    version: "2.0.0",
-    description: "Edit, clip, subtitle and search your videos",
-    websiteUrl: "https://videodb.io",
-    icons: [{ src: "https://mcp.videodb.io/videodb-icon.png", mimeType: "image/png" }],
-  },
+  serverInfo,
   instructions: INSTRUCTIONS,
 });
 
