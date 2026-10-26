@@ -113,6 +113,7 @@ const setRTStreamStatus = defineTool({
   title: "Start or stop a real-time stream",
   description: "Start (connect) or stop (disconnect) ingestion of a real-time stream. Indexes and transcripts only receive data while the stream is started.",
   kind: "update",
+  openWorld: true,
   input: z.object({ rtstream_id: RTSTREAM_ID, action: ACTION }),
   handler: async ({ rtstream_id, action }, vdb) => {
     const rt = await fetchRTStream(vdb, rtstream_id);
@@ -374,6 +375,7 @@ const setRTStreamAlertStatus = defineTool({
   title: "Enable or disable an alert",
   description: "Enable or disable an alert on a stream index without deleting it.",
   kind: "update",
+  openWorld: true,
   input: z.object({
     rtstream_id: RTSTREAM_ID,
     index_id: z.string().describe("Scene index ID or index ID the alert belongs to."),

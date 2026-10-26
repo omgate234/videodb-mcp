@@ -13,7 +13,7 @@ import { recordToolCall, type Outcome } from "@/lib/telemetry";
 export type ToolKind = "read" | "create" | "update" | "destructive";
 
 export const ANNOTATIONS: Record<ToolKind, { readOnlyHint: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint: boolean }> = {
-  read: { readOnlyHint: true, openWorldHint: false },
+  read: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   create: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   update: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   destructive: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
@@ -26,7 +26,7 @@ export interface ToolDef<S extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.Zo
   title: string;
   description: string;
   kind: ToolKind;
-  /** Reaches a user-supplied URL outside the account (media source, RTSP feed, webhook) → openWorldHint. */
+  /** Reaches outside the account (media URL, live feed, webhook) or exposes it publicly → openWorldHint. */
   openWorld?: boolean;
   input: S;
   /**

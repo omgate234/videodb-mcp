@@ -36,6 +36,7 @@ const createCollection = defineTool({
   title: "Create collection",
   description: "Create a new VideoDB collection to organize videos. Returns the new collection with its ID.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     name: z.string().describe("Collection name."),
     description: z.string().default("").describe("Optional description."),
@@ -51,6 +52,7 @@ const updateCollection = defineTool({
   description:
     "Rename a collection, change its description, or switch it between public and private. Only the fields given are changed; at least one is required.",
   kind: "update",
+  openWorld: true,
   input: z
     .object({
       collection_id: COLLECTION_ID,

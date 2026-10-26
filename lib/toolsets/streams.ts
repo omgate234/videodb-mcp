@@ -135,7 +135,7 @@ const createHighlightClip = defineTool({
   name: "create_highlight_clip",
   title: "Create highlight clip from a prompt",
   description:
-    `Pick the moments of a video that match a natural-language prompt. Works on spoken content (requires an existing spoken-word index), visual content (requires an existing legacy scene index), or both. ${POLL} the selected shots with timestamps; pass those shots to compile_clips to render them into one stream.`,
+    `Create a highlight clip of a video from a natural-language prompt: selects the moments that match the prompt and returns them as the clip's timestamped shots. Works on spoken content (requires an existing spoken-word index), visual content (requires an existing legacy scene index), or both. ${POLL} the clip's shots with timestamps; pass those shots to compile_clips to render the clip as one playable stream.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
