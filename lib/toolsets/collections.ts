@@ -51,7 +51,7 @@ const updateCollection = defineTool({
   title: "Update collection",
   description:
     "Rename a collection, change its description, or switch it between public and private. Only the fields given are changed; at least one is required.",
-  kind: "update",
+  kind: "destructive",
   openWorld: true,
   input: z
     .object({
