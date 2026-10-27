@@ -84,6 +84,36 @@ function rawMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/**
+ * VideoDB refused the caller's own arguments (a clip past the end of the video, an
+ * index name already taken, an id that does not exist). Like running out of credit,
+ * that is not a failure of this server: clients grade connector health on tool
+ * errors, so it comes back as a normal result that tells the model what to change.
+ * Telemetry still records it as an error with the HTTP status, which is how observ
+ * tells rejected inputs from failures.
+ */
+export interface InputRejected {
+  status: "rejected";
+  http_status: number;
+  message: string;
+  action_required: "fix_arguments";
+}
+
+const REJECTED_STATUSES = new Set([400, 404, 409, 422]);
+
+export function asInputRejected(e: unknown): InputRejected | undefined {
+  if (!(e instanceof InvalidRequestError)) return undefined;
+  const status = httpStatus(e);
+  if (status === undefined || !REJECTED_STATUSES.has(status)) return undefined;
+  const detail = apiDetail(e) || "VideoDB rejected the request.";
+  return {
+    status: "rejected",
+    http_status: status,
+    message: `${detail} VideoDB refused these arguments; the server is working. Fix the arguments (check ids, ranges and names) and call again. Do not retry unchanged.`,
+    action_required: "fix_arguments",
+  };
+}
+
 export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (e instanceof StillProcessing) return undefined;
   const detail = rawMessage(e).trim();

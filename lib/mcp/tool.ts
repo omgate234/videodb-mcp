@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { asAccountBlocked, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
+import { asAccountBlocked, asInputRejected, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
 
 /**
@@ -109,6 +109,14 @@ export function settleError(e: unknown, def: ToolDef<any>): Settled {
   const blocked = asAccountBlocked(e);
   if (blocked) return { result: { content: [text(blocked)] }, outcome: { status: "success" }, blocked };
   const message = describeError(e);
+  // A refused input is the caller's to fix: a plain result for the model, an error row for telemetry.
+  const rejected = asInputRejected(e);
+  if (rejected) {
+    return {
+      result: { content: [text(rejected)] },
+      outcome: { status: "error", errorType: errorType(e), errorMessage: message, httpStatus: rejected.http_status },
+    };
+  }
   return {
     result: { content: [text(`Error: ${message}`)], isError: true },
     outcome: { status: "error", errorType: errorType(e), errorMessage: message, httpStatus: httpStatus(e) },
