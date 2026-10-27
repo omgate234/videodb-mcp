@@ -13,7 +13,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | SDK access | `lib/videodb/client.ts`, `resolve.ts` | `client(apiKey)` per call; `collection()` shell (no round-trip), `fetchVideo/Audio/Image` |
 | Output | `lib/videodb/serialize.ts` | `toPlain()` snake_case flattening, `pick()`, `*_KEYS`, `shotsToPlain()` |
 | Long jobs | `lib/videodb/jobs.ts` | async-first: `startJob()` posts with `{wait:false}` and returns `{status:"processing", output_url}`; `get_job_result` reads it later. `deadline.ts` is the 50 s safety net for tools that still wait (MCP clients drop a call at ~60 s) |
-| Errors | `lib/videodb/errors.ts` | SDK error classes → actionable text |
+| Errors | `lib/videodb/errors.ts` | SDK error classes → actionable text. Two account/input states are results, not tool errors: `{status:"insufficient_credit"}` and `{status:"rejected"}` (VideoDB answered 400/404/409/422 to the caller's arguments). Telemetry still records both the HTTP status and the message |
 | Tests | `test/harness.ts` | `fakeConnection({"GET video": {...}})` fakes `vhttp`; real SDK classes run |
 
 ## Tool kinds → annotations
