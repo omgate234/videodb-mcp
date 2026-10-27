@@ -93,7 +93,7 @@ const SUBTITLE_STYLE = {
   margin_v: z.number().int().min(0).optional().describe("Vertical margin in pixels, default 10."),
 };
 
-const addSubtitles = defineTool({
+export const addSubtitles = defineTool({
   name: "add_subtitles",
   title: "Add subtitles",
   description:
@@ -135,7 +135,7 @@ const createHighlightClip = defineTool({
   name: "create_highlight_clip",
   title: "Create highlight clip from a prompt",
   description:
-    `Pick the moments of a video that match a natural-language prompt. Works on spoken content (requires an existing spoken-word index), visual content (requires an existing legacy scene index), or both. ${POLL} the selected shots with timestamps; pass those shots to compile_clips to render them into one stream.`,
+    `Create a highlight clip of a video from a natural-language prompt: selects the moments that match the prompt and returns them as the clip's timestamped shots. Works on spoken content (requires an existing spoken-word index), visual content (requires an existing legacy scene index), or both. ${POLL} the clip's shots with timestamps; pass those shots to compile_clips to render the clip as one playable stream.`,
   kind: "create",
   input: z.object({
     video_id: VIDEO_ID,
@@ -153,12 +153,13 @@ const createHighlightClip = defineTool({
   },
 });
 
-const reframeVideo = defineTool({
+export const reframeVideo = defineTool({
   name: "reframe_video",
   title: "Reframe video",
   description:
     `Re-crop a video (or a segment of it) to a new aspect ratio — vertical, square, landscape or custom dimensions — and save it as a new video in the same collection. Smart mode tracks subjects; simple mode centre-crops. ${POLL} the new video record; {accepted: true} when callback_url is given.`,
   kind: "create",
+  openWorld: true,
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,

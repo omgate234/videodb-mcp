@@ -15,7 +15,7 @@ type VideoConfig = NonNullable<Parameters<Connection["transcode"]>[3]>;
  * thumbnails, signed URLs, transcode.
  */
 
-const listVideos = defineTool({
+export const listVideos = defineTool({
   name: "list_videos",
   title: "List videos",
   description:
@@ -28,7 +28,7 @@ const listVideos = defineTool({
   },
 });
 
-const listAudios = defineTool({
+export const listAudios = defineTool({
   name: "list_audios",
   title: "List audio files",
   description:
@@ -41,7 +41,7 @@ const listAudios = defineTool({
   },
 });
 
-const listImages = defineTool({
+export const listImages = defineTool({
   name: "list_images",
   title: "List images",
   description:
@@ -54,7 +54,7 @@ const listImages = defineTool({
   },
 });
 
-const getVideo = defineTool({
+export const getVideo = defineTool({
   name: "get_video",
   title: "Get video details",
   description:
@@ -66,7 +66,7 @@ const getVideo = defineTool({
   },
 });
 
-const getAudio = defineTool({
+export const getAudio = defineTool({
   name: "get_audio",
   title: "Get audio details",
   description: "Get metadata for one audio file: name, duration and size.",
@@ -77,7 +77,7 @@ const getAudio = defineTool({
   },
 });
 
-const getImage = defineTool({
+export const getImage = defineTool({
   name: "get_image",
   title: "Get image details",
   description: "Get metadata for one image: name and URL.",
@@ -94,6 +94,7 @@ const uploadMedia = defineTool({
   description:
     "Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns the created media record with its ID and player URL. Do not call upload_media again while the job is processing. With callback_url VideoDB calls your webhook instead.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     url: z.string().url().describe("Public URL of the media (or a YouTube link)."),
     collection_id: COLLECTION_ID,
@@ -135,7 +136,7 @@ const updateVideo = defineTool({
   name: "update_video",
   title: "Rename video",
   description: "Update a video's display name.",
-  kind: "update",
+  kind: "destructive",
   input: z.object({ video_id: VIDEO_ID, collection_id: COLLECTION_ID, name: z.string().min(1).describe("New display name.") }),
   handler: async ({ video_id, collection_id, name }, vdb) => {
     const video = await fetchVideo(vdb, collection_id, video_id);
@@ -198,6 +199,7 @@ const transcodeMedia = defineTool({
   description:
     "Start a transcode job from a directly downloadable media URL (e.g. MP4): change resolution, quality, framerate or aspect ratio, or mute audio. For YouTube watch URLs, ingest with upload_media first, then get_video → download_stream to obtain an MP4 source. VideoDB calls callback_url when done; poll with get_transcode_status.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     source: z.string().url().describe("Direct media URL; YouTube watch pages are not supported by the transcoder."),
     callback_url: z.string().url().describe("Webhook URL VideoDB calls when the job finishes (required)."),
@@ -229,7 +231,7 @@ const getTranscodeStatus = defineTool({
   },
 });
 
-const deleteVideo = defineTool({
+export const deleteVideo = defineTool({
   name: "delete_video",
   title: "Delete video",
   description: "Permanently delete a video from a VideoDB collection. This cannot be undone.",
@@ -241,7 +243,7 @@ const deleteVideo = defineTool({
   },
 });
 
-const deleteAudio = defineTool({
+export const deleteAudio = defineTool({
   name: "delete_audio",
   title: "Delete audio",
   description: "Permanently delete an audio file from a VideoDB collection. This cannot be undone.",
@@ -253,7 +255,7 @@ const deleteAudio = defineTool({
   },
 });
 
-const deleteImage = defineTool({
+export const deleteImage = defineTool({
   name: "delete_image",
   title: "Delete image",
   description: "Permanently delete an image from a VideoDB collection. This cannot be undone.",

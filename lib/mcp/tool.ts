@@ -13,17 +13,21 @@ import { recordToolCall, type Outcome } from "@/lib/telemetry";
 export type ToolKind = "read" | "create" | "update" | "destructive";
 
 export const ANNOTATIONS: Record<ToolKind, { readOnlyHint: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint: boolean }> = {
-  read: { readOnlyHint: true, openWorldHint: false },
+  read: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   create: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   update: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   destructive: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
 };
+
+export const annotationsFor = (def: ToolDef<any>) => ({ ...ANNOTATIONS[def.kind], ...(def.openWorld ? { openWorldHint: true } : {}) });
 
 export interface ToolDef<S extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.ZodRawShape>> {
   name: string;
   title: string;
   description: string;
   kind: ToolKind;
+  /** Reaches outside the account (media URL, live feed, webhook) or exposes it publicly → openWorldHint. */
+  openWorld?: boolean;
   input: S;
   /**
    * Return anything JSON-able or an SDK object — it is flattened by toPlain().
@@ -142,7 +146,7 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
       title: def.title,
       description: def.description,
       inputSchema: def.input,
-      annotations: { title: def.title, ...ANNOTATIONS[def.kind] },
+      annotations: { title: def.title, ...annotationsFor(def) },
     },
     async (args: unknown, ctx: unknown) => {
       const started = performance.now();

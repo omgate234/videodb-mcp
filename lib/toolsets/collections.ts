@@ -13,7 +13,7 @@ import { pick, cap } from "@/lib/videodb/serialize";
 
 // Collection instances carry every SDK method as an enumerable prop; keep only data.
 const COLLECTION_KEYS = ["id", "name", "description", "is_public"];
-const listCollections = defineTool({
+export const listCollections = defineTool({
   name: "list_collections",
   title: "List collections",
   description: "List all collections in the connected VideoDB account, with their IDs, names, descriptions and visibility.",
@@ -22,7 +22,7 @@ const listCollections = defineTool({
   handler: async (_args, vdb) => (await vdb.getCollections()).map((c) => pick(c, COLLECTION_KEYS)),
 });
 
-const getCollection = defineTool({
+export const getCollection = defineTool({
   name: "get_collection",
   title: "Get collection details",
   description: "Get one collection's ID, name, description and public/private visibility.",
@@ -36,6 +36,7 @@ const createCollection = defineTool({
   title: "Create collection",
   description: "Create a new VideoDB collection to organize videos. Returns the new collection with its ID.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     name: z.string().describe("Collection name."),
     description: z.string().default("").describe("Optional description."),
@@ -50,7 +51,8 @@ const updateCollection = defineTool({
   title: "Update collection",
   description:
     "Rename a collection, change its description, or switch it between public and private. Only the fields given are changed; at least one is required.",
-  kind: "update",
+  kind: "destructive",
+  openWorld: true,
   input: z
     .object({
       collection_id: COLLECTION_ID,
@@ -77,7 +79,7 @@ const updateCollection = defineTool({
   },
 });
 
-const deleteCollection = defineTool({
+export const deleteCollection = defineTool({
   name: "delete_collection",
   title: "Delete collection",
   description:

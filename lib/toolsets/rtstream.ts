@@ -62,6 +62,7 @@ const connectRTStream = defineTool({
   description:
     "Register a live RTSP/RTMP/HLS stream with VideoDB and start ingesting it. Returns the rtstream ID used by every other rtstream tool. Set store=true if you will later export the recording (export_rtstream_recording).",
   kind: "create",
+  openWorld: true,
   input: z.object({
     url: z.string().url().describe("Stream URL, e.g. rtsp://host:8554/cam1."),
     name: z.string().describe("Display name for the stream."),
@@ -78,7 +79,7 @@ const connectRTStream = defineTool({
   },
 });
 
-const listRTStreams = defineTool({
+export const listRTStreams = defineTool({
   name: "list_rtstreams",
   title: "List real-time streams",
   description:
@@ -98,7 +99,7 @@ const listRTStreams = defineTool({
   },
 });
 
-const getRTStream = defineTool({
+export const getRTStream = defineTool({
   name: "get_rtstream",
   title: "Get real-time stream",
   description: "Get one real-time stream: name, status, sample rate, media types, creation time.",
@@ -112,6 +113,7 @@ const setRTStreamStatus = defineTool({
   title: "Start or stop a real-time stream",
   description: "Start (connect) or stop (disconnect) ingestion of a real-time stream. Indexes and transcripts only receive data while the stream is started.",
   kind: "update",
+  openWorld: true,
   input: z.object({ rtstream_id: RTSTREAM_ID, action: ACTION }),
   handler: async ({ rtstream_id, action }, vdb) => {
     const rt = await fetchRTStream(vdb, rtstream_id);
@@ -305,7 +307,7 @@ const searchRTStream = defineTool({
 
 // ── events & alerts ─────────────────────────────────────────────────────
 
-const createEvent = defineTool({
+export const createEvent = defineTool({
   name: "create_event",
   title: "Create an event",
   description: "Define a reusable event (a natural-language condition such as 'a person enters the restricted area') that alerts can watch for on any stream index. Returns the event ID.",
@@ -330,12 +332,13 @@ const listEvents = defineTool({
   },
 });
 
-const createRTStreamAlert = defineTool({
+export const createRTStreamAlert = defineTool({
   name: "create_rtstream_alert",
   title: "Create an alert",
   description:
     "Attach an event (from create_event) to a stream index so VideoDB POSTs to callback_url each time the event is detected in a new window. Requires a running scene index or index; index_id is verified before the alert is created because alerts cannot be deleted. Returns the alert ID.",
   kind: "create",
+  openWorld: true,
   input: z.object({
     rtstream_id: RTSTREAM_ID,
     index_id: z.string().describe("Scene index ID or index ID to watch."),
@@ -372,6 +375,7 @@ const setRTStreamAlertStatus = defineTool({
   title: "Enable or disable an alert",
   description: "Enable or disable an alert on a stream index without deleting it.",
   kind: "update",
+  openWorld: true,
   input: z.object({
     rtstream_id: RTSTREAM_ID,
     index_id: z.string().describe("Scene index ID or index ID the alert belongs to."),
@@ -502,7 +506,7 @@ const setRTStreamIndexStatus = defineTool({
 
 const getRTStreamIndexRecords = defineTool({
   name: "get_rtstream_index_records",
-  title: "Get index records",
+  title: "Get real-time stream index records",
   description: "Read the records materialised into an understanding-backed index, optionally limited to a Unix-second start/end window. Paginated.",
   kind: "read",
   input: z.object({ rtstream_id: RTSTREAM_ID, index_id: z.string().describe("Index ID (idx-…)."), start: UNIX_START.optional(), end: UNIX_END.optional(), page: PAGE, page_size: PAGE_SIZE }),

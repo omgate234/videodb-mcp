@@ -36,29 +36,40 @@ const jobStarted = (label: string, id: unknown, output_url: string): JobStarted 
   message: `${label} accepted; VideoDB is processing it in the background. Call get_job_result with this output_url in ~30 s and keep polling while status is "processing".`,
 });
 
-/** Turn a raw (unpolled, snake_case) API body into a job handle or its finished payload. */
-export function settle(body: Raw, label: string): JobOutcome {
-  const data = (body.data ?? {}) as Raw;
-  if (PROCESSING.has(String(body.status)) && typeof data.output_url === "string") {
-    return { job: jobStarted(label, data.id, data.output_url) };
+const isRecord = (v: unknown): v is Raw => typeof v === "object" && v !== null && !Array.isArray(v);
+
+const failed = (body: Raw, label: string) => new Error(typeof body.message === "string" && body.message ? body.message : `${label} failed.`);
+
+/**
+ * Turn a raw (unpolled, snake_case) API body into a job handle or its finished payload.
+ * `pollUrl` is the status URL already being polled; it stays the URL while the job runs.
+ */
+export function settle(body: unknown, label: string, pollUrl?: string): JobOutcome {
+  if (!isRecord(body)) throw new Error(`${label}: VideoDB returned an unexpected response.`);
+  // Rejections first: an upload can be refused with HTTP 200, an async job inside `response`.
+  if (body.success === false) throw failed(body, label);
+  const response = body.response;
+  if (isRecord(response) && response.success === false) throw failed(response, label);
+
+  const data = isRecord(body.data) ? body.data : undefined;
+  if (PROCESSING.has(String(body.status).toLowerCase())) {
+    const url = pollUrl ?? (typeof data?.output_url === "string" && data.output_url ? data.output_url : undefined);
+    if (!url) throw new Error(`${label} is processing but VideoDB returned no URL to poll.`);
+    return { job: jobStarted(label, data?.id, url) };
   }
-  if (body.success === false) throw new Error(String(body.message ?? `${label} failed.`));
+
   // A finished /async-response body wraps the handler's own {success, data} under `response`.
-  const inner = (body.response ?? body) as Raw;
-  if (inner.success === false) throw new Error(String(inner.message ?? `${label} failed.`));
-  return { data: ((inner.data ?? {}) as Raw) };
+  const result = "response" in body ? (isRecord(response) ? response.data : undefined) : body.data;
+  if (!isRecord(result)) throw new Error(`${label} finished but VideoDB returned no result.`);
+  return { data: result };
 }
 
 export async function startJob(vdb: Connection, path: string[], body: unknown, label: string): Promise<JobOutcome> {
-  const res = (await vdb.vhttp.post(path, body, undefined, NO_POLL)) as unknown as Raw;
-  return settle(res, label);
+  return settle(await vdb.vhttp.post(path, body, undefined, NO_POLL), label);
 }
 
 export async function fetchJob(vdb: Connection, outputUrl: string): Promise<JobOutcome> {
-  const res = (await vdb.vhttp.get([outputUrl], undefined, NO_POLL)) as unknown as Raw;
-  const out = settle(res, "Job");
-  // The status URL is stable: hand the same one back so the model polls again without inventing a URL.
-  return isJobStarted(out) ? { job: { ...out.job, output_url: outputUrl } } : out;
+  return settle(await vdb.vhttp.get([outputUrl], undefined, NO_POLL), "Job", outputUrl);
 }
 
 /** output_url is fetched with the user's API key attached, so it must point at VideoDB. */

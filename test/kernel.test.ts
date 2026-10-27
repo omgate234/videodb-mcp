@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { defineTool, ANNOTATIONS } from "@/lib/mcp/tool";
+import { defineTool, ANNOTATIONS, annotationsFor } from "@/lib/mcp/tool";
 import { allTools, TOOLSETS, enabledToolsets } from "@/lib/mcp/registry";
 import { toPlain, cap } from "@/lib/videodb/serialize";
 import { asAccountBlocked, describeError, withPromoLink } from "@/lib/videodb/errors";
@@ -19,6 +19,25 @@ describe("registry", () => {
       expect(t.title).toBeTruthy();
       expect(t.description.length).toBeGreaterThan(20);
     }
+  });
+
+  it("marks exactly the outward-reaching tools open-world", () => {
+    const openWorld = allTools().filter((t) => annotationsFor(t).openWorldHint).map((t) => t.name).sort();
+    expect(openWorld).toEqual([
+      "connect_rtstream",
+      "create_collection",
+      "create_index",
+      "create_rtstream_alert",
+      "create_sandbox",
+      "reframe_video",
+      "set_rtstream_alert_status",
+      "set_rtstream_status",
+      "transcode_media",
+      "translate_transcript",
+      "understand_video",
+      "update_collection",
+      "upload_media",
+    ]);
   });
 
   it("points every retryWith at a real read tool", () => {
