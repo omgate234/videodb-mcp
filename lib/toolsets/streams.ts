@@ -93,7 +93,7 @@ const SUBTITLE_STYLE = {
   margin_v: z.number().int().min(0).optional().describe("Vertical margin in pixels, default 10."),
 };
 
-const addSubtitles = defineTool({
+export const addSubtitles = defineTool({
   name: "add_subtitles",
   title: "Add subtitles",
   description:
@@ -153,7 +153,7 @@ const createHighlightClip = defineTool({
   },
 });
 
-const reframeVideo = defineTool({
+export const reframeVideo = defineTool({
   name: "reframe_video",
   title: "Reframe video",
   description:

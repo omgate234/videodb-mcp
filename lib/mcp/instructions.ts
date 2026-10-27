@@ -20,3 +20,12 @@ Send the user's ask as a plain search; the agent plans the search itself. Ask it
 Keep the session_id from dataset_search and pass it on every follow-up ("only the sim ones", "verify each", "export the confirmed tier") so the agent refines its earlier sets instead of starting over.`;
 
 export const INSTRUCTIONS = BASE + (enabledToolsets().includes(director) ? DATASET_SEARCH : "");
+
+/** /openai-mcp ships a compact profile with enum tools; name them so the model does not look for the per-type ones. */
+export const OPENAI_INSTRUCTIONS = `VideoDB turns video/audio into a searchable, editable database.
+IDs: videos m-…, audio a-…, images img-…, real-time streams rts-…, collections c-… ("default" always exists).
+Browse with list_assets / get_asset / delete_asset and pick asset_type (collection, video, audio, image, rtstream); there are no per-type list or delete tools.
+Typical flow: upload_media → understand_video → create_index → search_video / search_collection → generate_clip / compile_clips / add_subtitles.
+Long jobs (upload_media, render_timeline, download_stream, generate_clip, compile_clips, reframe_video, generate_transcript, generate_media) return {status:"processing", output_url} immediately; poll get_job_result(output_url) every ~30 s until it returns the result. Never re-run a job while it is processing.
+{status:"insufficient_credit"}: tell the user there aren't enough VideoDB credits to continue. Show the exact console_url as an "Add credits" link and state that no subscription is required. Only report a balance if one is provided. Wait until the user confirms they've added credits before retrying.
+Every stream_url has a matching player_url that opens in a browser.`;

@@ -79,7 +79,7 @@ const connectRTStream = defineTool({
   },
 });
 
-const listRTStreams = defineTool({
+export const listRTStreams = defineTool({
   name: "list_rtstreams",
   title: "List real-time streams",
   description:
@@ -99,7 +99,7 @@ const listRTStreams = defineTool({
   },
 });
 
-const getRTStream = defineTool({
+export const getRTStream = defineTool({
   name: "get_rtstream",
   title: "Get real-time stream",
   description: "Get one real-time stream: name, status, sample rate, media types, creation time.",
@@ -307,7 +307,7 @@ const searchRTStream = defineTool({
 
 // ── events & alerts ─────────────────────────────────────────────────────
 
-const createEvent = defineTool({
+export const createEvent = defineTool({
   name: "create_event",
   title: "Create an event",
   description: "Define a reusable event (a natural-language condition such as 'a person enters the restricted area') that alerts can watch for on any stream index. Returns the event ID.",
@@ -332,7 +332,7 @@ const listEvents = defineTool({
   },
 });
 
-const createRTStreamAlert = defineTool({
+export const createRTStreamAlert = defineTool({
   name: "create_rtstream_alert",
   title: "Create an alert",
   description:

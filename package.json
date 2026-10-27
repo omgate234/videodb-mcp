@@ -15,9 +15,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "tools:list": "tsx scripts/list-tools.ts",
-    "tools:sync": "tsx scripts/sync-readme.ts"
+    "tools:sync": "tsx scripts/sync-readme.ts",
+    "tools:sizes": "tsx scripts/tool-sizes.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
     "@modelcontextprotocol/server": "^2.0.0",
     "mcp-handler": "^2.1.0",
     "next": "^15.4.0",

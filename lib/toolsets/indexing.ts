@@ -18,9 +18,9 @@ const RECORD_CAP = 200;
 const INDEX_KEYS = ["index_id", "name", "status", "error", "use_for", "record_count", "fields", "field_schema"];
 const RECORD_KEYS = ["video_id", "understanding_id", "scene_id", "start", "end", "data"];
 
-const ANALYZER_TYPES = ["speech_transcription", "spoken_words", "vlm", "ocr", "object_detection", "brand_detection", "activity_recognition", "location_detection"] as const;
-const USE_FOR = z.enum(["semantic", "query", "aggregate"]);
-const FIELD_CAP = z.enum(["semantic", "fts", "filter", "aggregate", "sort", "hydrate", "return"]);
+export const ANALYZER_TYPES = ["speech_transcription", "spoken_words", "vlm", "ocr", "object_detection", "brand_detection", "activity_recognition", "location_detection"] as const;
+export const USE_FOR = z.enum(["semantic", "query", "aggregate"]);
+export const FIELD_CAP = z.enum(["semantic", "fts", "filter", "aggregate", "sort", "hydrate", "return"]);
 
 const UNDERSTANDING_ID = z.string().describe("Understanding run ID (from understand_video / list_understandings).");
 const INDEX_ID = z.string().describe("Index ID (from create_index / list_indexes).");
@@ -149,7 +149,7 @@ const SEGMENTATION = z.union([
   z.strictObject({ type: z.literal("time"), seconds: z.number().positive().optional() }),
 ]);
 
-const understandVideo = defineTool({
+export const understandVideo = defineTool({
   name: "understand_video",
   title: "Understand video (run analyzers)",
   description: `Run analyzers over a video to extract timestamped artifacts: speech, scene descriptions, on-screen text, objects, brands, activities, locations. Artifacts are stored but NOT searchable until create_index runs on them. ${V2_FLOW}
@@ -289,7 +289,7 @@ const getAnalyzerOutput = defineTool({
   },
 });
 
-const createIndex = defineTool({
+export const createIndex = defineTool({
   name: "create_index",
   title: "Create index from analyzer output",
   description: `Build a retrieval-ready index from one analyzer's artifact of an understanding run; that analyzer must be done (get_understanding). ${V2_FLOW} With callback_url the call returns immediately.
