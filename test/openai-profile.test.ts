@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
-import { registerTools } from "@/lib/mcp/registry";
+import { registerTools, TOOLSETS } from "@/lib/mcp/registry";
+import { z } from "zod";
 import { OPENAI_PROFILE } from "@/lib/mcp/profiles";
 import { specBytes, PER_TOOL_BUDGET, TOTAL_BUDGET } from "../scripts/tool-sizes";
 
@@ -14,6 +15,14 @@ it("the OpenAI profile lists 25 unique tools within the plugin byte budget", asy
   // Every tool the review test cases name must be present under that exact name.
   for (const n of ["list_assets", "search_video", "generate_transcript", "get_transcript", "add_subtitles", "compile_clips", "upload_media", "get_job_result", "understand_video", "get_understanding", "create_index"]) {
     expect(names).toContain(n);
+  }
+
+  // A description that names a tool the plugin does not expose sends the model looking for it.
+  const catalog = new Set(TOOLSETS.flatMap((ts) => ts.tools.map((t) => t.name)));
+  for (const t of OPENAI_PROFILE) {
+    const text = t.description + " " + JSON.stringify(z.toJSONSchema(t.input, { io: "input", unrepresentable: "any" }));
+    const dangling = [...new Set(text.match(/\b[a-z]+_[a-z_]+\b/g) ?? [])].filter((w) => catalog.has(w) && !names.includes(w));
+    expect(dangling, `${t.name} mentions tools outside the profile`).toEqual([]);
   }
 
   const server = new McpServer({ name: "profile-test", version: "1.0.0" });
