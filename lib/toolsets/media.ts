@@ -15,7 +15,7 @@ type VideoConfig = NonNullable<Parameters<Connection["transcode"]>[3]>;
  * thumbnails, signed URLs, transcode.
  */
 
-const listVideos = defineTool({
+export const listVideos = defineTool({
   name: "list_videos",
   title: "List videos",
   description:
@@ -28,7 +28,7 @@ const listVideos = defineTool({
   },
 });
 
-const listAudios = defineTool({
+export const listAudios = defineTool({
   name: "list_audios",
   title: "List audio files",
   description:
@@ -41,7 +41,7 @@ const listAudios = defineTool({
   },
 });
 
-const listImages = defineTool({
+export const listImages = defineTool({
   name: "list_images",
   title: "List images",
   description:
@@ -54,7 +54,7 @@ const listImages = defineTool({
   },
 });
 
-const getVideo = defineTool({
+export const getVideo = defineTool({
   name: "get_video",
   title: "Get video details",
   description:
@@ -66,7 +66,7 @@ const getVideo = defineTool({
   },
 });
 
-const getAudio = defineTool({
+export const getAudio = defineTool({
   name: "get_audio",
   title: "Get audio details",
   description: "Get metadata for one audio file: name, duration and size.",
@@ -77,7 +77,7 @@ const getAudio = defineTool({
   },
 });
 
-const getImage = defineTool({
+export const getImage = defineTool({
   name: "get_image",
   title: "Get image details",
   description: "Get metadata for one image: name and URL.",
@@ -231,7 +231,7 @@ const getTranscodeStatus = defineTool({
   },
 });
 
-const deleteVideo = defineTool({
+export const deleteVideo = defineTool({
   name: "delete_video",
   title: "Delete video",
   description: "Permanently delete a video from a VideoDB collection. This cannot be undone.",
@@ -243,7 +243,7 @@ const deleteVideo = defineTool({
   },
 });
 
-const deleteAudio = defineTool({
+export const deleteAudio = defineTool({
   name: "delete_audio",
   title: "Delete audio",
   description: "Permanently delete an audio file from a VideoDB collection. This cannot be undone.",
@@ -255,7 +255,7 @@ const deleteAudio = defineTool({
   },
 });
 
-const deleteImage = defineTool({
+export const deleteImage = defineTool({
   name: "delete_image",
   title: "Delete image",
   description: "Permanently delete an image from a VideoDB collection. This cannot be undone.",

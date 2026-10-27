@@ -165,8 +165,17 @@ export function canonicalResource(url: string): string {
   }
 }
 
-export function mcpResourceUrl(req: Request): string {
-  return canonicalResource(`${publicOrigin(req)}/mcp`);
+/** Paths that serve an MCP endpoint on this origin; each is its own OAuth resource. */
+export const MCP_PATHS = ["/mcp", "/openai-mcp"] as const;
+export type McpPath = (typeof MCP_PATHS)[number];
+
+export function mcpResourceUrl(req: Request, path: McpPath = "/mcp"): string {
+  return canonicalResource(`${publicOrigin(req)}${path}`);
+}
+
+/** Both routes share one server, key store and handlers, so a token for either is honoured by both. */
+export function acceptedMcpAudiences(req: Request): string[] {
+  return MCP_PATHS.map((p) => mcpResourceUrl(req, p));
 }
 
 /**

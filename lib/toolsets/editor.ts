@@ -285,7 +285,7 @@ function buildClip(c: ClipInput): Clip {
   return clip;
 }
 
-const renderTimeline = defineTool({
+export const renderTimeline = defineTool({
   name: "render_timeline",
   title: "Render editor timeline",
   description:

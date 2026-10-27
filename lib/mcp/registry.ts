@@ -52,3 +52,13 @@ export function registerAll(server: McpServer, toolsets = enabledToolsets()): vo
   allTools(toolsets); // rejects duplicate names across toolsets
   for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
 }
+
+/** Register a hand-picked tool list (a profile); `label` is the toolset name telemetry records. */
+export function registerTools(server: McpServer, tools: ToolDef<any>[], label: string): void {
+  const seen = new Set<string>();
+  for (const t of tools) {
+    if (seen.has(t.name)) throw new Error(`Duplicate tool name in profile ${label}: ${t.name}`);
+    seen.add(t.name);
+    register(server, t, label);
+  }
+}

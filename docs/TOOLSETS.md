@@ -203,3 +203,17 @@ Paths that live testing could not exercise, so they are unverified rather than k
 - rtstream v2 understand → index **write** path (`understand_rtstream`, `create_rtstream_index`): the test account has zero v2 understandings/indexes and both tools 404 on the handler's pre-flight, so their request bodies have never reached VideoDB.
 - rtstream transcripts (`get_rtstream_transcript`): no transcript data exists anywhere in the account.
 - `get_transcode_status`: no transcode job reached a terminal state during testing.
+
+## Profiles — `/openai-mcp`
+
+ChatGPT applies a tool-spec byte budget to plugin-installed MCP servers (8 KB per tool, 64 KB total, shared across installed plugins) and silently hides tools past it. The full catalog is ~133 KB raw, so the plugin connects to a second route with a hand-picked profile instead of a toolset list.
+
+| Piece | File | Notes |
+| --- | --- | --- |
+| Route | `app/openai-mcp/route.ts` | Same OAuth server and handlers as `/mcp`; its own RFC 8707 audience and `/.well-known/oauth-protected-resource/openai-mcp` |
+| Profile | `lib/mcp/profiles.ts` → `OPENAI_PROFILE` | ~25 `ToolDef`s picked across toolsets, registered with `registerTools()` |
+| Merged tools | `lib/toolsets/openai/assets.ts`, `genai.ts`, `live.ts` | `list_assets` / `get_asset` / `delete_asset` take `asset_type`; `generate_media` takes `kind`; `create_rtstream_alert` creates its event inline. Closed enums, one annotation kind per tool, dispatch to the existing handlers |
+| Trimmed tools | `lib/toolsets/openai/slim.ts` | `understand_video`, `create_index`, `add_subtitles`, `reframe_video` with the same schema and handler, shorter field docs; `render_timeline` is a strict subset (text border/shadow, caption border/margins, clip effect/offset dropped) |
+| Size gate | `npm run tools:sizes -- --profile openai` | Fails over 4,500 B per tool or 40,000 B total (raw; Codex serialization adds ~1.5×) |
+
+`generate_media` is OpenAI-only: the Anthropic directory rejects AI media generation, so it never joins a `/mcp` toolset.
