@@ -33,7 +33,7 @@ it("advertises and validates corrected inputs through MCP tools/list and tools/c
   };
 
   try {
-    registerAll(server);
+    await registerAll(server);
     await server.connect(serverTransport);
     await clientTransport.start();
     const initialized = await request("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "review-test", version: "1.0.0" } });

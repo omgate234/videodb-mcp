@@ -11,6 +11,7 @@ import { rtstream } from "@/lib/toolsets/rtstream";
 import { sandbox } from "@/lib/toolsets/sandbox";
 import { jobs } from "@/lib/toolsets/jobs";
 import { director } from "@/lib/toolsets/director";
+import { registerEditorApp } from "@/lib/apps/editor";
 
 /**
  * A toolset is one file in lib/toolsets owning a coherent slice of the SDK.
@@ -48,9 +49,10 @@ export function allTools(toolsets = TOOLSETS): ToolDef<any>[] {
   return tools;
 }
 
-export function registerAll(server: McpServer, toolsets = enabledToolsets()): void {
+export async function registerAll(server: McpServer, toolsets = enabledToolsets()): Promise<void> {
   allTools(toolsets); // rejects duplicate names across toolsets
   for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
+  await registerEditorApp(server);
 }
 
 /** Register a hand-picked tool list (a profile); `label` is the toolset name telemetry records. */
