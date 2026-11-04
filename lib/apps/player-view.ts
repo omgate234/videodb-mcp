@@ -30,6 +30,9 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   :root[data-theme="dark"] { color-scheme: dark; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme]) { color-scheme: dark; } }
   * { box-sizing: border-box; }
+  /* The page sizes itself and the chapter list scrolls on its own. If the host frame is a pixel short, a page scrollbar
+     would narrow the 16:9 stage, shrink the reported height and stay stuck, so the page never scrolls. */
+  html, body { overflow: hidden; }
   body { margin: 0; background: transparent; font: 14px/1.4 Geist, ui-sans-serif, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
   button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
   svg { width: 20px; height: 20px; display: block; }
