@@ -6,7 +6,7 @@
  */
 
 const ICON = {
-  play: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.1-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z"/></svg>',
+  play: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 5.6v12.8a1 1 0 0 0 1.53.85l10.2-6.4a1 1 0 0 0 0-1.7L8.03 4.75a1 1 0 0 0-1.53.85z"/></svg>',
   pause: '<svg viewBox="0 0 24 24"><rect fill="currentColor" x="6" y="5" width="4" height="14" rx="1.2"/><rect fill="currentColor" x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
   sound: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 5.5 6.6 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2.6l4.4 3.5a.6.6 0 0 0 1-.47V5.97a.6.6 0 0 0-1-.47z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
   muted: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 5.5 6.6 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2.6l4.4 3.5a.6.6 0 0 0 1-.47V5.97a.6.6 0 0 0-1-.47z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m16 9.5 5 5m0-5-5 5"/></svg>',
@@ -57,10 +57,12 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .scrub:hover .track, .scrub.drag .track { height: 6px; }
   .track > div { position: absolute; top: 0; bottom: 0; left: 0; }
   .band { background: rgba(242,97,29,.42); }
+  .hover { background: rgba(255,255,255,.22); opacity: 0; transition: opacity .15s ease; }
+  .scrub:hover .hover { opacity: 1; }
   .fill { background: var(--accent); }
   .knob { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; transform: scale(0); transition: transform .15s ease; pointer-events: none; }
   .scrub:hover .knob, .scrub.drag .knob { transform: scale(1); }
-  .tip { position: absolute; bottom: 22px; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,.8); font-size: 12px; font-variant-numeric: tabular-nums; transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+  .tip { position: absolute; bottom: 100%; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,.8); font-size: 12px; font-variant-numeric: tabular-nums; transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity .15s ease; }
   .scrub:hover .tip, .scrub.drag .tip { opacity: 1; }
 
   .row { display: flex; align-items: center; gap: 6px; }
@@ -73,7 +75,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .grow { flex: 1; }
 
   .big { position: absolute; top: 50%; left: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.14); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: transform .2s ease, background .2s ease, opacity .2s ease; }
-  .big svg { width: 28px; height: 28px; margin-left: 3px; }
+  .big svg { width: 28px; height: 28px; }
   .big:hover { transform: scale(1.06); background: rgba(255,255,255,.2); }
   .playing .big, .loading .big, .failed .big { opacity: 0; pointer-events: none; transform: scale(.9); }
 
@@ -124,7 +126,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
     <div class="fail"><p>This video can't play here.</p><button class="pill" id="fail-open">Open on VideoDB</button></div>
     <div class="controls">
       <div class="scrub" id="scrub" role="slider" aria-label="Seek" tabindex="-1">
-        <div class="track"><div class="band" id="band"></div><div class="fill" id="fill"></div></div>
+        <div class="track"><div class="band" id="band"></div><div class="hover" id="hover"></div><div class="fill" id="fill"></div></div>
         <div class="knob" id="knob"></div>
         <div class="tip" id="tip">0:00</div>
       </div>
@@ -228,8 +230,12 @@ stage.addEventListener("pointerleave", () => { if (!video.paused) stage.classLis
 const scrub = $("scrub");
 const ratioAt = (e) => { const r = scrub.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
 scrub.addEventListener("pointermove", (e) => {
-  const x = ratioAt(e);
-  $("tip").style.left = pct(x); $("tip").textContent = fmt(x * (video.duration || 0));
+  const x = ratioAt(e), w = scrub.clientWidth, tip = $("tip");
+  tip.textContent = fmt(x * (video.duration || 0));
+  // Centre the tooltip on the pointer, but keep it inside the bar's ends.
+  const half = tip.offsetWidth / 2;
+  tip.style.left = Math.max(half, Math.min(w - half, x * w)) + "px";
+  $("hover").style.width = pct(x);
   if (dragging) { $("fill").style.width = pct(x); $("knob").style.left = pct(x); }
 });
 scrub.addEventListener("pointerdown", (e) => { dragging = true; scrub.classList.add("drag"); scrub.setPointerCapture(e.pointerId); $("fill").style.width = pct(ratioAt(e)); $("knob").style.left = pct(ratioAt(e)); });
