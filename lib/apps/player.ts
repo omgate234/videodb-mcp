@@ -24,11 +24,14 @@ const isVideoDbUrl = (u: string) => {
   const host = new URL(u).hostname;
   return host === "videodb.io" || host.endsWith(".videodb.io");
 };
-const VIDEODB_URL = z.string().url().refine(isVideoDbUrl, "Only VideoDB URLs (*.videodb.io) can be played.");
+// VideoDB serves streams from its own domains and, where no custom domain is set, straight from CloudFront.
+const isStreamUrl = (u: string) => isVideoDbUrl(u) || new URL(u).hostname.endsWith(".cloudfront.net");
+const STREAM_URL = z.string().url().refine(isStreamUrl, "Only VideoDB stream URLs can be played.");
+const PLAYER_URL = z.string().url().refine(isVideoDbUrl, "Only VideoDB player links (*.videodb.io) can be played.");
 
 const ITEM = z.object({
-  stream_url: VIDEODB_URL.optional().describe("A VideoDB stream_url (.m3u8 or .mp4). Preferred when you have it."),
-  player_url: VIDEODB_URL.optional().describe("A player.videodb.io/watch?v=… link, used when there is no stream_url."),
+  stream_url: STREAM_URL.optional().describe("A VideoDB stream_url (.m3u8 or .mp4). Preferred when you have it."),
+  player_url: PLAYER_URL.optional().describe("A player.videodb.io/watch?v=… link, used when there is no stream_url."),
   title: z.string().optional().describe("Label shown under the player, e.g. the video name or what the moment shows."),
   start: z.number().min(0).optional().describe("Seconds into this stream to start playing."),
   end: z.number().min(0).optional().describe("Seconds into this stream to stop."),
@@ -42,12 +45,15 @@ async function resolveItem(item: Item, apiKey: string) {
   const playerUrl = item.player_url!;
   const v = new URL(playerUrl).searchParams.get("v");
   if (!v) throw new Error(`${playerUrl} has no ?v= to play.`);
-  if (/^https?:\/\//.test(v)) return { ...item, stream_url: v, player_url: playerUrl };
+  if (/^https?:\/\//.test(v)) {
+    if (!isStreamUrl(v)) throw new Error(`${playerUrl} points outside VideoDB and can't play here.`);
+    return { ...item, stream_url: v, player_url: playerUrl };
+  }
   const res = await fetch(`${BASE_URL()}/player/${encodeURIComponent(v)}`, { headers: { "x-access-token": apiKey } });
   const body = (await res.json().catch(() => null)) as { message?: string; data?: { url?: string; title?: string } } | null;
   const stream = body?.data?.url;
   if (!res.ok || !stream) throw new Error(`Couldn't open ${playerUrl}: ${body?.message ?? `HTTP ${res.status}`}. Pass its stream_url instead.`);
-  if (!isVideoDbUrl(stream)) throw new Error(`${playerUrl} points outside VideoDB and can't play here.`);
+  if (!isStreamUrl(stream)) throw new Error(`${playerUrl} points outside VideoDB and can't play here.`);
   return { ...item, title: item.title ?? body?.data?.title ?? undefined, stream_url: stream, player_url: playerUrl };
 }
 
@@ -58,7 +64,7 @@ export function registerPlayerApp(server: McpServer): void {
         uri: RESOURCE_URI,
         mimeType: RESOURCE_MIME_TYPE,
         text: HTML,
-        _meta: { ui: { csp: { connectDomains: ["https://*.videodb.io"], resourceDomains: ["https://cdn.jsdelivr.net", "https://*.videodb.io", "https://fonts.googleapis.com", "https://fonts.gstatic.com"] } } },
+        _meta: { ui: { csp: { connectDomains: ["https://*.videodb.io", "https://*.cloudfront.net"], resourceDomains: ["https://cdn.jsdelivr.net", "https://*.videodb.io", "https://*.cloudfront.net", "https://fonts.googleapis.com", "https://fonts.gstatic.com"] } } },
       },
     ],
   }));
