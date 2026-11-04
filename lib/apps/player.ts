@@ -19,11 +19,14 @@ const HTML = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { color-scheme: light dark; --bg: #fff; --fg: #1a1a1a; --muted: #6b6b6b; --line: #e4e4e4; --active: #f0f0f0; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #1f1f1e; --fg: #ececec; --muted: #9a9a9a; --line: #333; --active: #2b2b2a; } }
+  /* Follow the host's theme (data-theme); the system setting is only a fallback. A scheme that differs from the host's makes Chrome paint the frame opaque. */
+  :root { color-scheme: light; --fg: #1a1a1a; --muted: #6b6b6b; --line: #e4e4e4; --active: #f0f0f0; }
+  :root[data-theme="dark"] { color-scheme: dark; --fg: #ececec; --muted: #9a9a9a; --line: #333; --active: #2b2b2a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme]) { color-scheme: dark; --fg: #ececec; --muted: #9a9a9a; --line: #333; --active: #2b2b2a; } }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, -apple-system, sans-serif; }
-  video { display: block; width: 100%; max-height: 70vh; background: #000; border-radius: 8px; }
+  body { margin: 0; background: transparent; color: var(--fg); font: 13px/1.4 system-ui, -apple-system, sans-serif; }
+  /* Fixed 16:9 box: the host sizes the iframe from our content, so vh units or a size that waits on metadata would collapse it. */
+  video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; border-radius: 8px; }
   .bar { display: flex; justify-content: space-between; gap: 12px; padding: 8px 2px; }
   .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   a { color: var(--muted); white-space: nowrap; }
@@ -40,7 +43,7 @@ const HTML = `<!doctype html>
 <ol id="list"></ol>
 <script src="${HLS}"></script>
 <script type="module">
-import { App } from "${EXT_APPS}";
+import { App, applyDocumentTheme } from "${EXT_APPS}";
 
 const video = document.getElementById("v");
 const list = document.getElementById("list");
@@ -93,7 +96,10 @@ function render(data) {
 }
 
 app.ontoolresult = (res) => render(res.structuredContent);
+app.onhostcontextchanged = (ctx) => ctx.theme && applyDocumentTheme(ctx.theme);
 await app.connect();
+const theme = app.getHostContext()?.theme;
+if (theme) applyDocumentTheme(theme);
 </script>
 </body>
 </html>`;
