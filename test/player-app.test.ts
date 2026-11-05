@@ -152,7 +152,7 @@ describe("exportReel", () => {
 });
 
 describe("loadAssets", () => {
-  it("lists one page and fills in each image's file link from a single read", async () => {
+  it("lists one page without reading each image, so the grid returns at once", async () => {
     const vdb = fakeConnection({
       "GET assets": {
         assets: [
@@ -162,17 +162,23 @@ describe("loadAssets", () => {
         ],
         pagination: { page: 1, page_size: 24, total_count: 3, total_pages: 1 },
       },
-      "GET image/img-1": { id: "img-1", name: "Logo", url: "https://api.videodb.io/a/tok.png" },
     });
     const page = await loadAssets(vdb, { collection_id: "c-1", page: 1 });
     expect(vdb.http.get).toHaveBeenCalledWith(["assets"], { params: { collection_id: "c-1", page: 1, page_size: 24 } }, { convert: false });
-    expect(vdb.http.get).toHaveBeenCalledWith(["image", "img-1"], { params: { collection_id: "c-1" } }, { convert: false });
+    expect(vdb.http.get).toHaveBeenCalledTimes(1);
     expect(page.assets).toEqual([
       expect.objectContaining({ id: "m-1", type: "video", length: 61.5, stream_url: "https://stream.videodb.io/v/1.m3u8", thumbnail_url: "https://assets.videodb.io/thumb/1.jpg", player_url: expect.stringContaining("player.videodb.io") }),
-      expect.objectContaining({ id: "img-1", type: "image", url: "https://api.videodb.io/a/tok.png" }),
+      expect.objectContaining({ id: "img-1", type: "image", url: undefined }),
       expect.objectContaining({ id: "a-1", type: "audio", url: undefined }),
     ]);
     expect(page.pagination?.total_count).toBe(3);
+  });
+
+  it("reads an image's file link by its ID, as the view does after the grid draws", async () => {
+    const vdb = fakeConnection({ "GET image/img-1": { id: "img-1", name: "Logo", url: "https://api.videodb.io/a/tok.png" } });
+    const page = await loadAssets(vdb, { ids: ["img-1"], collection_id: "c-1", page: 1 });
+    expect(vdb.http.get).toHaveBeenCalledWith(["image", "img-1"], { params: { collection_id: "c-1" } }, { convert: false });
+    expect(page.assets).toEqual([expect.objectContaining({ id: "img-1", type: "image", url: "https://api.videodb.io/a/tok.png" })]);
   });
 
   it("reads the given IDs, with an audio file's link from its single read", async () => {
