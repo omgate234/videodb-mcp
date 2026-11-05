@@ -298,6 +298,8 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .skel { border-radius: 8px; background: var(--color-background-neutral-secondary); animation: pulse 2s ease-in-out infinite; }
   .skel.media { aspect-ratio: 16 / 9; border-radius: 12px; }
   .skel.line { height: 16px; width: 70%; }
+  /* A media frame still waiting for its picture keeps its own shape and pulses */
+  .mt-media.wait, .iv.wait { background: var(--color-background-neutral-secondary); animation: pulse 2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .5; } }
 
   /* Empty State, without an action */
@@ -542,10 +544,10 @@ const pct = (x) => (Math.max(0, Math.min(1, x)) * 100) + "%";
 const hasRange = (it) => it.start != null || it.end != null;
 const rangeText = (it) => fmt(it.start || 0) + " – " + (it.end != null ? fmt(it.end) : "end");
 const len = (it) => it.end - it.start;
-// A file's link is created on its first read and fails for a moment after, so a failed load retries twice, 2 s apart.
+// A file's link is created on its first read and can fail for half a minute after, so a failed load retries at 2, 4, 8 and 16 s.
 function retrying(el, url, onFail) {
   let tries = 0;
-  el.onerror = () => { if (tries++ < 2) setTimeout(() => { el.src = url; }, 2000); else onFail(); };
+  el.onerror = () => { if (tries < 4) setTimeout(() => { el.src = url; }, 2000 * 2 ** tries++); else onFail(); };
   el.src = url;
 }
 
@@ -869,7 +871,7 @@ function assetCard(a) {
   el.dataset.id = a.id;
   const src = a.type === "image" ? a.url : a.type === "video" ? a.thumbnail_url : "";
   if (src) thumbnail(media, src);
-  else if (a.type === "image" && a.linking) media.classList.add("skel");
+  else if (a.type === "image" && a.linking) media.classList.add("wait");
   if (a.type === "video") media.insertAdjacentHTML("beforeend", '<span class="mt-play" aria-hidden="true">' + icon("play_arrow", 24, true) + "</span>");
   if (a.type === "audio") media.insertAdjacentHTML("beforeend", '<span class="mt-audio">' + icon("headphones", 40) + "</span>");
   if (a.type !== "image" && a.length) media.insertAdjacentHTML("beforeend", '<time class="duration" datetime="PT' + Math.round(a.length) + 'S">' + fmt(a.length) + "</time>");
@@ -884,10 +886,13 @@ function assetCard(a) {
   return el;
 }
 
+/** The card pulses until its picture arrives, including while a first-time link retries. */
 function thumbnail(media, url) {
   const img = document.createElement("img");
   img.alt = ""; img.loading = "lazy";
-  retrying(img, url, () => img.remove());
+  media.classList.add("wait");
+  img.onload = () => media.classList.remove("wait");
+  retrying(img, url, () => { img.remove(); media.classList.remove("wait"); });
   media.prepend(img);
 }
 
@@ -906,7 +911,7 @@ function fillImageLinks() {
         if (found?.[j]?.url) a.url = imageLinks[a.id] = found[j].url;
         const media = gbody.querySelector('.mt[data-id="' + a.id + '"] .mt-media');
         if (!media) return;
-        media.classList.remove("skel");
+        media.classList.remove("wait");
         if (a.url) thumbnail(media, a.url);
       });
       loadAssets({ ids: batch.map((a) => a.id), collection_id }).then((r) => done(r.assets), () => done(null));
@@ -1001,7 +1006,7 @@ async function openAsset(a, back) {
   const img = document.createElement("img");
   img.alt = a.name || "Image";
   const broken = () => { img.remove(); frame.insertAdjacentHTML("beforeend", '<div class="vp-error" role="alert">' + icon("error", 24) + "<p>This image can't be shown</p></div>"); };
-  if (a.url) { retrying(img, a.url, broken); frame.appendChild(img); } else broken();
+  if (a.url) { frame.classList.add("wait"); img.onload = () => frame.classList.remove("wait"); retrying(img, a.url, () => { frame.classList.remove("wait"); broken(); }); frame.appendChild(img); } else broken();
   gbody.appendChild(frame);
   if (a.url) $("g-actions").appendChild(button("secondary sm", "open_in_new", "Open original", () => app.openLink({ url: a.url })));
 }
