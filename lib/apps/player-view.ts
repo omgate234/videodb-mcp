@@ -436,12 +436,13 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .scene-row[aria-current="true"] .scene-time { color: var(--color-text-brand-primary); }
   .scene-main { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
   .scene-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-primary); }
-  .scene-said { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 18px; color: var(--color-text-neutral-secondary); }
   .scene-facts { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; }
   .scene-chevron { display: flex; color: var(--color-icon-neutral-tertiary); transition: transform .15s; }
   .scene-row[aria-expanded="true"] .scene-chevron { transform: rotate(180deg); }
   .scene-row[aria-expanded="true"] .scene-title { -webkit-line-clamp: unset; }
-  .scene-row[aria-expanded="true"] .scene-said, .scene-row[aria-expanded="true"] .scene-facts { display: none; }
+  .scene-row[aria-expanded="true"] .scene-facts { display: none; }
+  .scene-row.flat { grid-template-columns: 44px 1fr; }
+  .scene-row.flat .scene-title { -webkit-line-clamp: unset; font-weight: 400; }
   /* 12 + 44 + 12 lines the detail up with the headline */
   .scene-detail { display: flex; flex-direction: column; gap: 16px; padding: 4px 32px 16px 68px; }
   .empty-list { padding: 24px 12px; text-align: center; }
@@ -465,7 +466,6 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
     <div class="card-header" id="reel-head" hidden>
       <div class="card-heading"><p class="card-title" id="rtitle"></p><p class="card-description" id="rmeta"></p></div>
       <div class="card-actions">
-        <button class="btn secondary" id="edit" type="button"></button>
         <button class="btn primary" id="dl" type="button"></button>
       </div>
     </div>
@@ -565,6 +565,8 @@ const pct = (x) => (Math.max(0, Math.min(1, x)) * 100) + "%";
 const hasRange = (it) => it.start != null || it.end != null;
 const rangeText = (it) => fmt(it.start || 0) + " – " + (it.end != null ? fmt(it.end) : "end");
 const len = (it) => it.end - it.start;
+// Clip names carry no time ranges ("Clip 1 (0:00–0:05)" → "Clip 1"); times are shown once, in the duration chip.
+const clipTitle = (it, i) => (it.title || "").replace(/\\s*[(\\[]?\\s*\\d{1,2}:\\d{2}(?::\\d{2})?\\s*[–—-]\\s*\\d{1,2}:\\d{2}(?::\\d{2})?\\s*[)\\]]?/g, "").trim() || "Clip " + (i + 1);
 // A file's link is created on its first read and can fail for half a minute after, so a failed load retries at 2, 4, 8 and 16 s.
 function retrying(el, url, onFail) {
   let tries = 0;
@@ -581,7 +583,8 @@ function showState() {
   setBtn($("pp"), playing || switching ? "pause" : "play_arrow", playing || switching ? "Pause" : "Play", true);
 }
 // switching: a new stream is loading and will play when ready, e.g. a reel moving to a clip of another video.
-let loading = false, switching = false;
+// epoch: bumped when the user leaves the player, so a play still waiting on loading never starts on its own.
+let loading = false, switching = false, epoch = 0;
 
 function load(i, autoplay, at) {
   const it = items[i];
@@ -589,8 +592,8 @@ function load(i, autoplay, at) {
   $("err").hidden = true;
   [...list.children].forEach((li, j) => li.firstChild.setAttribute("aria-current", String(j === i)));
   [...strip.children].forEach((s, j) => { s.setAttribute("aria-current", String(j === i)); if (j !== i) s.style.setProperty("--p", j < i ? "100%" : "0"); });
-  $("title").textContent = reel ? (it.title || "Clip " + (i + 1)) : (it.title || "Video");
-  const source = reel ? ["Clip " + (i + 1) + " of " + items.length, rangeText(it) + " of source"] : [];
+  $("title").textContent = reel ? clipTitle(it, i) : (it.title || "Video");
+  const source = [];
   if (!reel && hasRange(it)) source.push(rangeText(it));
   if (!reel && items.length > 1) source.push((i + 1) + " of " + items.length);
   $("source").textContent = source.join("  ·  ");
@@ -598,8 +601,8 @@ function load(i, autoplay, at) {
   vp.ariaLabel = "Video: " + $("title").textContent;
   if (!reel) drawMoments();
   // Held apart from lastT: a new source fires timeupdate at 0, which resets lastT before metadata loads.
-  const to = lastT;
-  const seek = () => { video.currentTime = to; if (autoplay) video.play().catch(() => { switching = false; showState(); }); };
+  const to = lastT, mine = epoch;
+  const seek = () => { video.currentTime = to; if (autoplay && mine === epoch) video.play().catch(() => { switching = false; showState(); }); };
   // Clips of the same video reuse the loaded stream, so moving between them is a seek, not a reload.
   if (src === it.stream_url && video.readyState >= 1) { seek(); paint(); return; }
   src = it.stream_url;
@@ -659,6 +662,18 @@ video.addEventListener("waiting", () => { loading = true; showState(); });
 ["playing", "canplay"].forEach((e) => video.addEventListener(e, () => { loading = false; switching = false; showState(); }));
 ["play", "pause"].forEach((e) => video.addEventListener(e, () => { if (e === "pause") loading = false; showState(); }));
 video.addEventListener("volumechange", () => setBtn($("mute"), video.muted ? "volume_off" : "volume_up", video.muted ? "Unmute" : "Mute"));
+
+/** Leaving: out of view or a hidden tab pauses playback; leaving the widget (e.g. clicking into the chat) only cancels a play still waiting on loading. */
+const waiting = (m) => !m.paused && m.readyState < 3;
+function leave(media, pausePlaying) {
+  epoch++;
+  if (media === video && switching) { switching = false; video.pause(); showState(); }
+  if (!media.paused && (pausePlaying || waiting(media))) media.pause();
+}
+const seen = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.intersectionRatio < 0.25) leave(e.target === vp ? video : e.target.querySelector("audio"), true); }), { threshold: [0, 0.25] });
+seen.observe(vp);
+document.addEventListener("visibilitychange", () => { if (document.hidden) { leave(video, true); if (audioEl) leave(audioEl, true); } });
+window.addEventListener("blur", () => { leave(video, false); if (audioEl) leave(audioEl, false); });
 
 const toggle = () => {
   if (switching) { switching = false; video.pause(); showState(); return; }
@@ -775,11 +790,6 @@ async function exportReel() {
   } finally { exporting = false; }
 }
 
-function editInEditor() {
-  const clips = items.map((c, i) => (i + 1) + ". " + c.video_id + " " + c.start + "s–" + c.end + "s" + (c.title ? " (" + c.title + ")" : ""));
-  app.sendMessage({ role: "user", content: [{ type: "text", text: "Open this reel in the VideoDB video editor so I can fine-tune it:\\n" + clips.join("\\n") }] }).catch(() => {});
-}
-
 function renderReel(data) {
   reelTitle = data.title || "Highlight reel";
   offs = []; total = 0;
@@ -796,8 +806,6 @@ function renderReel(data) {
     s.onclick = () => load(i, true);
     strip.appendChild(s);
   });
-  $("edit").innerHTML = icon("edit", 16) + "<span>Edit in editor</span>";
-  $("edit").onclick = editInEditor;
   setDl("Download MP4", false);
   $("dl").onclick = exportReel;
   $("reel-head").hidden = false;
@@ -820,10 +828,9 @@ function render(data) {
     li.innerHTML = '<button class="item" type="button"><span class="item-media"></span><span class="item-content"><span class="item-title"></span><span class="item-description"></span></span></button>';
     const b = li.firstChild;
     b.querySelector(".item-media").textContent = String(i + 1);
-    b.querySelector(".item-title").textContent = it.title || "Clip " + (i + 1);
+    b.querySelector(".item-title").textContent = clipTitle(it, i);
     const desc = b.querySelector(".item-description");
-    if (reel) desc.innerHTML = '<span class="mono">' + fmt(offs[i]) + "</span> in reel · <span class=\\"mono\\">" + rangeText(it) + "</span> of source";
-    else if (hasRange(it)) desc.innerHTML = '<span class="mono">' + rangeText(it) + "</span>";
+    if (!reel && hasRange(it)) desc.innerHTML = '<span class="mono">' + rangeText(it) + "</span>";
     else desc.remove();
     if (reel) {
       const d = document.createElement("time");
@@ -1046,6 +1053,7 @@ function audioPlayer(a) {
   const sc = q(".scrub"), thumb = q(".thumb");
   q(".ap-title").textContent = a.name || "Untitled";
   audioEl = au;
+  seen.observe(el);
   let drag = false, buffering = false;
   const d = () => (isFinite(au.duration) ? au.duration : a.length || 0);
   const label = (b, ic, text, size, filled) => { b.innerHTML = icon(ic, size || 20, filled); b.ariaLabel = text; b.title = text; };
@@ -1352,15 +1360,23 @@ function sceneValues(sc) {
   });
   return out;
 }
-/** The scene's headline: its longest piece of prose, else what was said, else a one-line summary. */
+/** Which text titles a scene: a scene description first, then activity or location, on-screen text last; within a source, description-like fields first, then the longest. */
+const HEAD_RANK = { vlm: 0, activity_recognition: 1, location_detection: 1, ocr: 3 };
 function headline(sc) {
-  let best = "";
-  sc.parts.forEach(({ data }) => {
+  let best = null;
+  sc.parts.forEach(({ source, data }) => {
     if (!data || typeof data !== "object") return;
-    Object.values(data).forEach((v) => { if (typeof v === "string" && v.trim().length > best.length) best = v.trim(); });
+    const rank = HEAD_RANK[source.type] ?? 2;
+    Object.entries(data).forEach(([k, v]) => {
+      if (typeof v !== "string" || !v.trim()) return;
+      const r = rank * 2 + (/description|summary|caption|text/.test(k) ? 0 : 1);
+      if (!best || r < best.r || (r === best.r && v.trim().length > best.v.length)) best = { r, v: v.trim() };
+    });
   });
-  return best || sc.said.map((g) => speechText(g.data)).join(" ") || summary(sc.parts[0]?.data) || "No content";
+  return best?.v || sc.said.map((g) => speechText(g.data)).join(" ") || summary(sc.parts[0]?.data) || "No content";
 }
+/** A scene that is one piece of text (a transcript line, a legacy scene description) shows it in full and has nothing to open. */
+const isFlat = (sc) => sc.parts.length === 1 && !sc.said.length && sc.parts[0].data && typeof sc.parts[0].data === "object" && Object.entries(sc.parts[0].data).every(([k, v]) => isEmpty(v) || k === "text" || k === "description" || k === "words");
 
 function drawAll() {
   if (!ins) return;
@@ -1426,7 +1442,7 @@ const visibleScenes = () => {
   return ins.scenes.filter((sc) => (!q || sc.find.includes(q)) && (!f || sc.values.some(([g, v]) => g === f[0] && v === f[1])));
 };
 
-/** The scene list: time, headline, what was said and short facts; a row opens to everything every analyzer found there. */
+/** The scene list: time, a two-line title and short facts; a row opens to everything every analyzer found there. */
 function drawList() {
   const shown = visibleScenes(), all = ins.scenes.length, loading = ins.sources.some((s) => s.loading || (s.status === "running" && !s.segments));
   const filtered = !!(ins.query.trim() || ins.facet);
@@ -1459,19 +1475,17 @@ function skeletonRows() {
 }
 
 function sceneRow(sc) {
-  const i = ins.scenes.indexOf(sc), open = ins.open === i;
+  const i = ins.scenes.indexOf(sc), flat = isFlat(sc), open = !flat && ins.open === i;
   const wrap = el("div", "scene");
   wrap.dataset.i = String(i);
-  const row = el("button", "scene-row"); row.type = "button";
-  row.setAttribute("aria-expanded", String(open));
+  const row = el("button", "scene-row" + (flat ? " flat" : "")); row.type = "button";
+  if (!flat) row.setAttribute("aria-expanded", String(open));
   row.setAttribute("aria-current", String(ins.cur === i));
   const time = el("span", "scene-time", fmt(sc.start));
   time.title = fmt(sc.start) + " – " + fmt(sc.end);
   const main = el("span", "scene-main");
   const title = headline(sc);
   main.append(el("span", "scene-title", title));
-  const said = sc.said.map((g) => speechText(g.data)).join(" ");
-  if (said) main.append(el("span", "scene-said", "“" + said + "”"));
   const facts = [...new Set(sc.values.map(([, v]) => v))].filter((v) => v !== title);
   if (facts.length) {
     const box = el("span", "scene-facts");
@@ -1479,9 +1493,9 @@ function sceneRow(sc) {
     if (facts.length > 6) box.append(el("span", "badge", "+" + (facts.length - 6)));
     main.append(box);
   }
-  row.append(time, main, el("span", "scene-chevron", ""));
-  row.lastChild.innerHTML = icon("keyboard_arrow_down", 20);
-  row.onclick = () => { ins.open = open ? -1 : i; playAt(sc.start); drawList(); };
+  row.append(time, main);
+  if (!flat) { row.append(el("span", "scene-chevron", "")); row.lastChild.innerHTML = icon("keyboard_arrow_down", 20); }
+  row.onclick = () => { if (!flat) ins.open = open ? -1 : i; playAt(sc.start); if (!flat) drawList(); };
   wrap.append(row);
   if (open) wrap.append(sceneDetail(sc));
   return wrap;
@@ -1489,7 +1503,6 @@ function sceneRow(sc) {
 /** Everything found in one scene, by analyzer. The headline is already shown above, so it is not repeated. */
 function sceneDetail(sc) {
   const d = el("div", "scene-detail"), title = headline(sc);
-  d.append(el("p", "timestamp default", fmt(sc.start) + " – " + fmt(sc.end)));
   const sections = [];
   sc.parts.forEach((p) => {
     const data = p.data && typeof p.data === "object" && !Array.isArray(p.data) ? Object.fromEntries(Object.entries(p.data).filter(([, v]) => !isEmpty(v) && !(typeof v === "string" && v.trim() === title))) : p.data;
@@ -1508,7 +1521,8 @@ function sceneDetail(sc) {
 }
 
 function playAt(t) {
-  const go = () => { video.currentTime = t; lastT = t; video.play().catch(() => {}); };
+  const mine = epoch;
+  const go = () => { video.currentTime = t; lastT = t; if (mine === epoch) video.play().catch(() => {}); };
   if (video.readyState >= 1) go(); else video.addEventListener("loadedmetadata", go, { once: true });
 }
 
