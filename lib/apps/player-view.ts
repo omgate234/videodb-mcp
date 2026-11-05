@@ -69,6 +69,8 @@ const TOKENS = `
 
     --color-border-neutral-primary: var(--greyscale-100);
     --color-border-neutral-hover: var(--greyscale-300);
+    --color-border-neutral-field: var(--greyscale-100);
+    --color-border-neutral-field-hover: var(--greyscale-300);
     --color-border-neutral-inverse-primary: var(--greyscale-600);
     --color-border-brand-primary: var(--orange-500);
 
@@ -115,6 +117,8 @@ const TOKENS = `
     --vdb-shadow-xxs-1: #00000066;
     --color-border-neutral-primary: var(--greyscale-800);
     --color-border-neutral-hover: var(--greyscale-600);
+    --color-border-neutral-field: var(--greyscale-800);
+    --color-border-neutral-field-hover: var(--greyscale-600);
   }
 `;
 
@@ -377,12 +381,6 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .badge.error { background: var(--color-background-error-subtle); color: var(--color-text-error-primary); }
   .badge.brand { background: var(--color-background-brand-tertiary); color: var(--color-text-brand-primary); }
 
-  /* Code Block, without line numbers */
-  .code { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-radius: 12px; border: 1px solid var(--color-border-neutral-primary); background: var(--color-background-neutral-primary); }
-  .code-head { display: flex; height: 40px; align-items: center; gap: 8px; border-bottom: 1px solid var(--color-border-neutral-primary); background: var(--color-background-neutral-subtle); padding: 0 12px; font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
-  .code pre { margin: 0; max-height: 240px; overflow: auto; padding: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-primary); outline: none; }
-  .code pre:focus-visible { box-shadow: var(--shadow-focus-ring); }
-
   /* Segment renderer: any segment's data, drawn by its shape */
   .sv { display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 20px; color: var(--color-text-neutral-secondary); }
   .sv-label { font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
@@ -391,28 +389,15 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .kv dt { font-size: 12px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
   .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; color: var(--color-text-neutral-primary); }
   .tl { display: flex; flex-direction: column; gap: 8px; }
+  .sv-section { display: flex; flex-direction: column; gap: 8px; }
+  .sv-head { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--color-text-neutral-primary); }
+  .kv dd > .chips { padding: 2px 0; }
+  .kv dd > p + p { margin-top: 4px; }
   .tl-head { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-secondary); }
 
-  /* Lanes: one track per analyzer or index, segments placed by start and end. Built from tokens; the library has no timeline lane. */
-  .lanes { position: relative; display: flex; flex-direction: column; gap: 8px; }
-  .lane { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 8px; }
-  .lane-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
-  .lane-track { position: relative; height: 24px; border-radius: 4px; background: var(--color-background-neutral-secondary); }
-  .lane-track.skel { animation: pulse 2s ease-in-out infinite; }
-  /* The inset edge keeps back-to-back segments apart. */
-  .lane-seg { position: absolute; top: 2px; bottom: 2px; min-width: 3px; border-radius: 2px; background: var(--lane); box-shadow: inset -1px 0 0 var(--color-background-neutral-primary); opacity: .55; cursor: pointer; outline: none; transition: opacity .15s; }
-  .lane-seg:hover, .lane-seg[aria-current="true"] { opacity: 1; }
-  .lane-seg:focus-visible { opacity: 1; box-shadow: var(--shadow-focus-ring); z-index: 1; }
-  .lane-error { font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-error-primary); }
-  .lane-head { pointer-events: none; position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--color-text-neutral-primary); }
-
-  /* What every lane holds at the playing time */
-  .now { display: flex; flex-direction: column; }
-  .now-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--color-border-neutral-primary); }
-  .now-head { display: flex; align-items: center; gap: 8px; }
-  .swatch { width: 8px; height: 8px; flex-shrink: 0; border-radius: 9999px; background: var(--lane); }
-  .now-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-primary); }
   .muted { font-size: 14px; line-height: 20px; color: var(--color-text-neutral-tertiary); }
+  .now-head { display: flex; align-items: center; gap: 8px; }
+  .now-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-primary); }
 
   /* Object boxes over the video's picture */
   .vp-boxes { pointer-events: none; position: absolute; inset: 0; }
@@ -420,18 +405,48 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .box span { position: absolute; left: -2px; bottom: 100%; margin-bottom: 2px; height: 20px; padding: 0 6px; border-radius: 4px; background: var(--color-background-brand-primary); color: var(--color-text-brand-inverse); font-size: 12px; line-height: 20px; font-weight: 500; white-space: nowrap; }
   .box.low span { bottom: auto; top: 0; margin: 2px 0 0 2px; }
 
-  /* Data Table */
-  .table-wrap { width: 100%; overflow-x: auto; border-radius: 8px; outline: none; }
-  .table-wrap:focus-visible { box-shadow: var(--shadow-focus-ring); }
-  .table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  .table tr { border-bottom: 1px solid var(--color-border-neutral-primary); }
-  .table th { height: 56px; padding: 16px 20px; text-align: left; font-weight: 500; white-space: nowrap; color: var(--color-text-neutral-tertiary); }
-  .table td { height: 56px; padding: 8px 20px; vertical-align: middle; font-weight: 500; color: var(--color-text-neutral-primary); }
-  .table tbody tr { transition: background-color .15s; }
-  .table tbody tr:hover { background: var(--color-background-neutral-hover); }
-  .table tbody tr[data-state="selected"] { background: var(--color-background-neutral-secondary); }
-  .table th:first-child, .table td:first-child { width: 1%; white-space: nowrap; }
-  .table .clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* In this video: short facts as toggle Chips with scene counts; a pressed chip is grey, as selection is */
+  .glance { display: flex; flex-direction: column; gap: 12px; }
+  .glance-row { display: flex; flex-direction: column; gap: 6px; }
+  .chip.toggle { cursor: pointer; outline: none; transition: background-color .15s, border-color .15s; }
+  .chip.toggle:hover { border-color: var(--color-border-neutral-hover); background: var(--color-background-neutral-hover); }
+  .chip.toggle[aria-pressed="true"] { border-color: var(--color-border-neutral-hover); background: var(--color-background-neutral-secondary); }
+  .chip.toggle:focus-visible { border-color: var(--color-border-brand-primary); box-shadow: var(--shadow-focus-ring); }
+  .chips .link { align-self: center; font-size: 14px; }
+
+  /* Input Group, size sm, with a leading search icon */
+  .scene-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .field { display: flex; flex: 1; min-width: 200px; height: 36px; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--color-border-neutral-field); background: var(--color-background-neutral-primary); color: var(--color-icon-neutral-tertiary); transition: border-color .15s, box-shadow .15s; }
+  .field:hover { border-color: var(--color-border-neutral-field-hover); }
+  .field:focus-within { border-color: var(--color-border-brand-primary); box-shadow: var(--shadow-focus-ring); color: var(--color-icon-neutral-secondary); }
+  .field input { height: 100%; min-width: 0; flex: 1; border: 0; padding: 0; background: transparent; outline: none; font: inherit; font-size: 14px; color: var(--color-text-neutral-primary); }
+  .field input::placeholder { color: var(--color-text-neutral-tertiary); }
+  .field input::-webkit-search-cancel-button { -webkit-appearance: none; }
+  .scene-count { font-size: 14px; line-height: 20px; color: var(--color-text-neutral-tertiary); }
+
+  /* Scene list: Item rows in a Scroll Area, kept in step with playback */
+  .scenes { max-height: 520px; overflow-y: auto; margin: 0 -12px; padding: 0 4px; border-radius: 12px; outline: none; scrollbar-width: thin; }
+  .scenes:focus-visible { box-shadow: var(--shadow-focus-ring); }
+  .scene { display: flex; flex-direction: column; }
+  .scene-row { display: grid; grid-template-columns: 44px 1fr 20px; align-items: start; gap: 12px; width: 100%; padding: 12px; border-radius: 12px; text-align: left; cursor: pointer; outline: none; transition: background-color .15s; }
+  .scene-row:hover { background: var(--color-background-neutral-hover); }
+  .scene-row[aria-current="true"] { background: var(--color-background-neutral-secondary); }
+  .scene-row:focus-visible { box-shadow: var(--shadow-focus-ring); }
+  .scene-time { padding-top: 1px; font-family: var(--font-mono); font-size: 12px; line-height: 18px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--color-text-neutral-tertiary); }
+  .scene-row[aria-current="true"] .scene-time { color: var(--color-text-brand-primary); }
+  .scene-main { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+  .scene-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-primary); }
+  .scene-said { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 18px; color: var(--color-text-neutral-secondary); }
+  .scene-facts { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; }
+  .scene-chevron { display: flex; color: var(--color-icon-neutral-tertiary); transition: transform .15s; }
+  .scene-row[aria-expanded="true"] .scene-chevron { transform: rotate(180deg); }
+  .scene-row[aria-expanded="true"] .scene-title { -webkit-line-clamp: unset; }
+  .scene-row[aria-expanded="true"] .scene-said, .scene-row[aria-expanded="true"] .scene-facts { display: none; }
+  /* 12 + 44 + 12 lines the detail up with the headline */
+  .scene-detail { display: flex; flex-direction: column; gap: 16px; padding: 4px 32px 16px 68px; }
+  .empty-list { padding: 24px 12px; text-align: center; }
+  .scene-skel .scene-row { cursor: default; }
+  #i-more { align-self: center; }
 
   /* Moments: highlighted stretches on the scrubber and a list under the player */
   .marks { pointer-events: none; position: absolute; left: 0; right: 0; top: 50%; height: 6px; transform: translateY(-50%); }
@@ -496,11 +511,17 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
     <div class="card-content">
       <div id="i-player"></div>
       <div class="log" id="i-log" hidden></div>
-      <div class="lanes" id="i-lanes" hidden></div>
-      <p class="status" id="i-note" hidden></p>
     </div>
-    <div class="card-content" id="i-now-wrap" hidden><p class="section-title" id="i-now-title"></p><div class="now" id="i-now"></div></div>
-    <div class="card-content" id="i-table" hidden></div>
+    <section class="card-content" id="i-glance" aria-labelledby="i-glance-title" hidden><p class="section-title" id="i-glance-title">In this video</p><div class="glance" id="i-glance-body"></div></section>
+    <div class="card-content">
+      <div class="scene-tools" id="i-tools" hidden>
+        <label class="field"><span class="field-icon" aria-hidden="true"></span><span class="sr-only">Search what was found</span><input id="i-search" type="search" placeholder="Search what was found" autocomplete="off"></label>
+        <p class="scene-count" role="status"><span id="i-count"></span> <button class="link" type="button" id="i-clear" hidden>Clear</button></p>
+      </div>
+      <div class="scenes" id="i-list" tabindex="0" role="region" aria-label="What was found, scene by scene"></div>
+      <p class="status" id="i-note" hidden></p>
+      <button class="btn secondary" type="button" id="i-more" hidden>Load more records</button>
+    </div>
   </div>
   <div class="card" id="gallery" hidden>
     <div class="card-header">
@@ -1116,14 +1137,35 @@ function detectionLabels(frames) {
   frames.forEach((f) => (f?.detections || []).forEach((d) => d?.label && labels.push(d.label)));
   return labels;
 }
+/** Any value, readably: text, chips for a list of words, nested fields for objects. Never raw JSON. */
+function valueView(v) {
+  if (isScalar(v)) return document.createTextNode(scalarText(v));
+  if (Array.isArray(v)) {
+    if (v.every(isScalar)) return chips(counted(v.map(scalarText)));
+    const g = el("div", "sv-group");
+    v.forEach((x) => { const item = el("div"); item.append(valueView(x)); g.append(item); });
+    return g;
+  }
+  const dl = el("dl", "kv");
+  Object.entries(v).forEach(([k, x]) => { if (isEmpty(x)) return; const dd = el("dd"); dd.append(valueView(x)); dl.append(el("dt", "", human(k)), dd); });
+  return dl;
+}
+/** One line of text for any value, for table cells and tooltips. */
+function flatText(v) {
+  if (isScalar(v)) return scalarText(v);
+  if (Array.isArray(v)) return v.map(flatText).join(", ");
+  return Object.entries(v).map(([k, x]) => human(k) + ": " + flatText(x)).join(" · ");
+}
+const isEmpty = (v) => v == null || (typeof v === "string" && !v.trim()) || (Array.isArray(v) && !v.length) || (typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length);
+/** Prose first, then one aligned field list: lists of words as chips, lists of records as lines, nested objects as nested fields. Empty fields are left out. */
 function segmentView(data) {
   const box = el("div", "sv");
   if (data == null || typeof data !== "object") { box.append(el("p", "", scalarText(data))); return box; }
-  if (Array.isArray(data)) { box.append(data.every(isScalar) ? chips(counted(data.map(scalarText))) : el("p", "", JSON.stringify(data))); return box; }
+  if (Array.isArray(data)) { box.append(valueView(data)); return box; }
   const rest = Object.assign({}, data);
   if (Array.isArray(data.words) && data.words.some((w) => w && w.speaker != null)) { box.append(transcriptLines(data.words)); delete rest.text; }
   delete rest.words;
-  PROSE.forEach((k) => { if (typeof rest[k] === "string") { box.append(el("p", "", rest[k])); delete rest[k]; } });
+  PROSE.forEach((k) => { if (typeof rest[k] === "string") { if (rest[k].trim()) box.append(el("p", "", rest[k])); delete rest[k]; } });
   if (Array.isArray(data.frames)) {
     const labels = detectionLabels(data.frames);
     box.append(labels.length ? chips(counted(labels)) : el("p", "muted", "Nothing detected"));
@@ -1131,23 +1173,16 @@ function segmentView(data) {
   }
   const kv = el("dl", "kv");
   Object.entries(rest).forEach(([k, v]) => {
-    if (Array.isArray(v) && v.length && v.every((x) => typeof x === "string")) {
-      const g = el("div", "sv-group"); g.append(el("p", "sv-label", human(k)), chips(counted(v))); box.append(g);
-      return;
-    }
-    kv.append(el("dt", "", human(k)), el("dd", "", isScalar(v) ? scalarText(v) : JSON.stringify(v)));
+    if (isEmpty(v)) return;
+    const dd = el("dd");
+    if (Array.isArray(v) && v.every((x) => typeof x === "string")) dd.append(chips(counted(v)));
+    // A list of flat records, e.g. brand mentions with a reason: one line each.
+    else if (Array.isArray(v) && v.every((x) => x && typeof x === "object" && !Array.isArray(x) && Object.values(x).every(isScalar))) v.forEach((x) => dd.append(el("p", "", Object.values(x).filter((y) => !isEmpty(y)).map(scalarText).join(" — "))));
+    else dd.append(valueView(v));
+    kv.append(el("dt", "", human(k)), dd);
   });
-  if (kv.children.length) {
-    box.append(kv);
-    // Custom schemas can nest anything; the raw JSON is one click away.
-    const toggle = el("button", "link", "Show raw data"); toggle.type = "button";
-    const code = el("div", "code"); code.hidden = true;
-    const pre = el("pre", "", JSON.stringify(data, null, 2)); pre.tabIndex = 0;
-    code.append(el("div", "code-head", "JSON"), pre);
-    toggle.onclick = () => { code.hidden = !code.hidden; toggle.textContent = code.hidden ? "Show raw data" : "Hide raw data"; };
-    const row = el("p"); row.append(toggle);
-    box.append(row, code);
-  }
+  if (kv.children.length) box.append(kv);
+  if (!box.children.length) box.append(el("p", "muted", "No content"));
   return box;
 }
 /** One line of plain text for a table cell. */
@@ -1157,14 +1192,13 @@ function summary(data) {
   if (Array.isArray(data.words)) return data.words.map((w) => w.text).join(" ");
   if (Array.isArray(data.frames)) return counted(detectionLabels(data.frames)).map(([l, n]) => (n > 1 ? l + " ×" + n : l)).join(", ") || "Nothing detected";
   const first = Object.values(data).find((v) => typeof v === "string" || (Array.isArray(v) && v.every((x) => typeof x === "string")));
-  return first != null ? [].concat(first).join(", ") : JSON.stringify(data);
+  return first != null ? [].concat(first).join(", ") : flatText(data);
 }
 
-// Understanding and index views: the video with one lane per analyzer (or the index), and the data at the playing time.
-const insight = $("insight");
-const LANE_COLOURS = ["var(--color-background-brand-primary)", "var(--blue-500)", "var(--green-500)", "var(--yellow-500)", "var(--blue-300)", "var(--green-300)", "var(--color-background-brand-secondary)"];
-const TYPE_LABEL = { speech_transcription: "Speech", spoken_words: "Speech", vlm: "Visual description", ocr: "On-screen text", object_detection: "Objects", brand_detection: "Brands", activity_recognition: "Activity", location_detection: "Location" };
-const ROWS = 10;
+// Understanding and index views: the video, what was found in it at a glance, and a searchable scene list kept in step with playback.
+const insight = $("insight"), sceneList = $("i-list");
+const TYPE_LABEL = { speech_transcription: "Speech", spoken_words: "Speech", vlm: "Scene description", ocr: "On-screen text", object_detection: "Objects", brand_detection: "Brands", activity_recognition: "Activity", location_detection: "Location" };
+const GLANCE_CHIPS = 10;
 let ins = null;
 
 async function readTool(name, args) {
@@ -1175,48 +1209,43 @@ async function readTool(name, args) {
 }
 const runState = (s) => (s === "done" ? "done" : s === "failed" || s === "error" ? "failed" : "running");
 const segs = (list) => (list || []).filter((r) => r && isFinite(r.start) && isFinite(r.end)).map((r) => ({ start: Number(r.start), end: Math.max(Number(r.end), Number(r.start)), data: r.data }));
-/** Timeline length: the video's own, else the furthest segment end. */
-function insLen() {
-  if (isFinite(video.duration) && video.duration) return video.duration;
-  let max = ins.video.length || 0;
-  ins.lanes.forEach((l) => (l.segments || []).forEach((s) => { if (s.end > max) max = s.end; }));
-  return max || 1;
-}
+const sourceLabel = (s) => TYPE_LABEL[s.type] || human(s.name || "Analyzer");
 
 function renderInsight(data) {
   clearTimeout(ins?.timer);
   card.hidden = true; gallery.hidden = true; insight.hidden = false;
   const v = data.video;
-  ins = { token: {}, kind: data.layout, video: v, lanes: [], at: null, page: 0 };
+  ins = { token: {}, kind: data.layout, video: v, sources: [], scenes: [], query: "", facet: null, open: -1, cur: -1, more: false, scrolled: 0 };
   $("i-title").textContent = v.title || "Video";
   reel = false; items = [{ stream_url: v.stream_url, player_url: v.player_url, title: v.title || "Video" }];
   list.innerHTML = ""; strip.innerHTML = ""; $("open").hidden = false;
   $("i-player").appendChild(vp);
   load(0, false);
+  $("i-search").value = "";
   if (data.layout === "understanding") {
     ins.run = data.understanding;
-    ins.lanes = (data.understanding.analyzers || []).map((a, i) => ({ id: a.id, name: a.name || "Analyzer " + (i + 1), type: a.type, status: runState(a.status), colour: LANE_COLOURS[i % LANE_COLOURS.length] }));
+    ins.sources = (data.understanding.analyzers || []).map((a, i) => ({ id: a.id, name: a.name || "Analyzer " + (i + 1), type: a.type, status: runState(a.status) }));
+    drawAll();
     pollRun();
   } else {
     const s = data.source;
     ins.source = s;
-    const name = s.kind === "index" ? s.name || "Index" : s.kind === "scene_index" ? "Scenes" : "Transcript";
-    ins.lanes = [{ name: name, status: "done", colour: LANE_COLOURS[0] }];
+    ins.sources = [{ name: s.kind === "index" ? s.name || "Index" : s.kind === "scene_index" ? "Scenes" : "Transcript", status: "done" }];
+    drawAll();
     loadIndexPage();
   }
-  drawAll();
 }
 
 function drawMeta() {
   if (ins.kind === "understanding") {
-    const done = ins.lanes.filter((l) => l.status === "done").length, failed = ins.lanes.filter((l) => l.status === "failed").length;
-    const working = ins.lanes.length - done - failed;
-    $("i-meta").textContent = ["Understanding", working ? done + " of " + ins.lanes.length + " analyzers done" : ins.lanes.length + (ins.lanes.length === 1 ? " analyzer" : " analyzers"), failed ? failed + " failed" : ""].filter(Boolean).join(" · ");
+    const n = ins.sources.length, done = ins.sources.filter((s) => s.status === "done").length, failed = ins.sources.filter((s) => s.status === "failed").length;
+    const working = n - done - failed;
+    $("i-meta").textContent = ["Understanding", working ? done + " of " + n + " analyzers done" : n + (n === 1 ? " analyzer" : " analyzers"), failed ? failed + " failed" : ""].filter(Boolean).join(" · ");
     return;
   }
   const s = ins.source, parts = [s.kind === "index" ? "Index" : s.kind === "scene_index" ? "Scene index" : "Transcript"];
   if (s.status) parts.push(human(s.status));
-  const n = s.record_count != null ? s.record_count : ins.lanes[0].total;
+  const n = s.record_count != null ? s.record_count : ins.sources[0].total;
   const noun = { index: ["record", "records"], scene_index: ["scene", "scenes"], transcript: ["sentence", "sentences"] }[s.kind];
   if (n != null) parts.push(n + " " + noun[n === 1 ? 0 : 1]);
   $("i-meta").textContent = parts.join(" · ");
@@ -1229,112 +1258,253 @@ async function pollRun(poll) {
     try {
       const u = await readTool("get_understanding", { video_id: ins.video.video_id, collection_id: ins.video.collection_id, understanding_id: ins.run.id });
       if (token !== ins?.token) return;
-      (u.analyzers || []).forEach((a) => { const l = ins.lanes.find((x) => (a.id && x.id === a.id) || x.name === a.name); if (l) l.status = runState(a.status); });
+      (u.analyzers || []).forEach((a) => { const s = ins.sources.find((x) => (a.id && x.id === a.id) || x.name === a.name); if (s) s.status = runState(a.status); });
     } catch {}
   }
-  ins.lanes.filter((l) => l.status === "done" && !l.segments && !l.loading && !l.error).forEach(loadLane);
+  ins.sources.filter((s) => s.status === "done" && !s.segments && !s.loading && !s.error).forEach(loadSource);
   drawAll();
-  if (ins.lanes.some((l) => l.status === "running")) ins.timer = setTimeout(() => pollRun(true), 5000);
+  if (ins.sources.some((s) => s.status === "running")) ins.timer = setTimeout(() => pollRun(true), 5000);
 }
 
-async function loadLane(l) {
+async function loadSource(s) {
   const token = ins.token;
-  l.loading = true;
+  s.loading = true;
   try {
     const args = { video_id: ins.video.video_id, collection_id: ins.video.collection_id, understanding_id: ins.run.id };
-    if (l.id) args.analyzer_id = l.id; else args.analyzer_name = l.name;
+    if (s.id) args.analyzer_id = s.id; else args.analyzer_name = s.name;
     const out = await readTool("get_analyzer_output", args);
     if (token !== ins?.token) return;
-    l.segments = segs(out.scenes);
-    l.total = out.scenes_total || l.segments.length;
-  } catch (e) { l.error = e.message || "Couldn't load this output."; }
-  l.loading = false;
+    s.segments = segs(out.scenes);
+    s.total = out.scenes_total || s.segments.length;
+  } catch (e) { s.error = e.message || "Couldn't load this output."; }
+  s.loading = false;
   drawAll();
 }
 
 /** Index records, a v2 index 200 at a time through its cursor; a scene index or transcript in one read. */
 async function loadIndexPage() {
-  const token = ins.token, s = ins.source, l = ins.lanes[0], v = ins.video;
-  if (l.loading) return;
-  l.loading = true; drawAll();
+  const token = ins.token, src = ins.source, s = ins.sources[0], v = ins.video;
+  if (s.loading) return;
+  s.loading = true; drawAll();
   try {
-    if (s.kind === "index") {
-      const r = await readTool("get_index_records", Object.assign({ video_id: v.video_id, collection_id: v.collection_id, index_id: s.id, limit: 200 }, ins.cursor ? { cursor: ins.cursor } : {}));
+    if (src.kind === "index") {
+      const r = await readTool("get_index_records", Object.assign({ video_id: v.video_id, collection_id: v.collection_id, index_id: src.id, limit: 200 }, ins.cursor ? { cursor: ins.cursor } : {}));
       if (token !== ins?.token) return;
-      l.segments = (l.segments || []).concat(segs(r.records));
+      s.segments = (s.segments || []).concat(segs(r.records));
       ins.cursor = r.next_cursor || null;
-    } else if (s.kind === "scene_index") {
-      const r = await readTool("get_scene_index", { video_id: v.video_id, collection_id: v.collection_id, scene_index_id: s.id });
+    } else if (src.kind === "scene_index") {
+      const r = await readTool("get_scene_index", { video_id: v.video_id, collection_id: v.collection_id, scene_index_id: src.id });
       if (token !== ins?.token) return;
       // Legacy scenes carry their fields beside start and end; everything else is the scene's data.
-      l.segments = segs((r.scenes || []).map((x) => { const d = Object.assign({}, x); delete d.start; delete d.end; return { start: x.start, end: x.end, data: d }; }));
-      l.total = r.scenes_total || l.segments.length;
+      s.segments = segs((r.scenes || []).map((x) => { const d = Object.assign({}, x); delete d.start; delete d.end; return { start: x.start, end: x.end, data: d }; }));
+      s.total = r.scenes_total || s.segments.length;
     } else {
       const r = await readTool("get_transcript", { media_id: v.video_id, collection_id: v.collection_id, timestamped: true, segmenter: "sentence" });
       if (token !== ins?.token) return;
-      l.segments = segs((r.word_timestamps || []).map((x) => ({ start: x.start, end: x.end, data: { text: x.text } })));
-      l.total = r.total || l.segments.length;
+      s.segments = segs((r.word_timestamps || []).map((x) => ({ start: x.start, end: x.end, data: { text: x.text } })));
+      s.total = r.total || s.segments.length;
     }
-  } catch (e) { l.error = e.message || "Couldn't load these records."; }
-  l.loading = false;
+  } catch (e) { s.error = e.message || "Couldn't load these records."; }
+  s.loading = false;
   drawAll();
+}
+
+/** Speech has word timings; it is segmented on its own, so it is placed into scenes rather than being one. */
+const isSpeech = (s) => s.segments.some((g) => g.data && Array.isArray(g.data.words));
+const speechText = (data) => (typeof data?.text === "string" && data.text.trim()) || (Array.isArray(data?.words) ? data.words.map((w) => w.text).join(" ") : "");
+
+/** Scenes: segments that share a time range merge into one scene; each speech line joins the scene it starts in. */
+function buildScenes() {
+  const ready = ins.sources.filter((s) => s.segments);
+  const speech = ins.kind === "understanding" ? ready.filter(isSpeech) : [];
+  const visual = ready.filter((s) => !speech.includes(s));
+  const base = visual.length ? visual : speech.slice(0, 1);
+  const byRange = new Map();
+  base.forEach((s) => s.segments.forEach((g) => {
+    const key = g.start.toFixed(2) + "-" + g.end.toFixed(2);
+    if (!byRange.has(key)) byRange.set(key, { start: g.start, end: g.end, parts: [], said: [] });
+    byRange.get(key).parts.push({ source: s, data: g.data });
+  }));
+  const scenes = [...byRange.values()].sort((a, b) => a.start - b.start || a.end - b.end);
+  if (visual.length) speech.forEach((s) => s.segments.forEach((g) => { if (speechText(g.data)) sceneAt(scenes, g.start)?.said.push(g); }));
+  scenes.forEach((sc) => {
+    sc.values = sceneValues(sc);
+    sc.find = [flatText(sc.parts.map((p) => p.data)), sc.said.map((g) => speechText(g.data)).join(" ")].join(" ").toLowerCase();
+  });
+  ins.scenes = scenes;
+}
+function sceneAt(scenes, t) {
+  let hit = null;
+  for (const sc of scenes) { if (sc.start <= t + 0.01) hit = sc; else break; }
+  return hit && t < hit.end + 0.01 ? hit : hit || scenes[0];
+}
+
+/** Short facts of a scene, as [group, value]: lists of words, detected objects, and short fields such as activity or location. */
+function sceneValues(sc) {
+  const out = [];
+  sc.parts.forEach(({ data }) => {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return;
+    Object.entries(data).forEach(([k, v]) => {
+      if (k === "frames" && Array.isArray(v)) [...new Set(detectionLabels(v))].forEach((l) => out.push(["Objects", l]));
+      else if (Array.isArray(v) && v.length && v.every((x) => typeof x === "string")) [...new Set(v)].forEach((x) => out.push([human(k), x]));
+      else if (typeof v === "string" && k !== "text" && k !== "description" && v.trim() && v.length <= 40) out.push([human(k), v.trim()]);
+    });
+  });
+  return out;
+}
+/** The scene's headline: its longest piece of prose, else what was said, else a one-line summary. */
+function headline(sc) {
+  let best = "";
+  sc.parts.forEach(({ data }) => {
+    if (!data || typeof data !== "object") return;
+    Object.values(data).forEach((v) => { if (typeof v === "string" && v.trim().length > best.length) best = v.trim(); });
+  });
+  return best || sc.said.map((g) => speechText(g.data)).join(" ") || summary(sc.parts[0]?.data) || "No content";
 }
 
 function drawAll() {
   if (!ins) return;
-  drawMeta(); drawLog(); drawLanes(); drawTable();
-  ins.at = null; tick();
+  buildScenes();
+  drawMeta(); drawLog(); drawGlance(); drawList();
+  ins.cur = -1; tick();
 }
 
 /** Log Step rows while the run works; afterwards only failed analyzers keep a row. */
 function drawLog() {
   const log = $("i-log");
-  const working = ins.kind === "understanding" && ins.lanes.some((l) => l.status === "running");
-  const rows = ins.kind !== "understanding" ? [] : ins.lanes.filter((l) => working || l.status === "failed");
+  const working = ins.kind === "understanding" && ins.sources.some((s) => s.status === "running");
+  const rows = ins.kind !== "understanding" ? [] : ins.sources.filter((s) => working || s.status === "failed" || s.error);
   log.hidden = !rows.length;
-  log.replaceChildren(...rows.map((l) => {
-    const row = el("div", "log-row"), st = el("span", "log-status " + l.status);
-    st.innerHTML = l.status === "running" ? spinner(16, "brand") : icon(l.status === "done" ? "check_circle" : "error", 20);
-    const label = el("span", "log-label", l.name);
-    label.append(el("span", "sub", " · " + (TYPE_LABEL[l.type] || human(l.type || "analyzer"))));
-    const sr = el("span", "sr-only", l.name + " " + l.status); sr.setAttribute("role", "status");
+  log.replaceChildren(...rows.map((s) => {
+    const state = s.error ? "failed" : s.status;
+    const row = el("div", "log-row"), st = el("span", "log-status " + state);
+    st.innerHTML = state === "running" ? spinner(16, "brand") : icon(state === "done" ? "check_circle" : "error", 20);
+    const label = el("span", "log-label", sourceLabel(s));
+    if (state === "failed") label.append(el("span", "sub", " · " + (s.error || "Failed")));
+    const sr = el("span", "sr-only", sourceLabel(s) + " " + state); sr.setAttribute("role", "status");
     row.append(st, label, sr);
     return row;
   }));
 }
 
-function drawLanes() {
-  const box = $("i-lanes"), shown = ins.lanes.filter((l) => l.status === "done");
-  box.hidden = !shown.length;
-  const d = insLen(), notes = [];
-  const rows = shown.map((l) => {
-    const row = el("div", "lane"), track = el("div", "lane-track");
-    row.style.setProperty("--lane", l.colour);
-    const name = el("span", "lane-label", l.name); name.title = l.name;
-    row.append(name, track);
-    if (l.error) { track.className = "lane-error"; track.textContent = l.error; return row; }
-    if (!l.segments) { track.classList.add("skel"); return row; }
-    track.setAttribute("role", "group"); track.ariaLabel = l.name + ", " + l.segments.length + " segments";
-    l.segments.forEach((sg, i) => {
-      const b = el("button", "lane-seg"); b.type = "button"; b.tabIndex = i ? -1 : 0;
-      b.style.left = pct(sg.start / d); b.style.width = pct((sg.end - sg.start) / d);
-      b.ariaLabel = l.name + ", " + fmt(sg.start) + " to " + fmt(sg.end); b.title = fmt(sg.start) + " – " + fmt(sg.end) + " · " + summary(sg.data).slice(0, 120);
-      b.onclick = () => playAt(sg.start);
-      b.onkeydown = (e) => {
-        const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
-        if (!k) return;
-        e.preventDefault();
-        const next = track.children[Math.max(0, Math.min(l.segments.length - 1, i + k))];
-        b.tabIndex = -1; next.tabIndex = 0; next.focus();
-      };
-      track.append(b);
+/** In this video: every short fact with the number of scenes it appears in. A chip filters the list and marks its scenes on the scrubber. */
+function drawGlance() {
+  const groups = new Map();
+  ins.scenes.forEach((sc) => sc.values.forEach(([g, v]) => {
+    if (!groups.has(g)) groups.set(g, new Map());
+    groups.get(g).set(v, (groups.get(g).get(v) || 0) + 1);
+  }));
+  const box = $("i-glance");
+  box.hidden = !groups.size;
+  if (!groups.size) return;
+  const body = [...groups.entries()].map(([g, values]) => {
+    const row = el("div", "glance-row"), chipsBox = el("div", "chips");
+    const sorted = [...values.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const shown = ins.more === g ? sorted : sorted.slice(0, GLANCE_CHIPS);
+    shown.forEach(([v, n]) => {
+      const on = ins.facet && ins.facet[0] === g && ins.facet[1] === v;
+      const c = el("button", "chip toggle", v); c.type = "button";
+      c.setAttribute("aria-pressed", String(!!on));
+      c.ariaLabel = v + ", in " + n + (n === 1 ? " scene" : " scenes");
+      c.append(el("span", "n", String(n)));
+      c.onclick = () => { ins.facet = on ? null : [g, v]; ins.open = -1; drawGlance(); drawList(); };
+      chipsBox.append(c);
     });
-    if (l.total > l.segments.length) notes.push("Showing the first " + l.segments.length + " of " + l.total + " segments of " + l.name + ".");
+    if (sorted.length > shown.length) {
+      const more = el("button", "link", "+" + (sorted.length - shown.length) + " more"); more.type = "button";
+      more.onclick = () => { ins.more = g; drawGlance(); };
+      chipsBox.append(more);
+    }
+    row.append(el("p", "sv-label", g), chipsBox);
     return row;
   });
-  const head = el("div", "lane-head"); head.id = "i-head";
-  box.replaceChildren(...rows, head);
-  $("i-note").hidden = !notes.length; $("i-note").textContent = notes.join(" ");
+  $("i-glance-body").replaceChildren(...body);
+}
+
+const visibleScenes = () => {
+  const q = ins.query.trim().toLowerCase(), f = ins.facet;
+  return ins.scenes.filter((sc) => (!q || sc.find.includes(q)) && (!f || sc.values.some(([g, v]) => g === f[0] && v === f[1])));
+};
+
+/** The scene list: time, headline, what was said and short facts; a row opens to everything every analyzer found there. */
+function drawList() {
+  const shown = visibleScenes(), all = ins.scenes.length, loading = ins.sources.some((s) => s.loading || (s.status === "running" && !s.segments));
+  const filtered = !!(ins.query.trim() || ins.facet);
+  $("i-tools").hidden = !all;
+  const status = $("i-count");
+  const noun = ins.kind === "understanding" || ins.source.kind === "scene_index" ? ["scene", "scenes"] : ins.source.kind === "index" ? ["record", "records"] : ["sentence", "sentences"];
+  const known = ins.kind === "index" ? ins.source.record_count : null;
+  status.textContent = filtered ? shown.length + " of " + all + " " + noun[1] : known > all ? all + " of " + known + " " + noun[1] + " loaded" : all + " " + noun[all === 1 ? 0 : 1];
+  $("i-clear").hidden = !filtered;
+  if (!all) {
+    sceneList.replaceChildren(loading ? skeletonRows() : el("p", "muted empty-list", ins.sources.some((s) => s.error) ? "Couldn't load what was found." : ins.kind === "understanding" && ins.sources.every((s) => s.status === "failed") ? "Every analyzer failed." : loading ? "" : "Nothing was found in this video."));
+  } else if (!shown.length) {
+    sceneList.replaceChildren(el("p", "muted empty-list", "Nothing matches."));
+  } else {
+    sceneList.replaceChildren(...shown.map((sc) => sceneRow(sc)));
+  }
+  const capped = ins.sources.filter((s) => s.total > (s.segments?.length || 0));
+  $("i-note").hidden = !capped.length;
+  $("i-note").textContent = capped.map((s) => "Showing the first " + s.segments.length + " of " + s.total + " segments of " + sourceLabel(s).toLowerCase() + ".").join(" ");
+  const more = $("i-more");
+  more.hidden = !(ins.kind === "index" && ins.cursor);
+  more.disabled = !!ins.sources[0].loading;
+  drawMarks();
+}
+function skeletonRows() {
+  const box = el("div", "scene-skel");
+  box.setAttribute("aria-busy", "true");
+  box.innerHTML = '<p class="sr-only" role="status">Loading</p>' + Array(3).fill('<div class="scene-row" aria-hidden="true"><div class="skel line" style="width:40px"></div><div class="skel line"></div></div>').join("");
+  return box;
+}
+
+function sceneRow(sc) {
+  const i = ins.scenes.indexOf(sc), open = ins.open === i;
+  const wrap = el("div", "scene");
+  wrap.dataset.i = String(i);
+  const row = el("button", "scene-row"); row.type = "button";
+  row.setAttribute("aria-expanded", String(open));
+  row.setAttribute("aria-current", String(ins.cur === i));
+  const time = el("span", "scene-time", fmt(sc.start));
+  time.title = fmt(sc.start) + " – " + fmt(sc.end);
+  const main = el("span", "scene-main");
+  const title = headline(sc);
+  main.append(el("span", "scene-title", title));
+  const said = sc.said.map((g) => speechText(g.data)).join(" ");
+  if (said) main.append(el("span", "scene-said", "“" + said + "”"));
+  const facts = [...new Set(sc.values.map(([, v]) => v))].filter((v) => v !== title);
+  if (facts.length) {
+    const box = el("span", "scene-facts");
+    facts.slice(0, 6).forEach((v) => box.append(el("span", "badge", v)));
+    if (facts.length > 6) box.append(el("span", "badge", "+" + (facts.length - 6)));
+    main.append(box);
+  }
+  row.append(time, main, el("span", "scene-chevron", ""));
+  row.lastChild.innerHTML = icon("keyboard_arrow_down", 20);
+  row.onclick = () => { ins.open = open ? -1 : i; playAt(sc.start); drawList(); };
+  wrap.append(row);
+  if (open) wrap.append(sceneDetail(sc));
+  return wrap;
+}
+/** Everything found in one scene, by analyzer. The headline is already shown above, so it is not repeated. */
+function sceneDetail(sc) {
+  const d = el("div", "scene-detail"), title = headline(sc);
+  d.append(el("p", "timestamp default", fmt(sc.start) + " – " + fmt(sc.end)));
+  const sections = [];
+  sc.parts.forEach((p) => {
+    const data = p.data && typeof p.data === "object" && !Array.isArray(p.data) ? Object.fromEntries(Object.entries(p.data).filter(([, v]) => !isEmpty(v) && !(typeof v === "string" && v.trim() === title))) : p.data;
+    if (isEmpty(data)) return;
+    sections.push([sourceLabel(p.source), segmentView(data)]);
+  });
+  const said = sc.said.filter((g) => speechText(g.data));
+  if (said.length) { const box = el("div", "sv"); said.forEach((g) => box.append(segmentView(g.data))); sections.push(["Speech", box]); }
+  sections.forEach(([label, view]) => {
+    const g = el("section", "sv-section");
+    if (sections.length > 1 || ins.kind === "understanding") g.append(el("p", "sv-head", label));
+    g.append(view);
+    d.append(g);
+  });
+  return d;
 }
 
 function playAt(t) {
@@ -1342,78 +1512,34 @@ function playAt(t) {
   if (video.readyState >= 1) go(); else video.addEventListener("loadedmetadata", go, { once: true });
 }
 
-/** Data Table of an index's records, ten to a page; past the last loaded page it fetches the next 200. */
-function drawTable() {
-  const wrap = $("i-table"), l = ins.lanes[0];
-  if (ins.kind !== "index" || !l.segments?.length) { wrap.hidden = true; return; }
-  wrap.hidden = false;
-  const pages = Math.max(1, Math.ceil(l.segments.length / ROWS));
-  ins.page = Math.min(ins.page, pages - 1);
-  const rows = l.segments.slice(ins.page * ROWS, ins.page * ROWS + ROWS);
-  const scroll = el("div", "table-wrap"), table = el("table", "table");
-  scroll.tabIndex = 0; scroll.setAttribute("role", "region"); scroll.ariaLabel = "Records";
-  table.innerHTML = '<thead><tr><th scope="col">Time</th><th scope="col">Content</th></tr></thead>';
-  const body = el("tbody");
-  rows.forEach((sg) => {
-    const tr = el("tr"), time = el("td"), go = el("button", "link mono", fmt(sg.start) + " – " + fmt(sg.end));
-    go.type = "button"; go.ariaLabel = "Play from " + fmt(sg.start); go.onclick = () => playAt(sg.start);
-    tr.dataset.start = sg.start; tr.dataset.end = sg.end;
-    time.append(go);
-    const content = el("td"); content.append(el("span", "clip", summary(sg.data)));
-    tr.append(time, content); body.append(tr);
-  });
-  table.append(body); scroll.append(table);
-  const more = !!ins.cursor, nav = el("nav", "pager"); nav.ariaLabel = "Pagination";
-  nav.innerHTML = '<button class="pg-step" type="button">' + icon("arrow_back", 20) + '<span>Previous</span></button><span class="pg-status"></span><button class="pg-step" type="button"><span>Next</span>' + icon("arrow_forward", 20) + "</button>";
-  const [prev, status, next] = nav.children;
-  const known = ins.source?.record_count;
-  status.textContent = "Page " + (ins.page + 1) + " of " + (known ? Math.max(pages, Math.ceil(known / ROWS)) : pages + (more ? "+" : ""));
-  prev.disabled = ins.page === 0; next.disabled = ins.page >= pages - 1 && !more;
-  prev.onclick = () => { ins.page--; drawTable(); };
-  next.onclick = () => { if (ins.page < pages - 1) { ins.page++; drawTable(); } else { ins.page++; loadIndexPage(); } };
-  wrap.replaceChildren(scroll, nav);
-  tick(true);
+/** Scenes that match the current filter, marked on the scrubber. */
+function insightMarks() {
+  const d = span(), filtered = ins.query.trim() || ins.facet;
+  $("marks").replaceChildren(...(d && filtered ? visibleScenes() : []).map((sc) => { const k = el("span", "mark"); k.style.left = pct(sc.start / d); k.style.width = pct((sc.end - sc.start) / d); return k; }));
 }
 
-/** On every time update: move the playhead, mark the current segments and rows, and redraw the panel when they change. */
-function tick(force) {
+/** On every time update: mark the playing scene, keep it in view inside the list (unless the user just scrolled it), and draw object boxes. */
+function tick() {
   if (!ins || insight.hidden) return;
-  const t = video.currentTime || 0, d = insLen();
-  const head = $("i-head");
-  if (head) head.style.left = "calc(104px + (100% - 104px) * " + Math.max(0, Math.min(1, t / d)) + ")";
-  const done = ins.lanes.filter((l) => l.segments);
-  const cur = done.map((l) => l.segments.findIndex((s) => t >= s.start && t < s.end));
-  const key = cur.join(",") + "|" + done.length;
-  drawBoxes(t, done, cur);
-  $("i-now-title").textContent = "At " + fmt(t);
-  if (key === ins.at && !force) return;
-  ins.at = key;
-  [...$("i-lanes").querySelectorAll(".lane-track[role=group]")].forEach((track, i) => [...track.children].forEach((b, j) => b.setAttribute("aria-current", String(j === cur[i]))));
-  $("i-table").querySelectorAll("tbody tr").forEach((tr) => {
-    tr.removeAttribute("data-state");
-    if (t >= +tr.dataset.start && t < +tr.dataset.end) tr.setAttribute("data-state", "selected");
-  });
-  const wrap = $("i-now-wrap");
-  wrap.hidden = !done.length;
-  if (!done.length) return;
-  $("i-now").replaceChildren(...done.map((l, i) => {
-    const item = el("section", "now-item"), head2 = el("div", "now-head"), sg = l.segments[cur[i]];
-    item.style.setProperty("--lane", l.colour);
-    head2.append(el("span", "swatch"), el("span", "now-name", l.name));
-    if (sg) head2.append(el("span", "timestamp default", fmt(sg.start) + " – " + fmt(sg.end)));
-    item.append(head2, sg ? segmentView(sg.data) : el("p", "muted", "Nothing at this time"));
-    return item;
-  }));
+  const t = video.currentTime || 0;
+  drawBoxes(t);
+  const sc = ins.scenes.length ? sceneAt(ins.scenes, t) : null, i = sc ? ins.scenes.indexOf(sc) : -1;
+  if (i === ins.cur) return;
+  ins.cur = i;
+  sceneList.querySelectorAll(".scene").forEach((w) => w.firstChild.setAttribute("aria-current", String(+w.dataset.i === i)));
+  const row = sceneList.querySelector('.scene[data-i="' + i + '"]');
+  if (!row || Date.now() - ins.scrolled < 4000) return;
+  const box = sceneList.getBoundingClientRect(), r = row.getBoundingClientRect();
+  if (r.top < box.top || r.bottom > box.bottom) sceneList.scrollTop += r.top - box.top - 8;
 }
 
 /** Object boxes from the detection frame nearest the playing time, placed on the picture inside the letterbox. */
-function drawBoxes(t, done, cur) {
+function drawBoxes(t) {
   let frame = null;
-  done.forEach((l, i) => {
-    const frames = l.segments[cur[i]]?.data?.frames;
-    if (!Array.isArray(frames)) return;
-    frames.forEach((f) => { if (f && isFinite(f.timestamp) && Math.abs(f.timestamp - t) <= 1 && (!frame || Math.abs(f.timestamp - t) < Math.abs(frame.timestamp - t))) frame = f; });
-  });
+  ins.sources.forEach((s) => (s.segments || []).forEach((g) => {
+    if (t < g.start - 1 || t > g.end + 1 || !Array.isArray(g.data?.frames)) return;
+    g.data.frames.forEach((f) => { if (f && isFinite(f.timestamp) && Math.abs(f.timestamp - t) <= 1 && (!frame || Math.abs(f.timestamp - t) < Math.abs(frame.timestamp - t))) frame = f; });
+  }));
   const layer = $("boxes"), id = frame ? frame.frame_id || frame.timestamp : "";
   if (layer.dataset.frame === String(id) && layer.dataset.w === String(vp.clientWidth)) return;
   layer.dataset.frame = String(id); layer.dataset.w = String(vp.clientWidth);
@@ -1434,7 +1560,12 @@ function drawBoxes(t, done, cur) {
   });
 }
 video.addEventListener("timeupdate", () => tick());
-video.addEventListener("seeked", () => tick());
+["seeking", "seeked"].forEach((e) => video.addEventListener(e, () => tick()));
+sceneList.addEventListener("wheel", () => { if (ins) ins.scrolled = Date.now(); }, { passive: true });
+sceneList.addEventListener("touchmove", () => { if (ins) ins.scrolled = Date.now(); }, { passive: true });
+$("i-search").addEventListener("input", (e) => { ins.query = e.target.value; ins.open = -1; drawList(); });
+$("i-clear").onclick = () => { ins.query = ""; ins.facet = null; ins.open = -1; $("i-search").value = ""; drawGlance(); drawList(); };
+$("i-more").onclick = () => loadIndexPage();
 
 // Moments: search hits drawn on the scrubber and listed under the player; picking one plays it and shows its detail.
 let moment = -1;
@@ -1458,6 +1589,7 @@ function drawMoments() {
   drawMarks();
 }
 function drawMarks() {
+  if (ins && !insight.hidden) return insightMarks();
   const ms = (items[cur]?.moments) || [], d = span();
   $("marks").replaceChildren(...(d ? ms : []).map((m) => { const k = el("span", "mark"); k.style.left = pct(m.start / d); k.style.width = pct((m.end - m.start) / d); return k; }));
 }
@@ -1474,6 +1606,7 @@ function openMoment(i) {
 }
 ["durationchange", "loadedmetadata"].forEach((e) => video.addEventListener(e, drawMarks));
 
+document.querySelector(".field-icon").innerHTML = icon("search", 16);
 $("big").innerHTML = icon("play_arrow", 32, true);
 $("spin").innerHTML = spinner(32, "inverse");
 $("open").innerHTML = icon("open_in_new", 16);
