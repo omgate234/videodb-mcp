@@ -36,7 +36,7 @@ it("points show_video at a content-versioned player resource that may reach Vide
   expect(uri).toMatch(/^ui:\/\/videodb\/player\/[0-9a-f]{12}$/);
   const [content] = (await request("resources/read", { uri })).result.contents;
   expect(content.text).toContain("<video");
-  expect(content._meta.ui.csp.connectDomains).toEqual(["https://*.videodb.io"]);
+  expect(content._meta.ui.csp.connectDomains).toEqual(["https://*.videodb.io", "https://*.cloudfront.net"]);
 });
 
 it("returns the items with player links for the view and the text fallback", async () => {
@@ -51,6 +51,21 @@ it("returns the items with player links for the view and the text fallback", asy
 it("refuses streams outside videodb.io, which the player's CSP cannot load", async () => {
   const request = await connect();
   const res = (await request("tools/call", { name: "show_video", arguments: { items: [{ stream_url: "https://evil.test/x.m3u8" }] } })).result;
+  expect(res.isError).toBe(true);
+});
+
+it("plays CloudFront streams, which VideoDB serves where no custom domain is set", async () => {
+  const request = await connect();
+  const stream = "https://d1zudc7ewmc6ey.cloudfront.net/v1/abc.m3u8";
+  const direct = (await request("tools/call", { name: "show_video", arguments: { items: [{ stream_url: stream }] } })).result;
+  expect(direct.structuredContent.items[0].stream_url).toBe(stream);
+  const viaLink = (await request("tools/call", { name: "show_video", arguments: { items: [{ player_url: `https://player.dev.videodb.io/watch?v=${stream}` }] } })).result;
+  expect(viaLink.structuredContent.items[0].stream_url).toBe(stream);
+});
+
+it("refuses a player link whose ?v= stream lives outside VideoDB", async () => {
+  const request = await connect();
+  const res = (await request("tools/call", { name: "show_video", arguments: { items: [{ player_url: "https://player.videodb.io/watch?v=https://evil.test/x.m3u8" }] } })).result;
   expect(res.isError).toBe(true);
 });
 

@@ -110,6 +110,9 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
 <style>
   ${TOKENS}
   * { box-sizing: border-box; }
+  /* The page sizes itself. If the host frame is a pixel short, a page scrollbar would narrow the 16:9 player,
+     shrink the reported height and stay stuck, so the page never scrolls. */
+  html, body { overflow: hidden; }
   body { margin: 0; background: transparent; color: var(--color-text-neutral-primary); font-family: var(--font-sans); font-size: 14px; line-height: 20px; -webkit-font-smoothing: antialiased; }
   button { font: inherit; color: inherit; border: 0; background: none; padding: 0; margin: 0; }
   p { margin: 0; }
