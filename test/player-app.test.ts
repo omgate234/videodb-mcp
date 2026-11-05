@@ -1,6 +1,7 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
-import { registerPlayerApp } from "@/lib/apps/player";
+import { exportReel, registerPlayerApp } from "@/lib/apps/player";
+import { fakeConnection, raw } from "./harness";
 
 async function connect() {
   const server = new McpServer({ name: "player-test", version: "1.0.0" });
@@ -79,4 +80,58 @@ it("asks for the stream_url when a slug can't be resolved", async () => {
   expect(res.isError).toBe(true);
   expect(res.content[0].text).toContain("Access denied");
   expect(res.content[0].text).toContain("stream_url");
+});
+
+it("refuses a reel clip without a video_id and a range", async () => {
+  const request = await connect();
+  const res = (await request("tools/call", { name: "show_video", arguments: { layout: "reel", items: [{ stream_url: STREAM, start: 1, end: 4 }] } })).result;
+  expect(res.isError).toBe(true);
+});
+
+it("shows a reel with each clip's place in it, and hides export_reel from the model", async () => {
+  const request = await connect();
+  const items = [
+    { video_id: "m-1", stream_url: STREAM, title: "Intro", start: 10, end: 20 },
+    { video_id: "m-1", stream_url: STREAM, title: "Demo", start: 60, end: 75 },
+  ];
+  const res = (await request("tools/call", { name: "show_video", arguments: { layout: "reel", title: "Best bits", items } })).result;
+  expect(res.structuredContent).toMatchObject({ layout: "reel", title: "Best bits", items: [{ video_id: "m-1", collection_id: "default", start: 10 }, { start: 60 }] });
+  expect(res.content[0].text).toContain("0:25 reel of 2 clips");
+  expect(res.content[0].text).toContain("at 0:10–0:25 in the reel");
+  const tools = (await request("tools/list")).result.tools;
+  expect(tools.find((t: any) => t.name === "export_reel")._meta.ui.visibility).toEqual(["app"]);
+});
+
+describe("exportReel", () => {
+  const clips = [{ video_id: "m-1", collection_id: "default", start: 10, end: 20 }, { video_id: "m-2", collection_id: "c-2", start: 0, end: 5 }];
+  const JOB = "https://api.videodb.io/async-response/j-1";
+  const DL = "https://api.videodb.io/download/d-1";
+
+  it("joins the clips in order, then renders the joined stream to an MP4", async () => {
+    const vdb = fakeConnection({
+      "POST compile": (body: any) => {
+        expect(body).toEqual([{ video_id: "m-1", collection_id: "default", shots: [[10, 20]] }, { video_id: "m-2", collection_id: "c-2", shots: [[0, 5]] }]);
+        return { stream_url: "https://stream.videodb.io/reel.m3u8" };
+      },
+      "POST download": (body: any) => {
+        expect(body).toEqual({ stream_link: "https://stream.videodb.io/reel.m3u8", name: "reel.mp4" });
+        return raw({ status: "processing", data: { id: "d-1", output_url: DL } });
+      },
+    });
+    expect(await exportReel(vdb, { name: "reel.mp4", clips })).toEqual({ stage: "rendering", output_url: DL });
+  });
+
+  it("moves from joining to rendering to done as the jobs finish", async () => {
+    const vdb = fakeConnection({
+      [`GET ${JOB}`]: raw({ status: "done", response: { success: true, data: { stream_url: "https://stream.videodb.io/reel.m3u8" } } }),
+      "POST download": { download_url: "https://files/reel.mp4" },
+      [`GET ${DL}`]: raw({ status: "processing" }),
+    });
+    expect(await exportReel(vdb, { name: "reel.mp4", stage: "joining", output_url: JOB })).toEqual({ stage: "done", download_url: "https://files/reel.mp4" });
+    expect(await exportReel(vdb, { name: "reel.mp4", stage: "rendering", output_url: DL })).toEqual({ stage: "rendering", output_url: DL });
+  });
+
+  it("refuses to poll a URL outside VideoDB", async () => {
+    await expect(exportReel(fakeConnection(), { name: "r.mp4", stage: "rendering", output_url: "https://evil.test/x" })).rejects.toThrow();
+  });
 });
