@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
-import { exportReel, loadAssets, registerPlayerApp } from "@/lib/apps/player";
+import { exportReel, indexView, loadAssets, registerPlayerApp, understandingView } from "@/lib/apps/player";
 import { fakeConnection, raw } from "./harness";
 
 async function connect() {
@@ -199,4 +199,61 @@ it("offers show_assets to the model on the player resource and keeps load_assets
   expect(show._meta.ui.resourceUri).toBe(tools.find((t: any) => t.name === "show_video")._meta.ui.resourceUri);
   expect(show._meta.ui.visibility).toBeUndefined();
   expect(load._meta.ui.visibility).toEqual(["app"]);
+});
+
+const VIDEO = { id: "m-1", collectionId: "c-1", name: "Keynote", length: 120, streamUrl: STREAM, playerUrl: "https://player.videodb.io/watch?v=k" };
+
+describe("understanding and index views", () => {
+  it("sends the video and the run's analyzers, and leaves the output for the view to load", async () => {
+    const vdb = fakeConnection({
+      "GET video/m-1": VIDEO,
+      "GET video/m-1/understand/u-1": { understandingId: "u-1", videoId: "m-1", status: "processing", analyzers: [{ id: "an-1", name: "transcript", type: "speech_transcription", status: "done" }, { id: "an-2", name: "scene", type: "vlm", status: "running" }] },
+    });
+    const view = await understandingView(vdb, { video_id: "m-1", collection_id: "c-1", understanding_id: "u-1" });
+    expect(view).toEqual({
+      layout: "understanding",
+      video: { video_id: "m-1", collection_id: "c-1", title: "Keynote", length: 120, stream_url: STREAM, player_url: "https://player.videodb.io/watch?v=k" },
+      understanding: { id: "u-1", video_id: "m-1", status: "processing", analyzers: [{ id: "an-1", name: "transcript", type: "speech_transcription", status: "done" }, { id: "an-2", name: "scene", type: "vlm", status: "running" }] },
+    });
+    expect(vdb.http.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("names a v2 index with its status and record count", async () => {
+    const vdb = fakeConnection({
+      "GET video/m-1": VIDEO,
+      "GET video/m-1/indexes/idx-1": raw({ success: true, data: { index_id: "idx-1", name: "activity", status: "ready", record_count: 430, video_id: "m-1", collection_id: "c-1" } }),
+    });
+    const view = await indexView(vdb, { video_id: "m-1", collection_id: "c-1", index_id: "idx-1" });
+    expect(view.source).toEqual({ kind: "index", id: "idx-1", name: "activity", status: "ready", record_count: 430 });
+    expect(view.video.stream_url).toBe(STREAM);
+  });
+
+  it("shows a scene index or the transcript without reading them first", async () => {
+    const vdb = fakeConnection({ "GET video/m-1": VIDEO });
+    expect((await indexView(vdb, { video_id: "m-1", collection_id: "c-1", scene_index_id: "si-1" })).source).toEqual({ kind: "scene_index", id: "si-1" });
+    expect((await indexView(vdb, { video_id: "m-1", collection_id: "c-1", transcript: true })).source).toEqual({ kind: "transcript" });
+    expect(vdb.http.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses a video with no stream", async () => {
+    const vdb = fakeConnection({ "GET video/m-1": { ...VIDEO, streamUrl: undefined } });
+    await expect(indexView(vdb, { video_id: "m-1", collection_id: "c-1", transcript: true })).rejects.toThrow(/no stream/);
+  });
+
+  it("asks for exactly one index source and offers both tools on the player resource", async () => {
+    const request = await connect();
+    const tools = (await request("tools/list")).result.tools;
+    const uri = tools.find((t: any) => t.name === "show_video")._meta.ui.resourceUri;
+    for (const name of ["show_understanding", "show_index"]) expect(tools.find((t: any) => t.name === name)._meta.ui).toEqual({ resourceUri: uri });
+    const res = (await request("tools/call", { name: "show_index", arguments: { video_id: "m-1", index_id: "idx-1", transcript: true } })).result;
+    expect(res.isError).toBe(true);
+  });
+});
+
+it("passes moments through to the player and lists them for the model", async () => {
+  const request = await connect();
+  const moments = [{ start: 12, end: 20, label: "Goal", score: 0.8, data: { text: "He scores" } }];
+  const res = (await request("tools/call", { name: "show_video", arguments: { items: [{ stream_url: STREAM, moments }] } })).result;
+  expect(res.structuredContent.items[0].moments).toEqual(moments);
+  expect(res.content[0].text).toContain("0:12–0:20 Goal");
 });

@@ -13,7 +13,11 @@ const TOKENS = `
     --greyscale-400: #a3a3a3; --greyscale-500: #737373; --greyscale-600: #525252; --greyscale-700: #404040; --greyscale-800: #262626;
     --greyscale-850: #1f1f1f; --greyscale-900: #171717; --greyscale-950: #0f0f0f; --greyscale-1000: #000000;
     --orange-50: #fff5ec; --orange-300: #ffad6d; --orange-400: #ff7e32; --orange-500: #ec5b16; --orange-600: #ff4000; --orange-700: #c14103; --orange-800: #821f0c;
-    --red-50: #fbe9e9; --red-300: #ec7c7c; --red-600: #b31d1d;
+    --red-50: #fbe9e9; --red-300: #ec7c7c; --red-400: #e65050; --red-600: #b31d1d; --red-900: #3a1515;
+    --orange-100: #ffe9d3; --orange-950: #2a1308;
+    --green-50: #e6f1ee; --green-300: #69af99; --green-500: #057a55; --green-600: #046244; --green-900: #0d2a1f;
+    --blue-300: #66acff; --blue-500: #0075ff;
+    --yellow-50: #fefce8; --yellow-400: #facc15; --yellow-500: #eab308; --yellow-700: #a16207; --yellow-900: #2b2208;
 
     --color-background-neutral-primary: var(--greyscale-0);
     --color-background-neutral-secondary: var(--greyscale-100);
@@ -28,6 +32,11 @@ const TOKENS = `
     --color-background-brand-primary: var(--orange-500);
     --color-background-brand-primary-hover: var(--orange-600);
     --color-background-brand-primary-pressed: var(--orange-700);
+    --color-background-brand-secondary: var(--orange-300);
+    --color-background-brand-tertiary: var(--orange-50);
+    --color-background-success-subtle: var(--green-50);
+    --color-background-warning-subtle: var(--yellow-50);
+    --color-background-error-subtle: var(--red-50);
     --color-background-overlay-scrim: #00000080;
     --color-background-overlay-glass: #0000004d;
     --color-background-overlay-veil: #0000001f;
@@ -45,6 +54,10 @@ const TOKENS = `
     --color-text-brand-hover: var(--orange-800);
     --color-text-brand-inverse: var(--orange-50);
     --color-text-error-primary: var(--red-600);
+    --color-text-success-primary: var(--green-600);
+    --color-text-warning-primary: var(--yellow-700);
+    --color-icon-success-primary: var(--green-600);
+    --color-icon-error-primary: var(--red-600);
 
     --color-icon-neutral-primary: var(--greyscale-800);
     --color-icon-neutral-secondary: var(--greyscale-700);
@@ -87,6 +100,14 @@ const TOKENS = `
     --color-text-brand-primary: var(--orange-400);
     --color-text-brand-hover: var(--orange-300);
     --color-text-error-primary: var(--red-300);
+    --color-text-success-primary: var(--green-300);
+    --color-text-warning-primary: var(--yellow-400);
+    --color-icon-success-primary: var(--green-300);
+    --color-icon-error-primary: var(--red-400);
+    --color-background-brand-tertiary: var(--orange-950);
+    --color-background-success-subtle: var(--green-900);
+    --color-background-warning-subtle: var(--yellow-900);
+    --color-background-error-subtle: var(--red-900);
     --color-icon-neutral-primary: var(--greyscale-50);
     --color-icon-neutral-secondary: var(--greyscale-200);
     --color-icon-neutral-tertiary: var(--greyscale-400);
@@ -331,6 +352,90 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
 
   .empty { padding: 40px 16px; text-align: center; color: var(--color-text-neutral-tertiary); }
 
+  .section-title { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--color-text-neutral-primary); }
+  .spinner.brand .t { stroke: var(--color-background-brand-tertiary); }
+  .spinner.brand .a { stroke: var(--color-background-brand-primary); }
+
+  /* Log Step: one row per analyzer while the run works */
+  .log { display: flex; flex-direction: column; gap: 2px; }
+  .log-row { display: flex; min-height: 36px; width: 100%; align-items: center; gap: 8px; border-radius: 8px; padding: 8px 12px; }
+  .log-status { display: flex; width: 20px; height: 20px; flex-shrink: 0; align-items: center; justify-content: center; }
+  .log-status.done { color: var(--color-icon-success-primary); }
+  .log-status.failed { color: var(--color-icon-error-primary); }
+  .log-label { min-width: 0; flex: 1; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-primary); }
+  .log-label .sub { color: var(--color-text-neutral-tertiary); }
+
+  /* Chip (static) and Badge, size sm, subtle */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; height: 28px; align-items: center; gap: 4px; border-radius: 9999px; border: 1px solid var(--color-border-neutral-primary); background: var(--color-background-neutral-primary); padding: 0 12px; font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap; color: var(--color-text-neutral-primary); }
+  .chip .n { color: var(--color-text-neutral-tertiary); font-variant-numeric: tabular-nums; }
+  .badge { display: inline-flex; width: fit-content; flex-shrink: 0; height: 22px; align-items: center; gap: 4px; padding: 0 8px; border-radius: 8px; font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; background: var(--color-background-neutral-secondary); color: var(--color-text-neutral-secondary); }
+  .badge.success { background: var(--color-background-success-subtle); color: var(--color-text-success-primary); }
+  .badge.warning { background: var(--color-background-warning-subtle); color: var(--color-text-warning-primary); }
+  .badge.error { background: var(--color-background-error-subtle); color: var(--color-text-error-primary); }
+  .badge.brand { background: var(--color-background-brand-tertiary); color: var(--color-text-brand-primary); }
+
+  /* Code Block, without line numbers */
+  .code { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-radius: 12px; border: 1px solid var(--color-border-neutral-primary); background: var(--color-background-neutral-primary); }
+  .code-head { display: flex; height: 40px; align-items: center; gap: 8px; border-bottom: 1px solid var(--color-border-neutral-primary); background: var(--color-background-neutral-subtle); padding: 0 12px; font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
+  .code pre { margin: 0; max-height: 240px; overflow: auto; padding: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-primary); outline: none; }
+  .code pre:focus-visible { box-shadow: var(--shadow-focus-ring); }
+
+  /* Segment renderer: any segment's data, drawn by its shape */
+  .sv { display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 20px; color: var(--color-text-neutral-secondary); }
+  .sv-label { font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
+  .sv-group { display: flex; flex-direction: column; gap: 4px; }
+  .kv { display: grid; grid-template-columns: minmax(80px, max-content) 1fr; gap: 4px 12px; margin: 0; }
+  .kv dt { font-size: 12px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
+  .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; color: var(--color-text-neutral-primary); }
+  .tl { display: flex; flex-direction: column; gap: 8px; }
+  .tl-head { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-secondary); }
+
+  /* Lanes: one track per analyzer or index, segments placed by start and end. Built from tokens; the library has no timeline lane. */
+  .lanes { position: relative; display: flex; flex-direction: column; gap: 8px; }
+  .lane { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 8px; }
+  .lane-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-neutral-tertiary); }
+  .lane-track { position: relative; height: 24px; border-radius: 4px; background: var(--color-background-neutral-secondary); }
+  .lane-track.skel { animation: pulse 2s ease-in-out infinite; }
+  /* The inset edge keeps back-to-back segments apart. */
+  .lane-seg { position: absolute; top: 2px; bottom: 2px; min-width: 3px; border-radius: 2px; background: var(--lane); box-shadow: inset -1px 0 0 var(--color-background-neutral-primary); opacity: .55; cursor: pointer; outline: none; transition: opacity .15s; }
+  .lane-seg:hover, .lane-seg[aria-current="true"] { opacity: 1; }
+  .lane-seg:focus-visible { opacity: 1; box-shadow: var(--shadow-focus-ring); z-index: 1; }
+  .lane-error { font-size: 12px; line-height: 18px; font-weight: 500; color: var(--color-text-error-primary); }
+  .lane-head { pointer-events: none; position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--color-text-neutral-primary); }
+
+  /* What every lane holds at the playing time */
+  .now { display: flex; flex-direction: column; }
+  .now-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--color-border-neutral-primary); }
+  .now-head { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 8px; height: 8px; flex-shrink: 0; border-radius: 9999px; background: var(--lane); }
+  .now-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-primary); }
+  .muted { font-size: 14px; line-height: 20px; color: var(--color-text-neutral-tertiary); }
+
+  /* Object boxes over the video's picture */
+  .vp-boxes { pointer-events: none; position: absolute; inset: 0; }
+  .box { position: absolute; border: 2px solid var(--color-border-brand-primary); border-radius: 4px; }
+  .box span { position: absolute; left: -2px; bottom: 100%; margin-bottom: 2px; height: 20px; padding: 0 6px; border-radius: 4px; background: var(--color-background-brand-primary); color: var(--color-text-brand-inverse); font-size: 12px; line-height: 20px; font-weight: 500; white-space: nowrap; }
+  .box.low span { bottom: auto; top: 0; margin: 2px 0 0 2px; }
+
+  /* Data Table */
+  .table-wrap { width: 100%; overflow-x: auto; border-radius: 8px; outline: none; }
+  .table-wrap:focus-visible { box-shadow: var(--shadow-focus-ring); }
+  .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .table tr { border-bottom: 1px solid var(--color-border-neutral-primary); }
+  .table th { height: 56px; padding: 16px 20px; text-align: left; font-weight: 500; white-space: nowrap; color: var(--color-text-neutral-tertiary); }
+  .table td { height: 56px; padding: 8px 20px; vertical-align: middle; font-weight: 500; color: var(--color-text-neutral-primary); }
+  .table tbody tr { transition: background-color .15s; }
+  .table tbody tr:hover { background: var(--color-background-neutral-hover); }
+  .table tbody tr[data-state="selected"] { background: var(--color-background-neutral-secondary); }
+  .table th:first-child, .table td:first-child { width: 1%; white-space: nowrap; }
+  .table .clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* Moments: highlighted stretches on the scrubber and a list under the player */
+  .marks { pointer-events: none; position: absolute; left: 0; right: 0; top: 50%; height: 6px; transform: translateY(-50%); }
+  .mark { position: absolute; top: 0; bottom: 0; min-width: 3px; border-radius: 9999px; background: var(--color-icon-neutral-inverse-primary); opacity: .75; }
+  .m-detail { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     .spinner svg { animation-duration: 2s !important; animation-iteration-count: infinite !important; }
@@ -350,6 +455,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
     <div class="card-content">
       <div class="vp" id="vp" tabindex="0" role="region" aria-label="Video player">
         <video id="v" playsinline preload="metadata"></video>
+        <div class="vp-boxes" id="boxes" aria-hidden="true"></div>
         <div class="vp-veil" aria-hidden="true"></div>
         <div class="vp-top">
           <div class="vp-caption"><p class="vp-title" id="title"></p><p class="vp-source" id="source"></p></div>
@@ -362,6 +468,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
         <div class="vp-bottom" id="bottom">
           <div class="scrub" id="scrub">
             <div class="track"><div class="range" id="range"></div></div>
+            <div class="marks" id="marks" aria-hidden="true"></div>
             <span class="thumb" id="thumb" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0"></span>
           </div>
           <div class="controls">
@@ -376,6 +483,22 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
       <p class="status" id="note" hidden></p>
     </div>
     <ul class="items" id="list" role="list" hidden></ul>
+    <div class="card-content" id="m-head" hidden><p class="section-title" id="m-title"></p></div>
+    <ul class="items" id="moments" role="list" aria-label="Moments" hidden></ul>
+    <div class="m-detail" id="m-detail" hidden></div>
+  </div>
+  <div class="card" id="insight" hidden>
+    <div class="card-header">
+      <div class="card-heading"><p class="card-title" id="i-title"></p><p class="card-description" id="i-meta"></p></div>
+    </div>
+    <div class="card-content">
+      <div id="i-player"></div>
+      <div class="log" id="i-log" hidden></div>
+      <div class="lanes" id="i-lanes" hidden></div>
+      <p class="status" id="i-note" hidden></p>
+    </div>
+    <div class="card-content" id="i-now-wrap" hidden><p class="section-title" id="i-now-title"></p><div class="now" id="i-now"></div></div>
+    <div class="card-content" id="i-table" hidden></div>
   </div>
   <div class="card" id="gallery" hidden>
     <div class="card-header">
@@ -450,6 +573,7 @@ function load(i, autoplay, at) {
   $("source").textContent = source.join("  ·  ");
   $("source").hidden = !source.length;
   vp.ariaLabel = "Video: " + $("title").textContent;
+  if (!reel) drawMoments();
   // Held apart from lastT: a new source fires timeupdate at 0, which resets lastT before metadata loads.
   const to = lastT;
   const seek = () => { video.currentTime = to; if (autoplay) video.play().catch(() => { switching = false; showState(); }); };
@@ -664,7 +788,7 @@ function render(data) {
   reel = data.layout === "reel";
   if (reel) renderReel(data);
   // A single video is the bare Video Player; a playlist or reel sits in a Card with its clip list.
-  if (!reel && items.length < 2) { card.style.cssText = "padding:0;border:0;background:transparent"; card.firstElementChild.nextElementSibling.style.padding = "0"; }
+  if (!reel && items.length < 2 && !items[0].moments?.length) { card.style.cssText = "padding:0;border:0;background:transparent"; card.firstElementChild.nextElementSibling.style.padding = "0"; }
   list.innerHTML = "";
   list.hidden = items.length < 2;
   list.ariaLabel = reel ? "Clips in this reel" : "Videos";
@@ -950,6 +1074,401 @@ function renderGallery(data) {
   drawGrid();
 }
 
+// Segment renderer: draws any segment's data by its shape, never by the analyzer that made it.
+const PROSE = ["text", "description", "activity", "location"];
+const human = (k) => { const t = String(k).replace(/[_.]+/g, " ").trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
+const isScalar = (v) => v == null || ["string", "number", "boolean"].includes(typeof v);
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function chips(entries) {
+  const wrap = el("div", "chips");
+  entries.forEach(([label, n]) => { const c = el("span", "chip", label); if (n > 1) c.append(el("span", "n", "×" + n)); wrap.append(c); });
+  return wrap;
+}
+const counted = (list) => { const m = new Map(); list.forEach((x) => m.set(x, (m.get(x) || 0) + 1)); return [...m.entries()]; };
+function scalarText(v) {
+  if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000);
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  return v == null ? "—" : String(v);
+}
+/** Speech: consecutive words of one speaker become a line headed by the speaker and when they start. */
+function transcriptLines(words) {
+  const wrap = el("div", "tl"), lines = [];
+  words.forEach((w) => {
+    const last = lines[lines.length - 1];
+    if (last && last.speaker === w.speaker) last.words.push(w.text);
+    else lines.push({ speaker: w.speaker, start: w.start, words: [w.text] });
+  });
+  lines.forEach((l) => {
+    const line = el("div", "sv-group"), head = el("div", "tl-head");
+    head.append(el("span", "", l.speaker != null ? "Speaker " + l.speaker : "Speaker"), el("span", "timestamp default", fmt(l.start)));
+    line.append(head, el("p", "", l.words.join(" ")));
+    wrap.append(line);
+  });
+  return wrap;
+}
+function detectionLabels(frames) {
+  const labels = [];
+  frames.forEach((f) => (f?.detections || []).forEach((d) => d?.label && labels.push(d.label)));
+  return labels;
+}
+function segmentView(data) {
+  const box = el("div", "sv");
+  if (data == null || typeof data !== "object") { box.append(el("p", "", scalarText(data))); return box; }
+  if (Array.isArray(data)) { box.append(data.every(isScalar) ? chips(counted(data.map(scalarText))) : el("p", "", JSON.stringify(data))); return box; }
+  const rest = Object.assign({}, data);
+  if (Array.isArray(data.words) && data.words.some((w) => w && w.speaker != null)) { box.append(transcriptLines(data.words)); delete rest.text; }
+  delete rest.words;
+  PROSE.forEach((k) => { if (typeof rest[k] === "string") { box.append(el("p", "", rest[k])); delete rest[k]; } });
+  if (Array.isArray(data.frames)) {
+    const labels = detectionLabels(data.frames);
+    box.append(labels.length ? chips(counted(labels)) : el("p", "muted", "Nothing detected"));
+    delete rest.frames;
+  }
+  const kv = el("dl", "kv");
+  Object.entries(rest).forEach(([k, v]) => {
+    if (Array.isArray(v) && v.length && v.every((x) => typeof x === "string")) {
+      const g = el("div", "sv-group"); g.append(el("p", "sv-label", human(k)), chips(counted(v))); box.append(g);
+      return;
+    }
+    kv.append(el("dt", "", human(k)), el("dd", "", isScalar(v) ? scalarText(v) : JSON.stringify(v)));
+  });
+  if (kv.children.length) {
+    box.append(kv);
+    // Custom schemas can nest anything; the raw JSON is one click away.
+    const toggle = el("button", "link", "Show raw data"); toggle.type = "button";
+    const code = el("div", "code"); code.hidden = true;
+    const pre = el("pre", "", JSON.stringify(data, null, 2)); pre.tabIndex = 0;
+    code.append(el("div", "code-head", "JSON"), pre);
+    toggle.onclick = () => { code.hidden = !code.hidden; toggle.textContent = code.hidden ? "Show raw data" : "Hide raw data"; };
+    const row = el("p"); row.append(toggle);
+    box.append(row, code);
+  }
+  return box;
+}
+/** One line of plain text for a table cell. */
+function summary(data) {
+  if (data == null || typeof data !== "object") return scalarText(data);
+  for (const k of PROSE) if (typeof data[k] === "string") return data[k];
+  if (Array.isArray(data.words)) return data.words.map((w) => w.text).join(" ");
+  if (Array.isArray(data.frames)) return counted(detectionLabels(data.frames)).map(([l, n]) => (n > 1 ? l + " ×" + n : l)).join(", ") || "Nothing detected";
+  const first = Object.values(data).find((v) => typeof v === "string" || (Array.isArray(v) && v.every((x) => typeof x === "string")));
+  return first != null ? [].concat(first).join(", ") : JSON.stringify(data);
+}
+
+// Understanding and index views: the video with one lane per analyzer (or the index), and the data at the playing time.
+const insight = $("insight");
+const LANE_COLOURS = ["var(--color-background-brand-primary)", "var(--blue-500)", "var(--green-500)", "var(--yellow-500)", "var(--blue-300)", "var(--green-300)", "var(--color-background-brand-secondary)"];
+const TYPE_LABEL = { speech_transcription: "Speech", spoken_words: "Speech", vlm: "Visual description", ocr: "On-screen text", object_detection: "Objects", brand_detection: "Brands", activity_recognition: "Activity", location_detection: "Location" };
+const ROWS = 10;
+let ins = null;
+
+async function readTool(name, args) {
+  const res = await app.callServerTool({ name: name, arguments: args });
+  const text = res.content?.[0]?.text || "";
+  if (res.isError) throw new Error(text.replace(/^Error: /, "") || "Couldn't load this.");
+  try { return JSON.parse(text); } catch { throw new Error(text || "Couldn't load this."); }
+}
+const runState = (s) => (s === "done" ? "done" : s === "failed" || s === "error" ? "failed" : "running");
+const segs = (list) => (list || []).filter((r) => r && isFinite(r.start) && isFinite(r.end)).map((r) => ({ start: Number(r.start), end: Math.max(Number(r.end), Number(r.start)), data: r.data }));
+/** Timeline length: the video's own, else the furthest segment end. */
+function insLen() {
+  if (isFinite(video.duration) && video.duration) return video.duration;
+  let max = ins.video.length || 0;
+  ins.lanes.forEach((l) => (l.segments || []).forEach((s) => { if (s.end > max) max = s.end; }));
+  return max || 1;
+}
+
+function renderInsight(data) {
+  clearTimeout(ins?.timer);
+  card.hidden = true; gallery.hidden = true; insight.hidden = false;
+  const v = data.video;
+  ins = { token: {}, kind: data.layout, video: v, lanes: [], at: null, page: 0 };
+  $("i-title").textContent = v.title || "Video";
+  reel = false; items = [{ stream_url: v.stream_url, player_url: v.player_url, title: v.title || "Video" }];
+  list.innerHTML = ""; strip.innerHTML = ""; $("open").hidden = false;
+  $("i-player").appendChild(vp);
+  load(0, false);
+  if (data.layout === "understanding") {
+    ins.run = data.understanding;
+    ins.lanes = (data.understanding.analyzers || []).map((a, i) => ({ id: a.id, name: a.name || "Analyzer " + (i + 1), type: a.type, status: runState(a.status), colour: LANE_COLOURS[i % LANE_COLOURS.length] }));
+    pollRun();
+  } else {
+    const s = data.source;
+    ins.source = s;
+    const name = s.kind === "index" ? s.name || "Index" : s.kind === "scene_index" ? "Scenes" : "Transcript";
+    ins.lanes = [{ name: name, status: "done", colour: LANE_COLOURS[0] }];
+    loadIndexPage();
+  }
+  drawAll();
+}
+
+function drawMeta() {
+  if (ins.kind === "understanding") {
+    const done = ins.lanes.filter((l) => l.status === "done").length, failed = ins.lanes.filter((l) => l.status === "failed").length;
+    const working = ins.lanes.length - done - failed;
+    $("i-meta").textContent = ["Understanding", working ? done + " of " + ins.lanes.length + " analyzers done" : ins.lanes.length + (ins.lanes.length === 1 ? " analyzer" : " analyzers"), failed ? failed + " failed" : ""].filter(Boolean).join(" · ");
+    return;
+  }
+  const s = ins.source, parts = [s.kind === "index" ? "Index" : s.kind === "scene_index" ? "Scene index" : "Transcript"];
+  if (s.status) parts.push(human(s.status));
+  const n = s.record_count != null ? s.record_count : ins.lanes[0].total;
+  const noun = { index: ["record", "records"], scene_index: ["scene", "scenes"], transcript: ["sentence", "sentences"] }[s.kind];
+  if (n != null) parts.push(n + " " + noun[n === 1 ? 0 : 1]);
+  $("i-meta").textContent = parts.join(" · ");
+}
+
+/** Understanding run: fetch output for analyzers that just finished, then poll every 5 s while any still works. */
+async function pollRun(poll) {
+  const token = ins.token;
+  if (poll) {
+    try {
+      const u = await readTool("get_understanding", { video_id: ins.video.video_id, collection_id: ins.video.collection_id, understanding_id: ins.run.id });
+      if (token !== ins?.token) return;
+      (u.analyzers || []).forEach((a) => { const l = ins.lanes.find((x) => (a.id && x.id === a.id) || x.name === a.name); if (l) l.status = runState(a.status); });
+    } catch {}
+  }
+  ins.lanes.filter((l) => l.status === "done" && !l.segments && !l.loading && !l.error).forEach(loadLane);
+  drawAll();
+  if (ins.lanes.some((l) => l.status === "running")) ins.timer = setTimeout(() => pollRun(true), 5000);
+}
+
+async function loadLane(l) {
+  const token = ins.token;
+  l.loading = true;
+  try {
+    const args = { video_id: ins.video.video_id, collection_id: ins.video.collection_id, understanding_id: ins.run.id };
+    if (l.id) args.analyzer_id = l.id; else args.analyzer_name = l.name;
+    const out = await readTool("get_analyzer_output", args);
+    if (token !== ins?.token) return;
+    l.segments = segs(out.scenes);
+    l.total = out.scenes_total || l.segments.length;
+  } catch (e) { l.error = e.message || "Couldn't load this output."; }
+  l.loading = false;
+  drawAll();
+}
+
+/** Index records, a v2 index 200 at a time through its cursor; a scene index or transcript in one read. */
+async function loadIndexPage() {
+  const token = ins.token, s = ins.source, l = ins.lanes[0], v = ins.video;
+  if (l.loading) return;
+  l.loading = true; drawAll();
+  try {
+    if (s.kind === "index") {
+      const r = await readTool("get_index_records", Object.assign({ video_id: v.video_id, collection_id: v.collection_id, index_id: s.id, limit: 200 }, ins.cursor ? { cursor: ins.cursor } : {}));
+      if (token !== ins?.token) return;
+      l.segments = (l.segments || []).concat(segs(r.records));
+      ins.cursor = r.next_cursor || null;
+    } else if (s.kind === "scene_index") {
+      const r = await readTool("get_scene_index", { video_id: v.video_id, collection_id: v.collection_id, scene_index_id: s.id });
+      if (token !== ins?.token) return;
+      // Legacy scenes carry their fields beside start and end; everything else is the scene's data.
+      l.segments = segs((r.scenes || []).map((x) => { const d = Object.assign({}, x); delete d.start; delete d.end; return { start: x.start, end: x.end, data: d }; }));
+      l.total = r.scenes_total || l.segments.length;
+    } else {
+      const r = await readTool("get_transcript", { media_id: v.video_id, collection_id: v.collection_id, timestamped: true, segmenter: "sentence" });
+      if (token !== ins?.token) return;
+      l.segments = segs((r.word_timestamps || []).map((x) => ({ start: x.start, end: x.end, data: { text: x.text } })));
+      l.total = r.total || l.segments.length;
+    }
+  } catch (e) { l.error = e.message || "Couldn't load these records."; }
+  l.loading = false;
+  drawAll();
+}
+
+function drawAll() {
+  if (!ins) return;
+  drawMeta(); drawLog(); drawLanes(); drawTable();
+  ins.at = null; tick();
+}
+
+/** Log Step rows while the run works; afterwards only failed analyzers keep a row. */
+function drawLog() {
+  const log = $("i-log");
+  const working = ins.kind === "understanding" && ins.lanes.some((l) => l.status === "running");
+  const rows = ins.kind !== "understanding" ? [] : ins.lanes.filter((l) => working || l.status === "failed");
+  log.hidden = !rows.length;
+  log.replaceChildren(...rows.map((l) => {
+    const row = el("div", "log-row"), st = el("span", "log-status " + l.status);
+    st.innerHTML = l.status === "running" ? spinner(16, "brand") : icon(l.status === "done" ? "check_circle" : "error", 20);
+    const label = el("span", "log-label", l.name);
+    label.append(el("span", "sub", " · " + (TYPE_LABEL[l.type] || human(l.type || "analyzer"))));
+    const sr = el("span", "sr-only", l.name + " " + l.status); sr.setAttribute("role", "status");
+    row.append(st, label, sr);
+    return row;
+  }));
+}
+
+function drawLanes() {
+  const box = $("i-lanes"), shown = ins.lanes.filter((l) => l.status === "done");
+  box.hidden = !shown.length;
+  const d = insLen(), notes = [];
+  const rows = shown.map((l) => {
+    const row = el("div", "lane"), track = el("div", "lane-track");
+    row.style.setProperty("--lane", l.colour);
+    const name = el("span", "lane-label", l.name); name.title = l.name;
+    row.append(name, track);
+    if (l.error) { track.className = "lane-error"; track.textContent = l.error; return row; }
+    if (!l.segments) { track.classList.add("skel"); return row; }
+    track.setAttribute("role", "group"); track.ariaLabel = l.name + ", " + l.segments.length + " segments";
+    l.segments.forEach((sg, i) => {
+      const b = el("button", "lane-seg"); b.type = "button"; b.tabIndex = i ? -1 : 0;
+      b.style.left = pct(sg.start / d); b.style.width = pct((sg.end - sg.start) / d);
+      b.ariaLabel = l.name + ", " + fmt(sg.start) + " to " + fmt(sg.end); b.title = fmt(sg.start) + " – " + fmt(sg.end) + " · " + summary(sg.data).slice(0, 120);
+      b.onclick = () => playAt(sg.start);
+      b.onkeydown = (e) => {
+        const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+        if (!k) return;
+        e.preventDefault();
+        const next = track.children[Math.max(0, Math.min(l.segments.length - 1, i + k))];
+        b.tabIndex = -1; next.tabIndex = 0; next.focus();
+      };
+      track.append(b);
+    });
+    if (l.total > l.segments.length) notes.push("Showing the first " + l.segments.length + " of " + l.total + " segments of " + l.name + ".");
+    return row;
+  });
+  const head = el("div", "lane-head"); head.id = "i-head";
+  box.replaceChildren(...rows, head);
+  $("i-note").hidden = !notes.length; $("i-note").textContent = notes.join(" ");
+}
+
+function playAt(t) {
+  const go = () => { video.currentTime = t; lastT = t; video.play().catch(() => {}); };
+  if (video.readyState >= 1) go(); else video.addEventListener("loadedmetadata", go, { once: true });
+}
+
+/** Data Table of an index's records, ten to a page; past the last loaded page it fetches the next 200. */
+function drawTable() {
+  const wrap = $("i-table"), l = ins.lanes[0];
+  if (ins.kind !== "index" || !l.segments?.length) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const pages = Math.max(1, Math.ceil(l.segments.length / ROWS));
+  ins.page = Math.min(ins.page, pages - 1);
+  const rows = l.segments.slice(ins.page * ROWS, ins.page * ROWS + ROWS);
+  const scroll = el("div", "table-wrap"), table = el("table", "table");
+  scroll.tabIndex = 0; scroll.setAttribute("role", "region"); scroll.ariaLabel = "Records";
+  table.innerHTML = '<thead><tr><th scope="col">Time</th><th scope="col">Content</th></tr></thead>';
+  const body = el("tbody");
+  rows.forEach((sg) => {
+    const tr = el("tr"), time = el("td"), go = el("button", "link mono", fmt(sg.start) + " – " + fmt(sg.end));
+    go.type = "button"; go.ariaLabel = "Play from " + fmt(sg.start); go.onclick = () => playAt(sg.start);
+    tr.dataset.start = sg.start; tr.dataset.end = sg.end;
+    time.append(go);
+    const content = el("td"); content.append(el("span", "clip", summary(sg.data)));
+    tr.append(time, content); body.append(tr);
+  });
+  table.append(body); scroll.append(table);
+  const more = !!ins.cursor, nav = el("nav", "pager"); nav.ariaLabel = "Pagination";
+  nav.innerHTML = '<button class="pg-step" type="button">' + icon("arrow_back", 20) + '<span>Previous</span></button><span class="pg-status"></span><button class="pg-step" type="button"><span>Next</span>' + icon("arrow_forward", 20) + "</button>";
+  const [prev, status, next] = nav.children;
+  const known = ins.source?.record_count;
+  status.textContent = "Page " + (ins.page + 1) + " of " + (known ? Math.max(pages, Math.ceil(known / ROWS)) : pages + (more ? "+" : ""));
+  prev.disabled = ins.page === 0; next.disabled = ins.page >= pages - 1 && !more;
+  prev.onclick = () => { ins.page--; drawTable(); };
+  next.onclick = () => { if (ins.page < pages - 1) { ins.page++; drawTable(); } else { ins.page++; loadIndexPage(); } };
+  wrap.replaceChildren(scroll, nav);
+  tick(true);
+}
+
+/** On every time update: move the playhead, mark the current segments and rows, and redraw the panel when they change. */
+function tick(force) {
+  if (!ins || insight.hidden) return;
+  const t = video.currentTime || 0, d = insLen();
+  const head = $("i-head");
+  if (head) head.style.left = "calc(104px + (100% - 104px) * " + Math.max(0, Math.min(1, t / d)) + ")";
+  const done = ins.lanes.filter((l) => l.segments);
+  const cur = done.map((l) => l.segments.findIndex((s) => t >= s.start && t < s.end));
+  const key = cur.join(",") + "|" + done.length;
+  drawBoxes(t, done, cur);
+  $("i-now-title").textContent = "At " + fmt(t);
+  if (key === ins.at && !force) return;
+  ins.at = key;
+  [...$("i-lanes").querySelectorAll(".lane-track[role=group]")].forEach((track, i) => [...track.children].forEach((b, j) => b.setAttribute("aria-current", String(j === cur[i]))));
+  $("i-table").querySelectorAll("tbody tr").forEach((tr) => {
+    tr.removeAttribute("data-state");
+    if (t >= +tr.dataset.start && t < +tr.dataset.end) tr.setAttribute("data-state", "selected");
+  });
+  const wrap = $("i-now-wrap");
+  wrap.hidden = !done.length;
+  if (!done.length) return;
+  $("i-now").replaceChildren(...done.map((l, i) => {
+    const item = el("section", "now-item"), head2 = el("div", "now-head"), sg = l.segments[cur[i]];
+    item.style.setProperty("--lane", l.colour);
+    head2.append(el("span", "swatch"), el("span", "now-name", l.name));
+    if (sg) head2.append(el("span", "timestamp default", fmt(sg.start) + " – " + fmt(sg.end)));
+    item.append(head2, sg ? segmentView(sg.data) : el("p", "muted", "Nothing at this time"));
+    return item;
+  }));
+}
+
+/** Object boxes from the detection frame nearest the playing time, placed on the picture inside the letterbox. */
+function drawBoxes(t, done, cur) {
+  let frame = null;
+  done.forEach((l, i) => {
+    const frames = l.segments[cur[i]]?.data?.frames;
+    if (!Array.isArray(frames)) return;
+    frames.forEach((f) => { if (f && isFinite(f.timestamp) && Math.abs(f.timestamp - t) <= 1 && (!frame || Math.abs(f.timestamp - t) < Math.abs(frame.timestamp - t))) frame = f; });
+  });
+  const layer = $("boxes"), id = frame ? frame.frame_id || frame.timestamp : "";
+  if (layer.dataset.frame === String(id) && layer.dataset.w === String(vp.clientWidth)) return;
+  layer.dataset.frame = String(id); layer.dataset.w = String(vp.clientWidth);
+  layer.replaceChildren();
+  if (!frame) return;
+  const W = vp.clientWidth, H = vp.clientHeight, vw = video.videoWidth || W, vh = video.videoHeight || H, k = Math.min(W / vw, H / vh);
+  const w = vw * k, h = vh * k, x0 = (W - w) / 2, y0 = (H - h) / 2;
+  (frame.detections || []).forEach((det) => {
+    const bb = det?.box?.box;
+    if (!Array.isArray(bb) || bb.length < 4) return;
+    const n = det.box.unit === "normalized" || bb.every((v) => v <= 1) ? [1, 1] : [vw, vh];
+    const b = el("div", "box"), top = y0 + (bb[1] / n[1]) * h;
+    b.style.left = x0 + (bb[0] / n[0]) * w + "px"; b.style.top = top + "px";
+    b.style.width = ((bb[2] - bb[0]) / n[0]) * w + "px"; b.style.height = ((bb[3] - bb[1]) / n[1]) * h + "px";
+    if (top < 24) b.classList.add("low");
+    b.append(el("span", "", det.label + (isFinite(det.score) ? " " + Math.round(det.score * 100) + "%" : "")));
+    layer.append(b);
+  });
+}
+video.addEventListener("timeupdate", () => tick());
+video.addEventListener("seeked", () => tick());
+
+// Moments: search hits drawn on the scrubber and listed under the player; picking one plays it and shows its detail.
+let moment = -1;
+function drawMoments() {
+  const ms = (items[cur]?.moments) || [], box = $("moments");
+  moment = -1;
+  $("m-head").hidden = box.hidden = !ms.length; $("m-detail").hidden = true;
+  $("m-title").textContent = ms.length + (ms.length === 1 ? " moment" : " moments");
+  box.replaceChildren(...ms.map((m, i) => {
+    const li = el("li"), b = el("button", "item");
+    b.type = "button";
+    b.innerHTML = '<span class="item-media"></span><span class="item-content"><span class="item-title"></span><span class="item-description mono"></span></span>';
+    b.querySelector(".item-media").textContent = String(i + 1);
+    b.querySelector(".item-title").textContent = m.label || "Moment " + (i + 1);
+    b.querySelector(".item-description").textContent = fmt(m.start) + " – " + fmt(m.end);
+    if (isFinite(m.score)) b.append(el("span", "badge brand", "Score " + (Math.round(m.score * 100) / 100)));
+    b.onclick = () => openMoment(i);
+    li.append(b);
+    return li;
+  }));
+  drawMarks();
+}
+function drawMarks() {
+  const ms = (items[cur]?.moments) || [], d = span();
+  $("marks").replaceChildren(...(d ? ms : []).map((m) => { const k = el("span", "mark"); k.style.left = pct(m.start / d); k.style.width = pct((m.end - m.start) / d); return k; }));
+}
+function openMoment(i) {
+  const m = items[cur].moments[i];
+  moment = i;
+  [...$("moments").children].forEach((li, j) => li.firstChild.setAttribute("aria-current", String(j === i)));
+  const box = $("m-detail"), head = el("div", "now-head");
+  head.append(el("span", "now-name", m.label || "Moment " + (i + 1)), el("span", "timestamp default", fmt(m.start) + " – " + fmt(m.end)));
+  box.replaceChildren(head);
+  if (m.data) box.append(segmentView(m.data));
+  box.hidden = false;
+  playAt(m.start);
+}
+["durationchange", "loadedmetadata"].forEach((e) => video.addEventListener(e, drawMarks));
+
 $("big").innerHTML = icon("play_arrow", 32, true);
 $("spin").innerHTML = spinner(32, "inverse");
 $("open").innerHTML = icon("open_in_new", 16);
@@ -959,7 +1478,12 @@ setBtn($("fs"), "fullscreen", "Full screen");
 $("pip").innerHTML = icon("picture_in_picture", 20);
 showState();
 
-app.ontoolresult = (res) => (res.structuredContent?.layout === "gallery" ? renderGallery(res.structuredContent) : render(res.structuredContent));
+app.ontoolresult = (res) => {
+  const data = res.structuredContent, layout = data?.layout;
+  if (layout === "gallery") renderGallery(data);
+  else if (layout === "understanding" || layout === "index") renderInsight(data);
+  else render(data);
+};
 app.onhostcontextchanged = (ctx) => ctx.theme && applyDocumentTheme(ctx.theme);
 if (window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.setAttribute("data-theme", "dark");
 await app.connect();
