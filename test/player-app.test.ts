@@ -257,3 +257,13 @@ it("passes moments through to the player and lists them for the model", async ()
   expect(res.structuredContent.items[0].moments).toEqual(moments);
   expect(res.content[0].text).toContain("0:12–0:20 Goal");
 });
+
+it("ships the player without the editor hand-off, and asks for clip titles without timestamps", async () => {
+  const request = await connect();
+  const tools = (await request("tools/list")).result.tools;
+  const show = tools.find((t: any) => t.name === "show_video");
+  const [content] = (await request("resources/read", { uri: show._meta.ui.resourceUri })).result.contents;
+  expect(content.text).not.toContain("Edit in editor");
+  expect(content.text).not.toContain("sendMessage");
+  expect(JSON.stringify(show.inputSchema)).toContain("No timestamps");
+});

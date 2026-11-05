@@ -52,7 +52,7 @@ const ITEM = z.object({
   collection_id: z.string().default("default").describe("Collection of video_id."),
   stream_url: STREAM_URL.optional().describe("A VideoDB stream_url (.m3u8 or .mp4)."),
   player_url: PLAYER_URL.optional().describe("A player.videodb.io/watch?v=… link, used when there is no stream_url."),
-  title: z.string().optional().describe("Label shown with the player, e.g. the video name or what the moment shows."),
+  title: z.string().optional().describe("Label shown with the player: the video name, or what the moment or clip shows. No timestamps; the player shows times itself."),
   start: z.number().min(0).optional().describe("Seconds into this video to start playing."),
   end: z.number().min(0).optional().describe("Seconds into this video to stop."),
   moments: z.array(MOMENT).max(100).optional().describe("Search hits or other moments in this video: highlighted on the timeline and listed under the player."),
