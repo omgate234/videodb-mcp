@@ -36,7 +36,7 @@ const analyzerRef = (name?: string, id?: string): string => {
 };
 
 // Analyzers hold a back-reference to their Understanding; flatten explicitly.
-const understandingToPlain = (u: Understanding) => ({
+export const understandingToPlain = (u: Understanding) => ({
   id: u.id,
   video_id: u.videoId,
   status: u.status,
