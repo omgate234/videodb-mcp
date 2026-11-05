@@ -1,0 +1,67 @@
+name: Deploy prod to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Azure trusts this repo's `main` branch (OIDC subject repo:video-db/videodb-mcp:ref:refs/heads/main).
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-prod.yml
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      APP: ca-videodb-mcp
+      IMAGE: ${{ vars.ACR_NAME }}.azurecr.io/videodb-mcp:${{ github.sha }}-${{ github.run_attempt }}
+      REVISION: ca-videodb-mcp--r${{ github.run_number }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image
+        run: |
+          az acr login --name ${{ vars.ACR_NAME }}
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      # Traffic is pinned to the live revision, so the new one starts with none.
+      - name: Create revision with no traffic
+        run: |
+          az containerapp update -n "$APP" -g ${{ vars.RESOURCE_GROUP }} \
+            --image "$IMAGE" --revision-suffix r${{ github.run_number }}-${{ github.run_attempt }} -o none
+
+      - name: Smoke test the new revision
+        run: |
+          FQDN=$(az containerapp revision show -n "$APP" -g ${{ vars.RESOURCE_GROUP }} \
+            --revision "$REVISION" --query properties.fqdn -o tsv)
+          for i in $(seq 1 30); do
+            curl -fsS "https://$FQDN/.well-known/oauth-protected-resource/mcp" >/dev/null && break
+            sleep 5
+          done
+          curl -fsS "https://$FQDN/.well-known/oauth-protected-resource/mcp"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$FQDN/mcp")" = "401"
+
+      - name: Send all traffic to the new revision
+        run: |
+          az containerapp ingress traffic set -n "$APP" -g ${{ vars.RESOURCE_GROUP }} \
+            --revision-weight "$REVISION=100" -o none
+
+      # Every active revision keeps its minimum replicas running, so older ones are switched off.
+      - name: Deactivate older revisions
+        run: |
+          for r in $(az containerapp revision list -n "$APP" -g ${{ vars.RESOURCE_GROUP }} \
+              --query "[?properties.active && name!='$REVISION'].name" -o tsv); do
+            az containerapp revision deactivate -n "$APP" -g ${{ vars.RESOURCE_GROUP }} --revision "$r" -o none
+          done
