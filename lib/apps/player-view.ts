@@ -151,6 +151,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .icon-btn.sm { width: 36px; height: 36px; }
   .icon-btn.md { width: 40px; height: 40px; }
   .icon-btn.lg { width: 44px; height: 44px; }
+  .icon-btn.xl { width: 56px; height: 56px; }
   .icon-btn.inverse { background: var(--color-background-overlay-glass); color: var(--color-icon-neutral-inverse-primary); -webkit-backdrop-filter: blur(var(--blur-sm)); backdrop-filter: blur(var(--blur-sm)); }
   .icon-btn.inverse:hover { background: var(--color-background-overlay-scrim); }
   .icon-btn.primary { background: var(--color-background-brand-primary); color: var(--color-icon-brand-inverse); }
@@ -162,17 +163,17 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .icon-btn.secondary:not(:disabled):active { background: var(--color-background-neutral-pressed); }
   .icon-btn.secondary:disabled { color: var(--color-icon-neutral-disabled); }
 
-  /* Player Controls: glass groups of 36px Player Buttons */
+  /* Player Controls: glass groups of Player Buttons, a size up from the library's 36px so they read at chat width */
   .controls { display: flex; width: 100%; align-items: center; gap: 8px; }
   .glass { display: flex; align-items: center; gap: 4px; border-radius: 9999px; background: var(--color-background-overlay-glass); padding: 4px; -webkit-backdrop-filter: blur(var(--blur-sm)); backdrop-filter: blur(var(--blur-sm)); }
   .glass.sound { padding-right: 16px; }
   .spacer { flex: 1; }
-  .player-btn { display: flex; width: 36px; height: 36px; flex-shrink: 0; cursor: pointer; align-items: center; justify-content: center; border-radius: 9999px; color: var(--color-icon-neutral-inverse-primary); outline: none; transition: background-color .15s; }
+  .player-btn { display: flex; width: 40px; height: 40px; flex-shrink: 0; cursor: pointer; align-items: center; justify-content: center; border-radius: 9999px; color: var(--color-icon-neutral-inverse-primary); outline: none; transition: background-color .15s; }
   .player-btn:hover { background: color-mix(in oklab, var(--color-background-overlay-light) 50%, transparent); }
   .player-btn:active { background: var(--color-background-overlay-light); }
   .player-btn:focus-visible { box-shadow: var(--shadow-focus-ring); }
 
-  /* Timestamp, sm, inverse tone */
+  /* Timestamp, sm, inverse tone; md on the video controls */
   .timestamp { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-weight: 500; font-variant-numeric: tabular-nums; font-size: 12px; line-height: 16px; }
   .timestamp .elapsed { color: var(--color-text-neutral-inverse-primary); }
   .timestamp .sep { color: var(--color-text-neutral-inverse-tertiary); }
@@ -182,14 +183,14 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .timestamp.default .sep { color: var(--color-text-neutral-tertiary); }
   .timestamp.default .total { color: var(--color-text-neutral-secondary); }
 
-  /* Timeline Scrubber, inverse tone */
-  .scrub { position: relative; display: flex; height: 24px; width: 100%; cursor: pointer; touch-action: none; align-items: center; user-select: none; }
-  .track { position: relative; height: 4px; flex-grow: 1; overflow: hidden; border-radius: 9999px; background: var(--color-background-overlay-light); }
+  /* Timeline Scrubber, inverse tone; a thicker track and thumb than the library's 4px / 8px for an easier grab */
+  .scrub { position: relative; display: flex; height: 28px; width: 100%; cursor: pointer; touch-action: none; align-items: center; user-select: none; }
+  .track { position: relative; height: 6px; flex-grow: 1; overflow: hidden; border-radius: 9999px; background: var(--color-background-overlay-light); }
   .range { position: absolute; left: 0; height: 100%; border-radius: 9999px; background: var(--color-background-brand-primary); }
-  .thumb { position: absolute; top: 50%; display: block; width: 8px; height: 8px; border-radius: 9999px; border: 1px solid var(--color-icon-neutral-inverse-primary); background: var(--color-background-brand-primary); outline: none; transform: translate(-50%, -50%); transition: width .1s, height .1s; }
+  .thumb { position: absolute; top: 50%; display: block; width: 12px; height: 12px; border-radius: 9999px; border: 1px solid var(--color-icon-neutral-inverse-primary); background: var(--color-background-brand-primary); outline: none; transform: translate(-50%, -50%); transition: width .1s, height .1s; }
   .thumb::after { content: ""; position: absolute; inset: -8px; border-radius: 9999px; }
-  .scrub:hover .thumb, .thumb:focus-visible { width: 12px; height: 12px; }
-  .scrub.drag .thumb { width: 14px; height: 14px; }
+  .scrub:hover .thumb, .thumb:focus-visible { width: 16px; height: 16px; }
+  .scrub.drag .thumb { width: 18px; height: 18px; }
   .thumb:focus-visible { box-shadow: var(--shadow-focus-ring); }
   .scrub.default .track { background: var(--color-background-neutral-control); }
   .scrub.disabled { cursor: not-allowed; }
@@ -317,7 +318,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .ap-body { display: flex; flex-direction: column; gap: 12px; }
   .ap-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
   .ap-start { display: flex; min-width: 0; align-items: center; gap: 8px; }
-  .ap-time { display: flex; height: 36px; flex-shrink: 0; align-items: center; border-radius: 9999px; background: var(--color-background-neutral-primary); padding: 0 12px; }
+  .ap-time { display: flex; height: 40px; flex-shrink: 0; align-items: center; border-radius: 9999px; background: var(--color-background-neutral-primary); padding: 0 12px; }
   .ap-transport { display: flex; align-items: center; justify-content: center; gap: 8px; }
   @media (max-width: 480px) {
     .ap-row { display: flex; flex-wrap: wrap; justify-content: space-between; row-gap: 12px; }
@@ -356,7 +357,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
         </div>
         <div class="vp-error" id="err" role="alert" hidden></div>
         <span class="vp-centre" id="spin" hidden></span>
-        <button class="icon-btn inverse lg vp-centre" id="big" type="button" tabindex="-1" aria-hidden="true"></button>
+        <button class="icon-btn inverse xl vp-centre" id="big" type="button" tabindex="-1" aria-hidden="true"></button>
         <p role="status" class="sr-only" id="buffering"></p>
         <div class="vp-bottom" id="bottom">
           <div class="scrub" id="scrub">
@@ -365,7 +366,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
           </div>
           <div class="controls">
             <div class="glass"><button class="player-btn" id="pp" type="button"></button></div>
-            <div class="glass sound"><button class="player-btn" id="mute" type="button"></button><span class="timestamp" id="time"></span></div>
+            <div class="glass sound"><button class="player-btn" id="mute" type="button"></button><span class="timestamp md" id="time"></span></div>
             <div class="spacer"></div>
             <div class="glass"><button class="player-btn" id="pip" type="button" aria-label="Picture in picture" title="Picture in picture" hidden></button><button class="player-btn" id="fs" type="button"></button></div>
           </div>
@@ -405,7 +406,7 @@ function spinner(size, tone) {
   const r = 10.32, c = 2 * Math.PI * r;
   return '<span class="spinner ' + tone + '" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" width="' + size + '" height="' + size + '"><circle class="t" cx="12" cy="12" r="' + r + '" stroke-width="3.36"/><circle class="a" cx="12" cy="12" r="' + r + '" stroke-width="3.36" stroke-dasharray="' + (c * 0.625) + ' ' + c + '" transform="rotate(-90 12 12)"/></svg></span>';
 }
-const setBtn = (el, ic, label) => { el.innerHTML = icon(ic, 16); el.ariaLabel = label; el.title = label; };
+const setBtn = (el, ic, label, filled) => { el.innerHTML = icon(ic, 20, filled); el.ariaLabel = label; el.title = label; };
 
 // Duration Label / Timestamp format: mm:ss, or h:mm:ss from one hour.
 const fmt = (s) => {
@@ -418,16 +419,23 @@ const pct = (x) => (Math.max(0, Math.min(1, x)) * 100) + "%";
 const hasRange = (it) => it.start != null || it.end != null;
 const rangeText = (it) => fmt(it.start || 0) + " – " + (it.end != null ? fmt(it.end) : "end");
 const len = (it) => it.end - it.start;
+// A file's link is created on its first read and fails for a moment after, so a failed load retries twice, 2 s apart.
+function retrying(el, url, onFail) {
+  let tries = 0;
+  el.onerror = () => { if (tries++ < 2) setTimeout(() => { el.src = url; }, 2000); else onFail(); };
+  el.src = url;
+}
 
 function showState() {
-  const failed = !$("err").hidden, playing = !video.paused;
-  $("spin").hidden = failed || !(loading && playing);
-  $("big").hidden = failed || playing;
+  const failed = !$("err").hidden, playing = !video.paused, busy = switching || (loading && playing);
+  $("spin").hidden = failed || !busy;
+  $("big").hidden = failed || playing || switching;
   $("bottom").hidden = failed;
-  $("buffering").textContent = loading && playing && !failed ? "Buffering" : "";
-  setBtn($("pp"), playing ? "pause" : "play_arrow", playing ? "Pause" : "Play");
+  $("buffering").textContent = busy && !failed ? "Buffering" : "";
+  setBtn($("pp"), playing || switching ? "pause" : "play_arrow", playing || switching ? "Pause" : "Play", true);
 }
-let loading = false;
+// switching: a new stream is loading and will play when ready, e.g. a reel moving to a clip of another video.
+let loading = false, switching = false;
 
 function load(i, autoplay, at) {
   const it = items[i];
@@ -442,10 +450,13 @@ function load(i, autoplay, at) {
   $("source").textContent = source.join("  ·  ");
   $("source").hidden = !source.length;
   vp.ariaLabel = "Video: " + $("title").textContent;
-  const seek = () => { video.currentTime = lastT; if (autoplay) video.play().catch(() => {}); };
+  // Held apart from lastT: a new source fires timeupdate at 0, which resets lastT before metadata loads.
+  const to = lastT;
+  const seek = () => { video.currentTime = to; if (autoplay) video.play().catch(() => { switching = false; showState(); }); };
   // Clips of the same video reuse the loaded stream, so moving between them is a seek, not a reload.
   if (src === it.stream_url && video.readyState >= 1) { seek(); paint(); return; }
   src = it.stream_url;
+  switching = !!autoplay; showState();
   hls?.destroy(); hls = null;
   if (it.stream_url.includes(".m3u8") && !video.canPlayType("application/vnd.apple.mpegurl") && window.Hls?.isSupported()) {
     hls = new Hls();
@@ -471,7 +482,7 @@ function seekTo(t) {
   else if (video.duration) { video.currentTime = Math.max(0, Math.min(video.duration, t)); lastT = video.currentTime; }
 }
 
-function fail() { loading = false; $("err").hidden = false; showState(); }
+function fail() { loading = false; switching = false; $("err").hidden = false; showState(); }
 
 function paint(x) {
   const d = span(), t = x != null ? x * d : now();
@@ -498,11 +509,14 @@ video.addEventListener("timeupdate", () => {
 video.addEventListener("ended", () => { if (cur + 1 < items.length) load(cur + 1, true); });
 video.addEventListener("error", fail);
 video.addEventListener("waiting", () => { loading = true; showState(); });
-["playing", "canplay"].forEach((e) => video.addEventListener(e, () => { loading = false; showState(); }));
+["playing", "canplay"].forEach((e) => video.addEventListener(e, () => { loading = false; switching = false; showState(); }));
 ["play", "pause"].forEach((e) => video.addEventListener(e, () => { if (e === "pause") loading = false; showState(); }));
 video.addEventListener("volumechange", () => setBtn($("mute"), video.muted ? "volume_off" : "volume_up", video.muted ? "Unmute" : "Mute"));
 
-const toggle = () => (video.paused ? video.play().catch(() => {}) : video.pause());
+const toggle = () => {
+  if (switching) { switching = false; video.pause(); showState(); return; }
+  video.paused ? video.play().catch(() => {}) : video.pause();
+};
 const open = () => items[cur] && app.openLink({ url: items[cur].player_url });
 
 // Timeline Scrubber: drag anywhere on the bar; the thumb is the slider for the keyboard.
@@ -728,8 +742,10 @@ function assetCard(a) {
   el.className = "mt";
   const media = document.createElement("div");
   media.className = "mt-media";
+  el.dataset.id = a.id;
   const src = a.type === "image" ? a.url : a.type === "video" ? a.thumbnail_url : "";
-  if (src) { const img = document.createElement("img"); img.alt = ""; img.loading = "lazy"; img.src = src; img.onerror = () => img.remove(); media.appendChild(img); }
+  if (src) thumbnail(media, src);
+  else if (a.type === "image" && a.linking) media.classList.add("skel");
   if (a.type === "video") media.insertAdjacentHTML("beforeend", '<span class="mt-play" aria-hidden="true">' + icon("play_arrow", 24, true) + "</span>");
   if (a.type === "audio") media.insertAdjacentHTML("beforeend", '<span class="mt-audio">' + icon("headphones", 40) + "</span>");
   if (a.type !== "image" && a.length) media.insertAdjacentHTML("beforeend", '<time class="duration" datetime="PT' + Math.round(a.length) + 'S">' + fmt(a.length) + "</time>");
@@ -742,6 +758,36 @@ function assetCard(a) {
   row.appendChild(t);
   el.append(media, row);
   return el;
+}
+
+function thumbnail(media, url) {
+  const img = document.createElement("img");
+  img.alt = ""; img.loading = "lazy";
+  retrying(img, url, () => img.remove());
+  media.prepend(img);
+}
+
+/** List rows carry no image links, so they load after the grid draws, a few at a time, and fill their cards as they arrive. */
+const imageLinks = {};
+function fillImageLinks() {
+  g.assets.forEach((a) => { if (a.type === "image" && !a.url && imageLinks[a.id]) a.url = imageLinks[a.id]; });
+  const todo = g.assets.filter((a) => a.type === "image" && !a.url && !a.linking);
+  const groups = {};
+  todo.forEach((a) => { a.linking = true; const c = a.collection_id || g.query.collection_id || "default"; (groups[c] = groups[c] || []).push(a); });
+  Object.entries(groups).forEach(([collection_id, list]) => {
+    for (let i = 0; i < list.length; i += 6) {
+      const batch = list.slice(i, i + 6);
+      const done = (found) => batch.forEach((a, j) => {
+        a.linking = false;
+        if (found?.[j]?.url) a.url = imageLinks[a.id] = found[j].url;
+        const media = gbody.querySelector('.mt[data-id="' + a.id + '"] .mt-media');
+        if (!media) return;
+        media.classList.remove("skel");
+        if (a.url) thumbnail(media, a.url);
+      });
+      loadAssets({ ids: batch.map((a) => a.id), collection_id }).then((r) => done(r.assets), () => done(null));
+    }
+  });
 }
 
 function showLoading() {
@@ -761,6 +807,7 @@ function drawGrid() {
     gbody.innerHTML = '<div class="empty-state"><span class="es-glyph">' + icon("video_library", 32) + '</span><div class="es-text"><h3 class="es-title">No ' + noun[1] + ' yet</h3><p class="es-desc">Uploads to this collection appear here.</p></div></div>';
   } else {
     gbody.className = "g-grid";
+    fillImageLinks();
     gbody.replaceChildren(...g.assets.map(assetCard));
   }
   const pages = $("g-pages");
@@ -775,6 +822,8 @@ function drawGrid() {
 
 async function showPage(page) {
   $("g-actions").replaceChildren(typeControl());
+  // The old filter's count would be wrong while the new one loads.
+  $("g-meta").textContent = "Loading " + NOUN[g.type][1];
   showLoading();
   try {
     const r = await loadAssets({ collection_id: g.query.collection_id, asset_type: g.type || undefined, page });
@@ -828,7 +877,7 @@ async function openAsset(a, back) {
   const img = document.createElement("img");
   img.alt = a.name || "Image";
   const broken = () => { img.remove(); frame.insertAdjacentHTML("beforeend", '<div class="vp-error" role="alert">' + icon("error", 24) + "<p>This image can't be shown</p></div>"); };
-  if (a.url) { img.src = a.url; img.onerror = broken; frame.appendChild(img); } else broken();
+  if (a.url) { retrying(img, a.url, broken); frame.appendChild(img); } else broken();
   gbody.appendChild(frame);
   if (a.url) $("g-actions").appendChild(button("secondary sm", "open_in_new", "Open original", () => app.openLink({ url: a.url })));
 }
@@ -840,8 +889,8 @@ function audioPlayer(a) {
   el.innerHTML = '<audio preload="metadata"></audio><span class="sr-only" role="status"></span>'
     + '<div class="ap-head"><p class="ap-title"></p><p class="ap-error" role="alert" hidden>' + icon("error", 16) + "This audio can't be played</p></div>"
     + '<div class="ap-body"><div class="scrub default"><div class="track"><div class="range"></div></div><span class="thumb" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0"></span></div>'
-    + '<div class="ap-row"><div class="ap-start"><span class="ap-time"><span class="timestamp md default"></span></span><button class="icon-btn secondary sm" type="button" data-a="mute"></button></div>'
-    + '<div class="ap-transport"><button class="icon-btn secondary sm" type="button" data-a="back"></button><button class="icon-btn primary md" type="button" data-a="play"></button><button class="icon-btn secondary sm" type="button" data-a="fwd"></button></div>'
+    + '<div class="ap-row"><div class="ap-start"><span class="ap-time"><span class="timestamp md default"></span></span><button class="icon-btn secondary md" type="button" data-a="mute"></button></div>'
+    + '<div class="ap-transport"><button class="icon-btn secondary md" type="button" data-a="back"></button><button class="icon-btn primary xl" type="button" data-a="play"></button><button class="icon-btn secondary md" type="button" data-a="fwd"></button></div>'
     + "<div></div></div></div>";
   const au = el.querySelector("audio"), q = (s) => el.querySelector(s), btn = (n) => el.querySelector('[data-a="' + n + '"]');
   const sc = q(".scrub"), thumb = q(".thumb");
@@ -849,7 +898,7 @@ function audioPlayer(a) {
   audioEl = au;
   let drag = false, buffering = false;
   const d = () => (isFinite(au.duration) ? au.duration : a.length || 0);
-  const label = (b, ic, text, size, filled) => { b.innerHTML = icon(ic, size || 16, filled); b.ariaLabel = text; b.title = text; };
+  const label = (b, ic, text, size, filled) => { b.innerHTML = icon(ic, size || 20, filled); b.ariaLabel = text; b.title = text; };
   function paint(x) {
     const span = d(), t = x != null ? x * span : au.currentTime;
     q(".range").style.width = pct(span ? t / span : 0); thumb.style.left = pct(span ? t / span : 0);
@@ -860,7 +909,7 @@ function audioPlayer(a) {
   function state() {
     const playing = !au.paused;
     // Keeps its Pause name while buffering, because pressing it still pauses.
-    if (buffering && playing) { btn("play").innerHTML = spinner(20, "inverse"); btn("play").ariaLabel = "Pause"; } else label(btn("play"), playing ? "pause" : "play_arrow", playing ? "Pause" : "Play", 24, true);
+    if (buffering && playing) { btn("play").innerHTML = spinner(24, "inverse"); btn("play").ariaLabel = "Pause"; } else label(btn("play"), playing ? "pause" : "play_arrow", playing ? "Pause" : "Play", 28, true);
     q('[role="status"]').textContent = buffering && playing ? "Buffering" : "";
   }
   const failed = () => { q(".ap-error").hidden = false; sc.classList.add("disabled"); el.querySelectorAll("button").forEach((b) => { b.disabled = true; }); buffering = false; state(); };
@@ -874,7 +923,6 @@ function audioPlayer(a) {
   ["timeupdate", "durationchange", "loadedmetadata", "seeked"].forEach((e) => au.addEventListener(e, () => { if (!drag) paint(); }));
   au.addEventListener("waiting", () => { buffering = true; state(); });
   ["playing", "canplay", "pause", "play"].forEach((e) => au.addEventListener(e, () => { if (e !== "play") buffering = false; state(); }));
-  au.addEventListener("error", failed);
   const ratio = (e) => { const r = sc.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
   sc.addEventListener("pointerdown", (e) => { if (sc.classList.contains("disabled")) return; drag = true; sc.classList.add("drag"); sc.setPointerCapture(e.pointerId); paint(ratio(e)); });
   sc.addEventListener("pointermove", (e) => { if (drag) paint(ratio(e)); });
@@ -886,7 +934,7 @@ function audioPlayer(a) {
     e.preventDefault(); seek(to);
   });
   paint(); state();
-  if (a.url) au.src = a.url; else failed();
+  if (a.url) retrying(au, a.url, failed); else failed();
   return el;
 }
 
@@ -902,13 +950,13 @@ function renderGallery(data) {
   drawGrid();
 }
 
-$("big").innerHTML = icon("play_arrow", 24, true);
-$("spin").innerHTML = spinner(24, "inverse");
+$("big").innerHTML = icon("play_arrow", 32, true);
+$("spin").innerHTML = spinner(32, "inverse");
 $("open").innerHTML = icon("open_in_new", 16);
 $("err").innerHTML = icon("error", 24) + "<p>This video can't be played</p>";
 setBtn($("mute"), "volume_up", "Mute");
 setBtn($("fs"), "fullscreen", "Full screen");
-$("pip").innerHTML = icon("picture_in_picture", 16);
+$("pip").innerHTML = icon("picture_in_picture", 20);
 showState();
 
 app.ontoolresult = (res) => (res.structuredContent?.layout === "gallery" ? renderGallery(res.structuredContent) : render(res.structuredContent));

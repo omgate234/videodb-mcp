@@ -177,15 +177,11 @@ async function fetchAsset(vdb: Connection, id: string, collectionId: string): Pr
   return toAsset({ id, name: v.name, collection_id: v.collectionId, length: v.length, stream_url: v.streamUrl, player_url: v.playerUrl, thumbnail_url: v.thumbnail }, "video");
 }
 
-/** List rows carry no file link for images, so each image on the page is read once to get its permanent url. */
+/** A listing returns at once; list rows carry no image or audio file link, so the view reads those by ids afterwards. */
 export async function loadAssets(vdb: Connection, args: z.infer<typeof LOAD_INPUT>) {
   if (args.ids) return { assets: await Promise.all(args.ids.map((id) => fetchAsset(vdb, id, args.collection_id ?? "default"))) };
   const { assets, pagination } = await listAssets(vdb, { collection_id: args.collection_id, asset_type: args.asset_type, page: args.page, page_size: PAGE_SIZE });
-  const rows = (assets ?? []).map((a) => toAsset(a, (str(a.type) as Asset["type"]) ?? "video"));
-  const filled = await Promise.all(
-    rows.map((a) => (a.type === "image" && !a.url ? fetchAsset(vdb, a.id, a.collection_id ?? args.collection_id ?? "default").catch(() => a) : a))
-  );
-  return { assets: filled, pagination };
+  return { assets: (assets ?? []).map((a) => toAsset(a, (str(a.type) as Asset["type"]) ?? "video")), pagination };
 }
 
 const describeAsset = (a: Asset) => `${a.name ?? a.id} (${a.type}${a.length ? `, ${fmt(a.length)}` : ""}) ${a.id}`;
