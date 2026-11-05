@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
-import { exportReel, registerPlayerApp } from "@/lib/apps/player";
+import { exportReel, loadAssets, registerPlayerApp } from "@/lib/apps/player";
 import { fakeConnection, raw } from "./harness";
 
 async function connect() {
@@ -134,4 +134,48 @@ describe("exportReel", () => {
   it("refuses to poll a URL outside VideoDB", async () => {
     await expect(exportReel(fakeConnection(), { name: "r.mp4", stage: "rendering", output_url: "https://evil.test/x" })).rejects.toThrow();
   });
+});
+
+describe("loadAssets", () => {
+  it("lists one page and fills in each image's file link from a single read", async () => {
+    const vdb = fakeConnection({
+      "GET assets": {
+        assets: [
+          { id: "m-1", type: "video", name: "Keynote", length: "61.5", stream_url: "https://stream.videodb.io/v/1.m3u8", thumbnail_url: "https://assets.videodb.io/thumb/1.jpg" },
+          { id: "img-1", type: "image", name: "Logo", collection_id: "c-1" },
+          { id: "a-1", type: "audio", name: "Intro" },
+        ],
+        pagination: { page: 1, page_size: 24, total_count: 3, total_pages: 1 },
+      },
+      "GET image/img-1": { id: "img-1", name: "Logo", url: "https://api.videodb.io/a/tok.png" },
+    });
+    const page = await loadAssets(vdb, { collection_id: "c-1", page: 1 });
+    expect(vdb.http.get).toHaveBeenCalledWith(["assets"], { params: { collection_id: "c-1", page: 1, page_size: 24 } }, { convert: false });
+    expect(vdb.http.get).toHaveBeenCalledWith(["image", "img-1"], { params: { collection_id: "c-1" } }, { convert: false });
+    expect(page.assets).toEqual([
+      expect.objectContaining({ id: "m-1", type: "video", length: 61.5, stream_url: "https://stream.videodb.io/v/1.m3u8", thumbnail_url: "https://assets.videodb.io/thumb/1.jpg", player_url: expect.stringContaining("player.videodb.io") }),
+      expect.objectContaining({ id: "img-1", type: "image", url: "https://api.videodb.io/a/tok.png" }),
+      expect.objectContaining({ id: "a-1", type: "audio", url: undefined }),
+    ]);
+    expect(page.pagination?.total_count).toBe(3);
+  });
+
+  it("reads the given IDs, with an audio file's link from its single read", async () => {
+    const vdb = fakeConnection({ "GET audio/a-1": { id: "a-1", name: "Intro", length: 30, url: "https://api.videodb.io/a/tok.mp3" } });
+    const page = await loadAssets(vdb, { ids: ["a-1"], collection_id: "c-1", page: 1 });
+    expect(page.assets).toEqual([expect.objectContaining({ id: "a-1", type: "audio", length: 30, url: "https://api.videodb.io/a/tok.mp3" })]);
+  });
+
+  it("refuses an ID that is not a video, audio or image", async () => {
+    await expect(loadAssets(fakeConnection(), { ids: ["c-1"], page: 1 })).rejects.toThrow(/not a video, audio or image/);
+  });
+});
+
+it("offers show_assets to the model on the player resource and keeps load_assets for the view", async () => {
+  const request = await connect();
+  const tools = (await request("tools/list")).result.tools;
+  const show = tools.find((t: any) => t.name === "show_assets"), load = tools.find((t: any) => t.name === "load_assets");
+  expect(show._meta.ui.resourceUri).toBe(tools.find((t: any) => t.name === "show_video")._meta.ui.resourceUri);
+  expect(show._meta.ui.visibility).toBeUndefined();
+  expect(load._meta.ui.visibility).toEqual(["app"]);
 });
