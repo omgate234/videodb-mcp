@@ -12,7 +12,6 @@ import { sandbox } from "@/lib/toolsets/sandbox";
 import { jobs } from "@/lib/toolsets/jobs";
 import { director } from "@/lib/toolsets/director";
 import { feedback } from "@/lib/toolsets/feedback";
-import { registerEditorApp } from "@/lib/apps/editor";
 import { registerPlayerApp } from "@/lib/apps/player";
 
 /**
@@ -56,7 +55,6 @@ export async function registerAll(server: McpServer, toolsets = enabledToolsets(
   allTools(toolsets); // rejects duplicate names across toolsets
   for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
   registerPlayerApp(server);
-  await registerEditorApp(server);
 }
 
 /** Register a hand-picked tool list (a profile); `label` is the toolset name telemetry records. */
