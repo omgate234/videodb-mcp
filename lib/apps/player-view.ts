@@ -359,17 +359,17 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .empty { padding: 40px 16px; text-align: center; color: var(--color-text-neutral-tertiary); }
 
   .section-title { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--color-text-neutral-primary); }
-  .spinner.brand .t { stroke: var(--color-background-brand-tertiary); }
-  .spinner.brand .a { stroke: var(--color-background-brand-primary); }
 
-  /* Log Step: one row per analyzer while the run works */
-  .log { display: flex; flex-direction: column; gap: 2px; }
-  .log-row { display: flex; min-height: 36px; width: 100%; align-items: center; gap: 8px; border-radius: 8px; padding: 8px 12px; }
-  .log-status { display: flex; width: 20px; height: 20px; flex-shrink: 0; align-items: center; justify-content: center; }
-  .log-status.done { color: var(--color-icon-success-primary); }
-  .log-status.failed { color: var(--color-icon-error-primary); }
-  .log-label { min-width: 0; flex: 1; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--color-text-neutral-primary); }
-  .log-label .sub { color: var(--color-text-neutral-tertiary); }
+  /* Tabs, default variant: one per analyzer, with a spinner while it works, then a check or an error mark */
+  .tabs { display: inline-flex; width: fit-content; max-width: 100%; height: 36px; flex-shrink: 0; align-items: center; gap: 2px; padding: 4px; border-radius: 8px; background: var(--color-background-neutral-secondary); overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { display: inline-flex; flex-shrink: 0; height: 28px; cursor: pointer; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border-radius: 8px; font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap; color: var(--color-text-neutral-tertiary); outline: none; transition: color .15s, background-color .15s, box-shadow .15s; }
+  .tab:hover { color: var(--color-text-neutral-primary); }
+  .tab[aria-selected="true"] { background: var(--color-background-neutral-primary); color: var(--color-text-neutral-primary); box-shadow: var(--shadow-xxs); }
+  .tab:focus-visible { box-shadow: var(--shadow-focus-ring); }
+  .tab-status { display: flex; }
+  .tab-status.done { color: var(--color-icon-success-primary); }
+  .tab-status.failed { color: var(--color-icon-error-primary); }
 
   /* Chip (static) and Badge, size sm, subtle */
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -424,9 +424,8 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   .field input::-webkit-search-cancel-button { -webkit-appearance: none; }
   .scene-count { font-size: 14px; line-height: 20px; color: var(--color-text-neutral-tertiary); }
 
-  /* Scene list: Item rows in a Scroll Area, kept in step with playback */
-  .scenes { max-height: 520px; overflow-y: auto; margin: 0 -12px; padding: 0 4px; border-radius: 12px; outline: none; scrollbar-width: thin; }
-  .scenes:focus-visible { box-shadow: var(--shadow-focus-ring); }
+  /* Scene list: Item rows kept in step with playback. No scroll area of its own, so the chat scrolls through it; long lists page instead. */
+  .scenes { margin: 0 -12px; padding: 0 4px; }
   .scene { display: flex; flex-direction: column; }
   .scene-row { display: grid; grid-template-columns: 44px 1fr 20px; align-items: start; gap: 12px; width: 100%; padding: 12px; border-radius: 12px; text-align: left; cursor: pointer; outline: none; transition: background-color .15s; }
   .scene-row:hover { background: var(--color-background-neutral-hover); }
@@ -446,8 +445,13 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
   /* 12 + 44 + 12 lines the detail up with the headline */
   .scene-detail { display: flex; flex-direction: column; gap: 16px; padding: 4px 32px 16px 68px; }
   .empty-list { padding: 24px 12px; text-align: center; }
-  .scene-skel .scene-row { cursor: default; }
   #i-more { align-self: center; }
+  /* The understanding and index cards name the video in their header, so the player doesn't repeat it */
+  .vp.no-title .vp-caption { visibility: hidden; }
+  /* Back sits first in the gallery header; -8px lines its arrow up with the card's content edge */
+  #gallery > .card-header { align-items: center; }
+  #g-back:empty { display: none; }
+  #g-back .btn { margin-left: -8px; }
 
   /* Moments: highlighted stretches on the scrubber and a list under the player */
   .marks { pointer-events: none; position: absolute; left: 0; right: 0; top: 50%; height: 6px; transform: translateY(-50%); }
@@ -510,7 +514,7 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
     </div>
     <div class="card-content">
       <div id="i-player"></div>
-      <div class="log" id="i-log" hidden></div>
+      <div class="tabs" id="i-tabs" role="tablist" aria-label="Analyzers" hidden></div>
     </div>
     <section class="card-content" id="i-glance" aria-labelledby="i-glance-title" hidden><p class="section-title" id="i-glance-title">In this video</p><div class="glance" id="i-glance-body"></div></section>
     <div class="card-content">
@@ -518,13 +522,14 @@ export function playerHtml(extAppsUrl: string, hlsUrl: string): string {
         <label class="field"><span class="field-icon" aria-hidden="true"></span><span class="sr-only">Search what was found</span><input id="i-search" type="search" placeholder="Search what was found" autocomplete="off"></label>
         <p class="scene-count" role="status"><span id="i-count"></span> <button class="link" type="button" id="i-clear" hidden>Clear</button></p>
       </div>
-      <div class="scenes" id="i-list" tabindex="0" role="region" aria-label="What was found, scene by scene"></div>
+      <div class="scenes" id="i-list" role="region" aria-label="What was found, scene by scene"></div>
       <p class="status" id="i-note" hidden></p>
-      <button class="btn secondary" type="button" id="i-more" hidden>Load more records</button>
+      <button class="btn secondary" type="button" id="i-more" hidden></button>
     </div>
   </div>
   <div class="card" id="gallery" hidden>
     <div class="card-header">
+      <div id="g-back"></div>
       <div class="card-heading"><p class="card-title" id="g-title"></p><p class="card-description" id="g-meta"></p></div>
       <div class="card-actions" id="g-actions"></div>
     </div>
@@ -565,7 +570,7 @@ const pct = (x) => (Math.max(0, Math.min(1, x)) * 100) + "%";
 const hasRange = (it) => it.start != null || it.end != null;
 const rangeText = (it) => fmt(it.start || 0) + " – " + (it.end != null ? fmt(it.end) : "end");
 const len = (it) => it.end - it.start;
-// Clip names carry no time ranges ("Clip 1 (0:00–0:05)" → "Clip 1"); times are shown once, in the duration chip.
+// Clip names carry no time ranges ("Clip 1 (0:00–0:05)" → "Clip 1"); the range is the line under the name, the length the duration chip.
 const clipTitle = (it, i) => (it.title || "").replace(/\\s*[(\\[]?\\s*\\d{1,2}:\\d{2}(?::\\d{2})?\\s*[–—-]\\s*\\d{1,2}:\\d{2}(?::\\d{2})?\\s*[)\\]]?/g, "").trim() || "Clip " + (i + 1);
 // A file's link is created on its first read and can fail for half a minute after, so a failed load retries at 2, 4, 8 and 16 s.
 function retrying(el, url, onFail) {
@@ -598,6 +603,7 @@ function load(i, autoplay, at) {
   if (!reel && items.length > 1) source.push((i + 1) + " of " + items.length);
   $("source").textContent = source.join("  ·  ");
   $("source").hidden = !source.length;
+  vp.classList.toggle("no-title", !insight.hidden);
   vp.ariaLabel = "Video: " + $("title").textContent;
   if (!reel) drawMoments();
   // Held apart from lastT: a new source fires timeupdate at 0, which resets lastT before metadata loads.
@@ -830,7 +836,7 @@ function render(data) {
     b.querySelector(".item-media").textContent = String(i + 1);
     b.querySelector(".item-title").textContent = clipTitle(it, i);
     const desc = b.querySelector(".item-description");
-    if (!reel && hasRange(it)) desc.innerHTML = '<span class="mono">' + rangeText(it) + "</span>";
+    if (hasRange(it)) desc.innerHTML = '<span class="mono">' + rangeText(it) + "</span>";
     else desc.remove();
     if (reel) {
       const d = document.createElement("time");
@@ -856,7 +862,8 @@ async function loadAssets(args) {
   return res.structuredContent;
 }
 
-function header(title, meta, actions) {
+function header(title, meta, actions, back) {
+  $("g-back").replaceChildren(...(back ? [back] : []));
   $("g-title").textContent = title;
   $("g-meta").textContent = meta;
   $("g-meta").hidden = !meta;
@@ -1010,10 +1017,10 @@ async function withLink(a) {
 
 async function openAsset(a, back) {
   stopDetail();
-  const actions = back ? [button("tertiary sm", "arrow_back", "Back", drawGrid)] : [];
+  const backBtn = back ? button("tertiary", "arrow_back", "Back", drawGrid) : null;
   // The players carry the asset's name in their own title; an image has none, so the header names it.
-  if (a.type === "image") header(a.name || "Untitled", "Image", actions);
-  else header(g.title, "", actions);
+  if (a.type === "image") header(a.name || "Untitled", "Image", [], backBtn);
+  else header(g.title, "", [], backBtn);
   gallery.classList.toggle("bare", !back && a.type === "audio");
   $("g-pages").hidden = true;
   gbody.className = "g-detail"; gbody.removeAttribute("aria-busy");
@@ -1203,10 +1210,10 @@ function summary(data) {
   return first != null ? [].concat(first).join(", ") : flatText(data);
 }
 
-// Understanding and index views: the video, what was found in it at a glance, and a searchable scene list kept in step with playback.
+// Understanding and index views: the video, a tab per analyzer, what that analyzer found at a glance, and a searchable scene list kept in step with playback.
 const insight = $("insight"), sceneList = $("i-list");
 const TYPE_LABEL = { speech_transcription: "Speech", spoken_words: "Speech", vlm: "Scene description", ocr: "On-screen text", object_detection: "Objects", brand_detection: "Brands", activity_recognition: "Activity", location_detection: "Location" };
-const GLANCE_CHIPS = 10;
+const GLANCE_CHIPS = 10, PAGE = 20;
 let ins = null;
 
 async function readTool(name, args) {
@@ -1223,7 +1230,7 @@ function renderInsight(data) {
   clearTimeout(ins?.timer);
   card.hidden = true; gallery.hidden = true; insight.hidden = false;
   const v = data.video;
-  ins = { token: {}, kind: data.layout, video: v, sources: [], scenes: [], query: "", facet: null, open: -1, cur: -1, more: false, scrolled: 0 };
+  ins = { token: {}, kind: data.layout, video: v, sources: [], scenes: [], query: "", facet: null, open: -1, cur: -1, more: false, tab: 0, picked: false, limit: PAGE };
   $("i-title").textContent = v.title || "Video";
   reel = false; items = [{ stream_url: v.stream_url, player_url: v.player_url, title: v.title || "Video" }];
   list.innerHTML = ""; strip.innerHTML = ""; $("open").hidden = false;
@@ -1233,15 +1240,33 @@ function renderInsight(data) {
   if (data.layout === "understanding") {
     ins.run = data.understanding;
     ins.sources = (data.understanding.analyzers || []).map((a, i) => ({ id: a.id, name: a.name || "Analyzer " + (i + 1), type: a.type, status: runState(a.status) }));
+    restoreInsight();
     drawAll();
     pollRun();
   } else {
     const s = data.source;
     ins.source = s;
     ins.sources = [{ name: s.kind === "index" ? s.name || "Index" : s.kind === "scene_index" ? "Scenes" : "Transcript", status: "done" }];
+    const kept = restoreInsight();
     drawAll();
-    loadIndexPage();
+    if (!kept) loadIndexPage();
   }
+}
+
+// The host drops a widget scrolled far out of view and mounts it again from the same tool result,
+// so what has loaded is kept for the browser tab and a remounted widget opens finished.
+const cacheKey = () => "vdb-insight:" + ins.video.video_id + ":" + (ins.kind === "understanding" ? ins.run.id : ins.source.kind + ":" + (ins.source.id || ""));
+function keepInsight() {
+  const sources = ins.sources.map((s) => ({ status: s.status, segments: s.segments, total: s.total }));
+  try { sessionStorage.setItem(cacheKey(), JSON.stringify({ sources: sources, cursor: ins.cursor })); } catch {}
+}
+function restoreInsight() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(cacheKey()) || "null"); } catch {}
+  if (!saved || saved.sources?.length !== ins.sources.length) return false;
+  saved.sources.forEach((s, i) => Object.assign(ins.sources[i], s));
+  ins.cursor = saved.cursor;
+  return ins.sources.some((s) => s.segments);
 }
 
 function drawMeta() {
@@ -1267,6 +1292,7 @@ async function pollRun(poll) {
       const u = await readTool("get_understanding", { video_id: ins.video.video_id, collection_id: ins.video.collection_id, understanding_id: ins.run.id });
       if (token !== ins?.token) return;
       (u.analyzers || []).forEach((a) => { const s = ins.sources.find((x) => (a.id && x.id === a.id) || x.name === a.name); if (s) s.status = runState(a.status); });
+      keepInsight();
     } catch {}
   }
   ins.sources.filter((s) => s.status === "done" && !s.segments && !s.loading && !s.error).forEach(loadSource);
@@ -1284,6 +1310,7 @@ async function loadSource(s) {
     if (token !== ins?.token) return;
     s.segments = segs(out.scenes);
     s.total = out.scenes_total || s.segments.length;
+    keepInsight();
   } catch (e) { s.error = e.message || "Couldn't load this output."; }
   s.loading = false;
   drawAll();
@@ -1312,33 +1339,23 @@ async function loadIndexPage() {
       s.segments = segs((r.word_timestamps || []).map((x) => ({ start: x.start, end: x.end, data: { text: x.text } })));
       s.total = r.total || s.segments.length;
     }
+    keepInsight();
   } catch (e) { s.error = e.message || "Couldn't load these records."; }
   s.loading = false;
   drawAll();
 }
 
-/** Speech has word timings; it is segmented on its own, so it is placed into scenes rather than being one. */
-const isSpeech = (s) => s.segments.some((g) => g.data && Array.isArray(g.data.words));
-const speechText = (data) => (typeof data?.text === "string" && data.text.trim()) || (Array.isArray(data?.words) ? data.words.map((w) => w.text).join(" ") : "");
-
-/** Scenes: segments that share a time range merge into one scene; each speech line joins the scene it starts in. */
+/** Scenes of the selected analyzer, or of the index: segments that share a time range merge into one scene. */
 function buildScenes() {
-  const ready = ins.sources.filter((s) => s.segments);
-  const speech = ins.kind === "understanding" ? ready.filter(isSpeech) : [];
-  const visual = ready.filter((s) => !speech.includes(s));
-  const base = visual.length ? visual : speech.slice(0, 1);
+  const from = ins.kind === "understanding" ? [ins.sources[ins.tab]] : ins.sources;
   const byRange = new Map();
-  base.forEach((s) => s.segments.forEach((g) => {
+  from.filter((s) => s?.segments).forEach((s) => s.segments.forEach((g) => {
     const key = g.start.toFixed(2) + "-" + g.end.toFixed(2);
-    if (!byRange.has(key)) byRange.set(key, { start: g.start, end: g.end, parts: [], said: [] });
+    if (!byRange.has(key)) byRange.set(key, { start: g.start, end: g.end, parts: [] });
     byRange.get(key).parts.push({ source: s, data: g.data });
   }));
   const scenes = [...byRange.values()].sort((a, b) => a.start - b.start || a.end - b.end);
-  if (visual.length) speech.forEach((s) => s.segments.forEach((g) => { if (speechText(g.data)) sceneAt(scenes, g.start)?.said.push(g); }));
-  scenes.forEach((sc) => {
-    sc.values = sceneValues(sc);
-    sc.find = [flatText(sc.parts.map((p) => p.data)), sc.said.map((g) => speechText(g.data)).join(" ")].join(" ").toLowerCase();
-  });
+  scenes.forEach((sc) => { sc.values = sceneValues(sc); sc.find = flatText(sc.parts.map((p) => p.data)).toLowerCase(); });
   ins.scenes = scenes;
 }
 function sceneAt(scenes, t) {
@@ -1373,34 +1390,56 @@ function headline(sc) {
       if (!best || r < best.r || (r === best.r && v.trim().length > best.v.length)) best = { r, v: v.trim() };
     });
   });
-  return best?.v || sc.said.map((g) => speechText(g.data)).join(" ") || summary(sc.parts[0]?.data) || "No content";
+  return best?.v || summary(sc.parts[0]?.data) || "No content";
 }
 /** A scene that is one piece of text (a transcript line, a legacy scene description) shows it in full and has nothing to open. */
-const isFlat = (sc) => sc.parts.length === 1 && !sc.said.length && sc.parts[0].data && typeof sc.parts[0].data === "object" && Object.entries(sc.parts[0].data).every(([k, v]) => isEmpty(v) || k === "text" || k === "description" || k === "words");
+const isFlat = (sc) => sc.parts.length === 1 && sc.parts[0].data && typeof sc.parts[0].data === "object" && Object.entries(sc.parts[0].data).every(([k, v]) => isEmpty(v) || k === "text" || k === "description" || k === "words");
 
 function drawAll() {
   if (!ins) return;
+  pickTab();
   buildScenes();
-  drawMeta(); drawLog(); drawGlance(); drawList();
+  drawMeta(); drawTabs(); drawGlance(); drawList();
   ins.cur = -1; tick();
 }
 
-/** Log Step rows while the run works; afterwards only failed analyzers keep a row. */
-function drawLog() {
-  const log = $("i-log");
-  const working = ins.kind === "understanding" && ins.sources.some((s) => s.status === "running");
-  const rows = ins.kind !== "understanding" ? [] : ins.sources.filter((s) => working || s.status === "failed" || s.error);
-  log.hidden = !rows.length;
-  log.replaceChildren(...rows.map((s) => {
-    const state = s.error ? "failed" : s.status;
-    const row = el("div", "log-row"), st = el("span", "log-status " + state);
-    st.innerHTML = state === "running" ? spinner(16, "brand") : icon(state === "done" ? "check_circle" : "error", 20);
-    const label = el("span", "log-label", sourceLabel(s));
-    if (state === "failed") label.append(el("span", "sub", " · " + (s.error || "Failed")));
-    const sr = el("span", "sr-only", sourceLabel(s) + " " + state); sr.setAttribute("role", "status");
-    row.append(st, label, sr);
-    return row;
+/** Until the user picks a tab, the selection moves to the first analyzer whose output is in. */
+function pickTab() {
+  if (ins.kind !== "understanding" || ins.picked || ins.sources[ins.tab]?.segments) return;
+  const i = ins.sources.findIndex((s) => s.segments);
+  if (i >= 0) ins.tab = i;
+}
+function selectTab(i, focus) {
+  Object.assign(ins, { tab: i, picked: true, facet: null, more: false, open: -1, limit: PAGE });
+  drawAll();
+  if (focus) $("i-tabs").children[i]?.focus();
+}
+// Working until the output is loaded, not just until the run says done.
+const tabState = (s) => (s.error || s.status === "failed" ? "failed" : s.status === "done" && s.segments ? "done" : "running");
+
+/** Tabs: one per analyzer. Arrow keys move along them; only the selected tab is a Tab stop. */
+function drawTabs() {
+  const tabs = $("i-tabs");
+  tabs.hidden = ins.kind !== "understanding" || !ins.sources.length;
+  if (tabs.hidden) return;
+  const refocus = tabs.contains(document.activeElement);
+  tabs.replaceChildren(...ins.sources.map((s, i) => {
+    const state = tabState(s), on = i === ins.tab, b = el("button", "tab");
+    b.type = "button"; b.tabIndex = on ? 0 : -1;
+    b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(on)); b.setAttribute("aria-controls", "i-list");
+    const st = el("span", "tab-status " + state);
+    st.innerHTML = state === "running" ? spinner(16, "current") : icon(state === "done" ? "check_circle" : "error", 16);
+    b.append(st, el("span", "", sourceLabel(s)), el("span", "sr-only", ", " + (state === "running" ? "working" : state)));
+    b.onclick = () => selectTab(i);
+    b.onkeydown = (e) => {
+      const n = ins.sources.length, step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      const to = step ? (i + step + n) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+      if (to < 0) return;
+      e.preventDefault(); selectTab(to, true);
+    };
+    return b;
   }));
+  if (refocus) tabs.children[ins.tab]?.focus();
 }
 
 /** In this video: every short fact with the number of scenes it appears in. A chip filters the list and marks its scenes on the scrubber. */
@@ -1423,7 +1462,7 @@ function drawGlance() {
       c.setAttribute("aria-pressed", String(!!on));
       c.ariaLabel = v + ", in " + n + (n === 1 ? " scene" : " scenes");
       c.append(el("span", "n", String(n)));
-      c.onclick = () => { ins.facet = on ? null : [g, v]; ins.open = -1; drawGlance(); drawList(); };
+      c.onclick = () => { ins.facet = on ? null : [g, v]; ins.open = -1; ins.limit = PAGE; drawGlance(); drawList(); };
       chipsBox.append(c);
     });
     if (sorted.length > shown.length) {
@@ -1442,9 +1481,18 @@ const visibleScenes = () => {
   return ins.scenes.filter((sc) => (!q || sc.find.includes(q)) && (!f || sc.values.some(([g, v]) => g === f[0] && v === f[1])));
 };
 
-/** The scene list: time, a two-line title and short facts; a row opens to everything every analyzer found there. */
+/** With nothing to list yet: what the selected analyzer or the index is doing. Its tab already shows a spinner, so no skeleton rows. */
+function emptyText(s) {
+  if (!s) return "Nothing was found in this video.";
+  if (s.status === "failed") return sourceLabel(s) + " failed on this video.";
+  if (s.error) return "Couldn't load what was found. " + s.error;
+  if (!s.segments) return ins.kind === "understanding" ? sourceLabel(s) + " is still working." : "Loading records";
+  return "Nothing was found in this video.";
+}
+
+/** The scene list: time, a two-line title and short facts; a row opens to everything found there. Shown PAGE rows at a time. */
 function drawList() {
-  const shown = visibleScenes(), all = ins.scenes.length, loading = ins.sources.some((s) => s.loading || (s.status === "running" && !s.segments));
+  const shown = visibleScenes(), all = ins.scenes.length, s = ins.sources[ins.kind === "understanding" ? ins.tab : 0];
   const filtered = !!(ins.query.trim() || ins.facet);
   $("i-tools").hidden = !all;
   const status = $("i-count");
@@ -1452,26 +1500,18 @@ function drawList() {
   const known = ins.kind === "index" ? ins.source.record_count : null;
   status.textContent = filtered ? shown.length + " of " + all + " " + noun[1] : known > all ? all + " of " + known + " " + noun[1] + " loaded" : all + " " + noun[all === 1 ? 0 : 1];
   $("i-clear").hidden = !filtered;
-  if (!all) {
-    sceneList.replaceChildren(loading ? skeletonRows() : el("p", "muted empty-list", ins.sources.some((s) => s.error) ? "Couldn't load what was found." : ins.kind === "understanding" && ins.sources.every((s) => s.status === "failed") ? "Every analyzer failed." : loading ? "" : "Nothing was found in this video."));
-  } else if (!shown.length) {
-    sceneList.replaceChildren(el("p", "muted empty-list", "Nothing matches."));
-  } else {
-    sceneList.replaceChildren(...shown.map((sc) => sceneRow(sc)));
-  }
-  const capped = ins.sources.filter((s) => s.total > (s.segments?.length || 0));
-  $("i-note").hidden = !capped.length;
-  $("i-note").textContent = capped.map((s) => "Showing the first " + s.segments.length + " of " + s.total + " segments of " + sourceLabel(s).toLowerCase() + ".").join(" ");
-  const more = $("i-more");
-  more.hidden = !(ins.kind === "index" && ins.cursor);
-  more.disabled = !!ins.sources[0].loading;
+  if (!all) sceneList.replaceChildren(el("p", "muted empty-list", emptyText(s)));
+  else if (!shown.length) sceneList.replaceChildren(el("p", "muted empty-list", "Nothing matches."));
+  else sceneList.replaceChildren(...shown.slice(0, ins.limit).map((sc) => sceneRow(sc)));
+  const capped = s && s.total > (s.segments?.length || 0);
+  $("i-note").hidden = !capped;
+  $("i-note").textContent = capped ? "Showing the first " + s.segments.length + " of " + s.total + " segments of " + sourceLabel(s).toLowerCase() + "." : "";
+  // Rows already loaded show first; then an index loads its next 200 records.
+  const more = $("i-more"), rest = shown.length - ins.limit;
+  more.hidden = !(rest > 0 || (ins.kind === "index" && ins.cursor));
+  more.textContent = rest > 0 ? "Show " + Math.min(PAGE, rest) + " more" : "Load more records";
+  more.disabled = !!s?.loading;
   drawMarks();
-}
-function skeletonRows() {
-  const box = el("div", "scene-skel");
-  box.setAttribute("aria-busy", "true");
-  box.innerHTML = '<p class="sr-only" role="status">Loading</p>' + Array(3).fill('<div class="scene-row" aria-hidden="true"><div class="skel line" style="width:40px"></div><div class="skel line"></div></div>').join("");
-  return box;
 }
 
 function sceneRow(sc) {
@@ -1500,7 +1540,7 @@ function sceneRow(sc) {
   if (open) wrap.append(sceneDetail(sc));
   return wrap;
 }
-/** Everything found in one scene, by analyzer. The headline is already shown above, so it is not repeated. */
+/** Everything found in one scene. The headline is already shown above, so it is not repeated. */
 function sceneDetail(sc) {
   const d = el("div", "scene-detail"), title = headline(sc);
   const sections = [];
@@ -1509,11 +1549,9 @@ function sceneDetail(sc) {
     if (isEmpty(data)) return;
     sections.push([sourceLabel(p.source), segmentView(data)]);
   });
-  const said = sc.said.filter((g) => speechText(g.data));
-  if (said.length) { const box = el("div", "sv"); said.forEach((g) => box.append(segmentView(g.data))); sections.push(["Speech", box]); }
   sections.forEach(([label, view]) => {
     const g = el("section", "sv-section");
-    if (sections.length > 1 || ins.kind === "understanding") g.append(el("p", "sv-head", label));
+    if (sections.length > 1) g.append(el("p", "sv-head", label));
     g.append(view);
     d.append(g);
   });
@@ -1532,7 +1570,7 @@ function insightMarks() {
   $("marks").replaceChildren(...(d && filtered ? visibleScenes() : []).map((sc) => { const k = el("span", "mark"); k.style.left = pct(sc.start / d); k.style.width = pct((sc.end - sc.start) / d); return k; }));
 }
 
-/** On every time update: mark the playing scene, keep it in view inside the list (unless the user just scrolled it), and draw object boxes. */
+/** On every time update: mark the playing scene and draw object boxes. */
 function tick() {
   if (!ins || insight.hidden) return;
   const t = video.currentTime || 0;
@@ -1541,30 +1579,33 @@ function tick() {
   if (i === ins.cur) return;
   ins.cur = i;
   sceneList.querySelectorAll(".scene").forEach((w) => w.firstChild.setAttribute("aria-current", String(+w.dataset.i === i)));
-  const row = sceneList.querySelector('.scene[data-i="' + i + '"]');
-  if (!row || Date.now() - ins.scrolled < 4000) return;
-  const box = sceneList.getBoundingClientRect(), r = row.getBoundingClientRect();
-  if (r.top < box.top || r.bottom > box.bottom) sceneList.scrollTop += r.top - box.top - 8;
 }
 
-/** Object boxes from the detection frame nearest the playing time, placed on the picture inside the letterbox. */
+/**
+ * Object boxes, from any analyzer and whichever tab is open: the segment playing now holds its boxes from one sampled
+ * frame to the next, so sparse sampling (one frame a scene) still shows them. Placed on the picture inside the letterbox.
+ */
+const frameTime = (f) => Number(f?.timestamp ?? f?.timestamp_sec);
 function drawBoxes(t) {
-  let frame = null;
+  const frames = [];
   ins.sources.forEach((s) => (s.segments || []).forEach((g) => {
-    if (t < g.start - 1 || t > g.end + 1 || !Array.isArray(g.data?.frames)) return;
-    g.data.frames.forEach((f) => { if (f && isFinite(f.timestamp) && Math.abs(f.timestamp - t) <= 1 && (!frame || Math.abs(f.timestamp - t) < Math.abs(frame.timestamp - t))) frame = f; });
+    if (t < g.start - 0.05 || t > g.end + 0.05 || !Array.isArray(g.data?.frames)) return;
+    g.data.frames.forEach((f) => { if (f && isFinite(frameTime(f))) frames.push(f); });
   }));
-  const layer = $("boxes"), id = frame ? frame.frame_id || frame.timestamp : "";
-  if (layer.dataset.frame === String(id) && layer.dataset.w === String(vp.clientWidth)) return;
-  layer.dataset.frame = String(id); layer.dataset.w = String(vp.clientWidth);
+  frames.sort((a, b) => frameTime(a) - frameTime(b));
+  const past = frames.filter((f) => frameTime(f) <= t + 0.05), frame = past[past.length - 1] || frames[0];
+  const layer = $("boxes"), key = (frame ? frame.frame_id || frameTime(frame) : "") + "@" + vp.clientWidth + "x" + video.videoWidth;
+  if (layer.dataset.key === key) return;
+  layer.dataset.key = key;
   layer.replaceChildren();
   if (!frame) return;
   const W = vp.clientWidth, H = vp.clientHeight, vw = video.videoWidth || W, vh = video.videoHeight || H, k = Math.min(W / vw, H / vh);
   const w = vw * k, h = vh * k, x0 = (W - w) / 2, y0 = (H - h) / 2;
   (frame.detections || []).forEach((det) => {
-    const bb = det?.box?.box;
+    // Either { box: { box, unit } } or { box: [...], normalized_box: [...] }, corners as x1, y1, x2, y2.
+    const bb = Array.isArray(det?.normalized_box) ? det.normalized_box : Array.isArray(det?.box) ? det.box : det?.box?.box;
     if (!Array.isArray(bb) || bb.length < 4) return;
-    const n = det.box.unit === "normalized" || bb.every((v) => v <= 1) ? [1, 1] : [vw, vh];
+    const n = bb === det.normalized_box || det.box?.unit === "normalized" || bb.every((v) => v <= 1) ? [1, 1] : [vw, vh];
     const b = el("div", "box"), top = y0 + (bb[1] / n[1]) * h;
     b.style.left = x0 + (bb[0] / n[0]) * w + "px"; b.style.top = top + "px";
     b.style.width = ((bb[2] - bb[0]) / n[0]) * w + "px"; b.style.height = ((bb[3] - bb[1]) / n[1]) * h + "px";
@@ -1573,13 +1614,16 @@ function drawBoxes(t) {
     layer.append(b);
   });
 }
-video.addEventListener("timeupdate", () => tick());
-["seeking", "seeked"].forEach((e) => video.addEventListener(e, () => tick()));
-sceneList.addEventListener("wheel", () => { if (ins) ins.scrolled = Date.now(); }, { passive: true });
-sceneList.addEventListener("touchmove", () => { if (ins) ins.scrolled = Date.now(); }, { passive: true });
-$("i-search").addEventListener("input", (e) => { ins.query = e.target.value; ins.open = -1; drawList(); });
-$("i-clear").onclick = () => { ins.query = ""; ins.facet = null; ins.open = -1; $("i-search").value = ""; drawGlance(); drawList(); };
-$("i-more").onclick = () => loadIndexPage();
+// loadedmetadata and resize: the picture's size moves the boxes.
+["timeupdate", "seeking", "seeked", "loadedmetadata"].forEach((e) => video.addEventListener(e, () => tick()));
+window.addEventListener("resize", () => tick());
+$("i-search").addEventListener("input", (e) => { ins.query = e.target.value; ins.open = -1; ins.limit = PAGE; drawList(); });
+$("i-clear").onclick = () => { Object.assign(ins, { query: "", facet: null, open: -1, limit: PAGE }); $("i-search").value = ""; drawGlance(); drawList(); };
+$("i-more").onclick = () => {
+  const more = visibleScenes().length > ins.limit;
+  ins.limit += PAGE;
+  more ? drawList() : loadIndexPage();
+};
 
 // Moments: search hits drawn on the scrubber and listed under the player; picking one plays it and shows its detail.
 let moment = -1;
