@@ -12,7 +12,7 @@ import { sandbox } from "@/lib/toolsets/sandbox";
 import { jobs } from "@/lib/toolsets/jobs";
 import { director } from "@/lib/toolsets/director";
 import { feedback } from "@/lib/toolsets/feedback";
-import { registerEditorApp } from "@/lib/apps/editor";
+import { registerPlayerApp } from "@/lib/apps/player";
 
 /**
  * A toolset is one file in lib/toolsets owning a coherent slice of the SDK.
@@ -54,7 +54,7 @@ export function allTools(toolsets = TOOLSETS): ToolDef<any>[] {
 export async function registerAll(server: McpServer, toolsets = enabledToolsets()): Promise<void> {
   allTools(toolsets); // rejects duplicate names across toolsets
   for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
-  await registerEditorApp(server);
+  registerPlayerApp(server);
 }
 
 /** Register a hand-picked tool list (a profile); `label` is the toolset name telemetry records. */
