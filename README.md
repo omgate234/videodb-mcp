@@ -107,6 +107,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | sandbox | on | `list_sandboxes` | read | List the account's sandboxes with their status, tier and prepared models. |
 | sandbox | on | `stop_sandbox` | destructive | Stop a sandbox and end its billing. |
 | jobs | on | `get_job_result` | read | Fetch the result of a background job started by upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript or translate_transcript. |
+| feedback | on | `submit_feedback` | create | Send product feedback about this VideoDB connector to the VideoDB team. |
 <!-- tools:end -->
 
 No AI media *generation* tools are exposed (VideoDB's `generate*`/dub/voice-clone endpoints exist but are excluded — the Anthropic directory does not accept AI image/video/audio generation). Desktop capture is deliberately not exposed at all — the capture client is a local native binary talking over a long-lived socket, so neither it nor the capture sessions it produces belong in a remote connector.

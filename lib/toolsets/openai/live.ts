@@ -16,7 +16,7 @@ export const createRtstreamAlert = defineTool({
   openWorld: true,
   input: z.object({
     rtstream_id: RTSTREAM_ID,
-    index_id: z.string().describe("Scene index ID (rsi-…, from index_rtstream_scenes) or index ID (idx-…, from create_rtstream_index) to watch."),
+    index_id: z.string().describe("Scene index ID (rsi-…, from index_rtstream_scenes) to watch."),
     event_prompt: z.string().describe("Condition to detect, e.g. 'a person enters the restricted area'."),
     event_label: z.string().optional().describe("Short label for the event; derived from the prompt if omitted."),
     // CALLBACK_URL is optional for fire-and-forget jobs; an alert has nowhere to deliver without one.
