@@ -5,6 +5,8 @@ import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
 import { asAccountBlocked, asInputRejected, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
+import { openClientId } from "@/lib/oauth";
+import { endToolSpan, startAttributes, toolOutcome, withToolSpan } from "@/lib/otel/tool";
 
 /**
  * Tool kinds map 1:1 onto the annotations the Anthropic directory requires.
@@ -159,15 +161,27 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
     async (args: unknown, ctx: unknown) => {
       const started = performance.now();
       const auth = authInfoFrom(ctx);
+      const clientId = typeof auth?.clientId === "string" ? auth.clientId : undefined;
+      const userId = typeof auth?.extra?.userId === "string" ? auth.extra.userId : undefined;
       let apiKey: string | undefined;
-      let settled: Settled;
-      try {
-        apiKey = apiKeyFrom(ctx);
-        settled = await run(def, args as never, client(apiKey));
-        if (settled.blocked) settled = { ...settled, result: { content: [text(withPromoLink(settled.blocked))] } };
-      } catch (e) {
-        settled = settleError(e, def); // no credential in the token
-      }
+      const spanAttrs = startAttributes({ name: def.name, kind: def.kind, toolset }, args, {
+        userId,
+        client: clientId ? openClientId(clientId)?.name : undefined,
+      });
+      const settled = await withToolSpan(spanAttrs, async (span) => {
+        let s: Settled;
+        try {
+          apiKey = apiKeyFrom(ctx);
+          s = await run(def, args as never, client(apiKey));
+          if (s.blocked) s = { ...s, result: { content: [text(withPromoLink(s.blocked))] } };
+        } catch (e) {
+          s = settleError(e, def); // no credential in the token
+        }
+        const outcome = toolOutcome(s.outcome, { blocked: Boolean(s.blocked), isError: Boolean(s.result.isError), authed: apiKey !== undefined });
+        endToolSpan(span, outcome, s.outcome);
+        return s;
+      });
+      // Outside the span, so the telemetry POST is not part of the tool's trace.
       recordToolCall({
         tool: def.name,
         toolset,
@@ -178,9 +192,9 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
         latencyMs: performance.now() - started,
         apiKey,
         email: typeof auth?.extra?.email === "string" ? auth.extra.email : undefined,
-        userId: typeof auth?.extra?.userId === "string" ? auth.extra.userId : undefined,
+        userId,
         userName: typeof auth?.extra?.userName === "string" ? auth.extra.userName : undefined,
-        clientId: typeof auth?.clientId === "string" ? auth.clientId : undefined,
+        clientId,
       });
       return settled.result;
     }

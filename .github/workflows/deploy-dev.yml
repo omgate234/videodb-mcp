@@ -40,7 +40,8 @@ jobs:
       - name: Create revision with no traffic
         run: |
           az containerapp update -n "$APP" -g ${{ vars.RESOURCE_GROUP }} \
-            --image "$IMAGE" --revision-suffix r${{ github.run_number }}-${{ github.run_attempt }} -o none
+            --image "$IMAGE" --revision-suffix r${{ github.run_number }}-${{ github.run_attempt }} \
+            --set-env-vars "OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=dev,service.version=${{ github.sha }}" -o none
 
       - name: Smoke test the new revision
         run: |
