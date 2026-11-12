@@ -10,8 +10,8 @@ import { SampledOnlyPropagator, ToolCallSampler } from "@/lib/otel/sampler";
 
 /** Start tracing: tool-call spans plus outbound HTTP, exported over OTLP/HTTP. */
 export function startOtel(): void {
-  const token = process.env.OTEL_INGEST_TOKEN?.trim();
-  const exporter = new OTLPTraceExporter(token ? { headers: { Authorization: `Bearer ${token}` } } : {});
+  // Endpoint and auth come from OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS.
+  const exporter = new OTLPTraceExporter();
 
   const attrs: Record<string, string> = { "service.name": "videodb-mcp", "service.namespace": "mcp", "cloud.provider": "azure" };
   if (process.env.CONTAINER_APP_REPLICA_NAME) attrs["service.instance.id"] = process.env.CONTAINER_APP_REPLICA_NAME;
