@@ -57,11 +57,32 @@ describe("get_job_result", () => {
     expect(data).toEqual({ status: "done", output_url: dl, result: { id: "dl-1", status: "done", download_url: "https://files/x.mp4" } });
   });
 
-  it("surfaces a failed job as a tool error with the server message", async () => {
+  it("reports a failed job as a successful read with the server message", async () => {
     const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "done", response: { success: false, message: "Unsupported codec" } }) });
     const { isError, data } = await call(get, { output_url: URL_ }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "failed", output_url: URL_, message: "Unsupported codec" });
+  });
+
+  it("reports a failed status without success:false as failed too", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", message: "Source unreachable" }) });
+    const { isError, data } = await call(get, { output_url: URL_ }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "failed", output_url: URL_, message: "Source unreachable" });
+  });
+
+  it("returns whatever a finished job answered, even without a result object", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "done", response: "N/A" }) });
+    const { isError, data } = await call(get, { output_url: URL_ }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "done", output_url: URL_, result: "N/A" });
+  });
+
+  it("still errors when the fetch itself fails", async () => {
+    const vdb = fakeConnection();
+    vdb.http.get.mockRejectedValueOnce(new Error("socket hang up"));
+    const { isError } = await call(get, { output_url: URL_ }, vdb);
     expect(isError).toBe(true);
-    expect(String(data)).toContain("Unsupported codec");
   });
 });
 
