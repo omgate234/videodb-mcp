@@ -72,6 +72,32 @@ export async function fetchJob(vdb: Connection, outputUrl: string): Promise<JobO
   return settle(await vdb.vhttp.get([outputUrl], undefined, NO_POLL), "Job", outputUrl);
 }
 
+export type JobRead =
+  | JobStarted
+  | { status: "done"; output_url: string; result: unknown }
+  | { status: "failed"; output_url: string; message: string };
+
+const FAILED = new Set(["failed", "error"]);
+
+/**
+ * get_job_result's view of a job: any body VideoDB answers with is the job's state,
+ * so a failed job is a successful read. Only the HTTP call itself can throw.
+ */
+export async function readJob(vdb: Connection, outputUrl: string): Promise<JobRead> {
+  const body: unknown = await vdb.vhttp.get([outputUrl], undefined, NO_POLL);
+  if (!isRecord(body)) return { status: "done", output_url: outputUrl, result: body ?? null };
+  const response = body.response;
+  const rejected = body.success === false ? body : isRecord(response) && response.success === false ? response : undefined;
+  const status = String(body.status).toLowerCase();
+  if (rejected || FAILED.has(status)) {
+    const message = (rejected ?? body).message;
+    return { status: "failed", output_url: outputUrl, message: typeof message === "string" && message ? message : "VideoDB reported the job failed." };
+  }
+  if (PROCESSING.has(status)) return jobStarted("Job", isRecord(body.data) ? body.data.id : undefined, outputUrl);
+  const result = "response" in body ? (isRecord(response) ? response.data : response) : body.data;
+  return { status: "done", output_url: outputUrl, result: isRecord(result) ? shapeResult(result) : (result ?? body) };
+}
+
 /** output_url is fetched with the user's API key attached, so it must point at VideoDB. */
 export function isVideodbUrl(url: string): boolean {
   let target: URL;
