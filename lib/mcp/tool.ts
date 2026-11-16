@@ -39,6 +39,8 @@ export interface ToolDef<S extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.Zo
   handler: (args: z.infer<S>, vdb: Connection) => Promise<unknown>;
   deadlineLabel?: string;
   retryWith?: string;
+  /** Telemetry outcome for a returned result; lets a tool log a failure it reports to the model as a result. */
+  outcome?: (result: unknown) => Outcome | undefined;
 }
 
 /**
@@ -135,7 +137,7 @@ export async function run<S extends z.ZodObject<z.ZodRawShape>>(
     const result = await withDeadline(def.handler(args, vdb), def.deadlineLabel ?? def.title, {
       retryWith: def.retryWith,
     });
-    return { result: { content: [text(toPlain(result) ?? { ok: true })] }, outcome: { status: "success" } };
+    return { result: { content: [text(toPlain(result) ?? { ok: true })] }, outcome: def.outcome?.(result) ?? { status: "success" } };
   } catch (e) {
     return settleError(e, def);
   }

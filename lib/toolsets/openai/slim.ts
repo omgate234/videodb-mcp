@@ -111,7 +111,7 @@ export const addSubtitlesSlim = defineTool({
 export const reframeVideoSlim = defineTool({
   ...reframeVideo,
   description:
-    "Re-crop a video, or start..end seconds of it, to a new aspect ratio as a new video in the same collection; smart tracks subjects, simple centre-crops. Returns {status:'processing', output_url}; poll get_job_result (~30 s apart) for the new video, or {accepted:true} with callback_url.",
+    "Re-crop a video, or start..end seconds of it, to a new aspect ratio as a new video in the same collection; smart tracks subjects, simple centre-crops. Returns {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result for the new video, or {accepted:true} with callback_url.",
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
@@ -178,7 +178,7 @@ const TRACK = z.object({ z_index: z.number().int().optional(), clips: z.array(CL
 export const renderTimelineSlim = defineTool({
   ...renderTimeline,
   description:
-    "Render a multi-track timeline into a new stream. Tracks stack by z_index; each clip places an asset (video/image/audio by existing VideoDB id, styled text, or caption) at a start time for a duration. Caption 'auto' needs a spoken-word index on the video, else the render yields zero captions without error. Text width/height are honoured only under fit 'contain' (default 'crop' scales the box to the frame). Returns {status:'processing', output_url}; poll get_job_result (~30 s apart) for stream_url and player_url; download_stream makes an MP4.",
+    "Render a multi-track timeline into a new stream. Tracks stack by z_index; each clip places an asset (video/image/audio by existing VideoDB id, styled text, or caption) at a start time for a duration. Caption 'auto' needs a spoken-word index on the video, else it silently yields zero captions. Text width/height are honoured only under fit 'contain' (default 'crop' scales the box to the frame). Returns {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or get_job_result for stream_url and player_url; download_stream makes an MP4.",
   input: z.object({
     tracks: z.array(TRACK).min(1),
     background: HEX.optional(),

@@ -63,14 +63,14 @@ export const OPENAI_PROFILE: ToolDef<any>[] = [
   pick("generate_clip"),
   pick(
     "compile_clips",
-    "Stitch moments from one or more videos into a single new stream — e.g. turn search_video results into a highlight reel. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns stream_url and player_url."
+    "Stitch moments from one or more videos into a single new stream — e.g. turn search_video results into a highlight reel. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns stream_url and player_url."
   ),
   addSubtitlesSlim,
   reframeVideoSlim,
   renderTimelineSlim,
   pick(
     "download_stream",
-    "Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles, render_timeline or get_asset) into a downloadable MP4 file. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns download_url. A stream that was already exported answers with download_url at once."
+    "Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles, render_timeline or get_asset) into a downloadable MP4 file. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns download_url. A stream that was already exported answers with download_url at once."
   ),
   // live
   pick(

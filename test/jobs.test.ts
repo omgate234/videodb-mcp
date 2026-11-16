@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { jobs } from "@/lib/toolsets/jobs";
 import { settle, isVideodbUrl, shapeResult } from "@/lib/videodb/jobs";
 import { call, fakeConnection, raw, toolNamed } from "./harness";
+import { run } from "@/lib/mcp/tool";
 
 const get = toolNamed(jobs, "get_job_result");
 const URL_ = "https://api.videodb.io/async-response/job-1";
@@ -69,6 +70,18 @@ describe("get_job_result", () => {
     const { isError, data } = await call(get, { output_url: URL_ }, vdb);
     expect(isError).toBe(false);
     expect(data).toEqual({ status: "failed", output_url: URL_, message: "Source unreachable" });
+  });
+
+  it("records a failed job as an error in telemetry while the model sees a result", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", message: "Source unreachable" }) });
+    const { result, outcome } = await run(get, { output_url: URL_ }, vdb);
+    expect(result.isError).toBeUndefined();
+    expect(outcome).toEqual({ status: "error", errorType: "JobFailed", errorMessage: "Source unreachable" });
+  });
+
+  it("records a processing or finished read as success", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "processing", data: { id: "j1" } }) });
+    expect((await run(get, { output_url: URL_ }, vdb)).outcome).toEqual({ status: "success" });
   });
 
   it("returns whatever a finished job answered, even without a result object", async () => {

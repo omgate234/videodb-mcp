@@ -33,7 +33,7 @@ const jobStarted = (label: string, id: unknown, output_url: string): JobStarted 
   ...(typeof id === "string" ? { job_id: id } : {}),
   output_url,
   poll_with: "get_job_result",
-  message: `${label} accepted; VideoDB is processing it in the background. Call get_job_result with this output_url in ~30 s and keep polling while status is "processing".`,
+  message: `${label} accepted; VideoDB is processing it in the background. Poll this output_url in ~30 s with an HTTP GET or with get_job_result, and keep polling while status is "processing".`,
 });
 
 const isRecord = (v: unknown): v is Raw => typeof v === "object" && v !== null && !Array.isArray(v);
