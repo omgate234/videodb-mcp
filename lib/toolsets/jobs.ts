@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
-import { isVideodbUrl, readJob } from "@/lib/videodb/jobs";
+import { isVideodbUrl, readJob, type JobRead } from "@/lib/videodb/jobs";
 
 /** Read side of the async job protocol; every job-starting tool points here. */
 
@@ -15,6 +15,11 @@ const getJobResult = defineTool({
   handler: async ({ output_url }, vdb) => {
     if (!isVideodbUrl(output_url)) throw new Error("output_url must be a VideoDB job URL returned by another tool.");
     return readJob(vdb, output_url);
+  },
+  // The model gets {status:'failed'} as a result; observ still records the job failure.
+  outcome: (r) => {
+    const read = r as JobRead;
+    return read.status === "failed" ? { status: "error", errorType: "JobFailed", errorMessage: read.message } : undefined;
   },
 });
 

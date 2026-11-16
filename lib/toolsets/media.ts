@@ -92,7 +92,7 @@ const uploadMedia = defineTool({
   name: "upload_media",
   title: "Upload media from URL",
   description:
-    "Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Returns immediately with {status:'processing', output_url}; poll get_job_result with that output_url (~30 s apart) until it returns the created media record with its ID and player URL. Do not call upload_media again while the job is processing. With callback_url VideoDB calls your webhook instead.",
+    "Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). Set media_type to 'audio' or 'image' when the URL is not a video — it is uploaded as a video otherwise. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns the created media record with its ID and player URL. Do not call upload_media again while the job is processing. With callback_url VideoDB calls your webhook instead.",
   kind: "create",
   openWorld: true,
   input: z.object({
