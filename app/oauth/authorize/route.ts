@@ -9,6 +9,7 @@ import {
   publicOrigin,
   directorFeOrigin,
   consentUrl,
+  resourceAllowed,
   SCOPES,
 } from "@/lib/oauth";
 import { consentPage } from "@/lib/consent-page";
@@ -77,6 +78,13 @@ export async function GET(req: Request) {
 
   const scope = p.get("scope") || SCOPES.join(" ");
   const resource = p.get("resource") ?? undefined;
+  if (resource !== undefined && !resourceAllowed(req, resource)) {
+    return redirectWith(req, redirectUri, {
+      error: "invalid_target",
+      error_description: "This server does not issue tokens for that resource.",
+      state,
+    });
+  }
 
   const reqToken = mintConsentRequest({
     client_id: clientId,

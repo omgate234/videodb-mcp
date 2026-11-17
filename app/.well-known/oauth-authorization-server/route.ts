@@ -1,4 +1,4 @@
-import { publicOrigin, corsPreflight, CORS_HEADERS, SCOPES } from "@/lib/oauth";
+import { publicOrigin, corsPreflight, CORS_HEADERS, SCOPES, introspectionClient } from "@/lib/oauth";
 
 /** OAuth 2.0 Authorization Server Metadata (RFC 8414). */
 export async function GET(req: Request) {
@@ -9,6 +9,10 @@ export async function GET(req: Request) {
       authorization_endpoint: `${origin}/oauth/authorize`,
       token_endpoint: `${origin}/oauth/token`,
       registration_endpoint: `${origin}/oauth/register`,
+      ...(introspectionClient() && {
+        introspection_endpoint: `${origin}/oauth/introspect`,
+        introspection_endpoint_auth_methods_supported: ["client_secret_basic"],
+      }),
       response_types_supported: ["code"],
       response_modes_supported: ["query"],
       grant_types_supported: ["authorization_code", "refresh_token"],

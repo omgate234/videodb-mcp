@@ -178,6 +178,24 @@ export function acceptedMcpAudiences(req: Request): string[] {
   return MCP_PATHS.map((p) => mcpResourceUrl(req, p));
 }
 
+/** MCP servers on other origins that take our tokens and verify them at /oauth/introspect. */
+export function externalResources(env = process.env.EXTERNAL_MCP_RESOURCES): string[] {
+  return (env ?? "").split(",").map((s) => s.trim()).filter(Boolean).map(canonicalResource);
+}
+
+/** RFC 8707: a token may only be minted for our own MCP paths or a configured external resource. */
+export function resourceAllowed(req: Request, resource: string): boolean {
+  const r = canonicalResource(resource);
+  return acceptedMcpAudiences(req).includes(r) || externalResources().includes(r);
+}
+
+/** Basic-auth credentials of the resource server allowed to call /oauth/introspect. */
+export function introspectionClient(): { id: string; secret: string } | null {
+  const id = process.env.INTROSPECTION_CLIENT_ID?.trim();
+  const secret = process.env.INTROSPECTION_CLIENT_SECRET?.trim();
+  return id && secret ? { id, secret } : null;
+}
+
 /**
  * Redirect URI validation: exact match against the registered list, except
  * loopback URIs (RFC 8252) where the port is ignored — Claude Code and MCP
