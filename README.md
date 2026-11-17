@@ -19,7 +19,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | collections | on | `list_collections` | read | List all collections in the connected VideoDB account, with their IDs, names, descriptions and visibility. |
 | collections | on | `get_collection` | read | Get one collection's ID, name, description and public/private visibility. |
 | collections | on | `create_collection` | create | Create a new VideoDB collection to organize videos. |
-| collections | on | `update_collection` | update | Rename a collection, change its description, or switch it between public and private. |
+| collections | on | `update_collection` | destructive | Rename a collection, change its description, or switch it between public and private. |
 | collections | on | `delete_collection` | destructive | Permanently delete a collection and everything in it. |
 | collections | on | `get_account_usage` | read | Get the connected VideoDB account's current usage and billing summary as reported by VideoDB. |
 | collections | on | `list_invoices` | read | List the connected VideoDB account's invoices (first 200; `truncated` is set when more exist). |
@@ -32,7 +32,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | media | on | `get_image` | read | Get metadata for one image: name and URL. |
 | media | on | `upload_media` | create | Start uploading a video, audio file, or image into VideoDB from a public URL (direct file links and YouTube URLs both work). |
 | media | on | `search_videos_by_title` | read | Find videos in a collection whose title matches a natural-language query. |
-| media | on | `update_video` | update | Update a video's display name. |
+| media | on | `update_video` | destructive | Update a video's display name. |
 | media | on | `generate_thumbnail` | create | Get the default thumbnail of a video, or generate one from a specific timestamp (in seconds). |
 | media | on | `list_thumbnails` | read | List every thumbnail image generated for a video (see generate_thumbnail), with image IDs and URLs. |
 | media | on | `get_media_download_url` | read | Get a signed, time-limited download URL for an audio file (a-) or image (img-). |
@@ -70,7 +70,7 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | streams | on | `generate_clip` | create | Cut a clip (or a supercut of several segments) from a single video without re-encoding. |
 | streams | on | `compile_clips` | create | Stitch moments from one or more videos into a single new stream — e.g. |
 | streams | on | `add_subtitles` | create | Burn subtitles into a video from its transcript (requires an existing spoken-word index). |
-| streams | on | `create_highlight_clip` | create | Pick the moments of a video that match a natural-language prompt. |
+| streams | on | `create_highlight_clip` | create | Create a highlight clip of a video from a natural-language prompt: selects the moments that match the prompt and returns them as the clip's timestamped shots. |
 | streams | on | `reframe_video` | create | Re-crop a video (or a segment of it) to a new aspect ratio — vertical, square, landscape or custom dimensions — and save it as a new video in the same collection. |
 | streams | on | `download_stream` | create | Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles or get_video) into a downloadable MP4 file. |
 | editor | on | `render_timeline` | create | Render a multi-track editor timeline into a new stream in one call. |
@@ -106,6 +106,13 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | sandbox | on | `get_sandbox` | read | Get one sandbox: its status, tier, prepared models and lifetime. |
 | sandbox | on | `list_sandboxes` | read | List the account's sandboxes with their status, tier and prepared models. |
 | sandbox | on | `stop_sandbox` | destructive | Stop a sandbox and end its billing. |
+| director | off | `list_datasets` | read | The datasets in the hosted robot-learning and human-activity corpus that dataset_search searches. |
+| director | off | `dataset_search` | create | Search a hosted corpus of 30+ public robot-learning and human-activity datasets (robot and humanoid manipulation, real and simulated, drone flights, egocentric and exocentric human video) for training data. |
+| director | off | `get_search_status` | read | Poll a dataset_search turn by its msg_id; returns immediately. |
+| director | off | `get_result_set` | read | Summary of a result set from dataset_search: name, count (rows), video_count, scope (the query and filters that built it), complete (false when a cap cut it short), tiers (confirmed/partial/rejected/unjudged counts, when judged), score range, and the top value counts of each low-cardinality field (e.g. |
+| director | off | `list_result_shots` | read | Rows of a result set, at most 200 per page. |
+| director | off | `export_result_set` | create | Export a result set from dataset_search as downloadable training data, by content_id, in the set's rank order: at most 50 rows per call for lerobot or rlds, 10 for mcap (also the fallback when formats is omitted). |
+| director | off | `get_export_status` | read | Poll an export_result_set job by export_id every 15–30 s until status is 'complete' or 'failed'. |
 | jobs | on | `get_job_result` | read | Fetch the result of a background job started by upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript or translate_transcript. |
 | feedback | on | `submit_feedback` | create | Send product feedback about this VideoDB connector to the VideoDB team. |
 <!-- tools:end -->

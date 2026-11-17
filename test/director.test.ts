@@ -41,6 +41,7 @@ describe("director toolset", () => {
 
   it("maps each tool onto its route", async () => {
     const cases: [string, Record<string, unknown>, string, string, unknown][] = [
+      ["list_datasets", {}, "GET", "/corpus", undefined],
       ["get_search_status", { msg_id: "m/1" }, "GET", "/search/m%2F1", undefined],
       ["get_result_set", { content_id: "srs-1" }, "GET", "/result-sets/srs-1", undefined],
       ["list_result_shots", { content_id: "srs-1", where: { tier: "confirmed" } }, "POST", "/result-sets/srs-1/shots",
