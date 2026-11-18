@@ -45,7 +45,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | Desktop capture in full: the capture client (`videodb/capture`), capture sessions (`Collection.listCaptureSessions`/`getCaptureSession`, `CaptureSession.*`), `WebSocketConnection`, `generateClientToken` | Capture is driven by a local native binary over a long-lived socket, with `generateClientToken` minting the secret for it. None of that surface — including the sessions it produces — belongs in a remote connector |
 | `uploadFile` (local path), `play()` | Filesystem / spawns browser |
 | Scene collections (`extractScenes` & CRUD), `Scene/Frame.describe`, `indexAudio`, `insertVideo` | v1 manual pipeline internals — deferred to v2 backlog |
-| `index_spoken_words`, `index_scenes` | Removed from MCP; new indexes use `understand_video` → `create_index`. Existing legacy search and scene-index management remain available. |
+| `index_spoken_words`, `index_scenes` | Removed from MCP; new indexes use `understand_video` → `create_index`. Legacy scene-index management remains available. |
 
 Kept although model-backed (understanding/editing, not generation): `ask`, `translateTranscript`, `generateTranscript`, `understand`, `reframe`, `clip`.
 
@@ -106,7 +106,6 @@ Legend: R read · C create · U update · D destructive. "SDK" names the call th
 | Tool | Kind | SDK | Notes |
 | --- | --- | --- | --- |
 | `search_video` ★ / `search_collection` ★ | R | `Video.search` / `Collection.search` | v2 params only (`top_k`, `mode`, `include_clip`, `session_id`) |
-| `legacy_search_video` / `legacy_search_collection` | R | `Video.legacySearch` / `Collection.legacySearch` | v1 params only; split out because the SDK throws when the two families are mixed |
 | `ask_video` / `ask_collection` | R | `Video.ask` / `Collection.ask` (`{topK, mode, includeSources}`) | answer + sources shots |
 | `semantic_search` | R | `Video.semanticSearch` / `Collection.semanticSearch` | `video_id` optional → collection scope; `index_names`, `index_ids`, `top_k`, `score_threshold`, `filter` |
 | `query_index` | R | `Video.query` / `Collection.query` | structured filter/sort |

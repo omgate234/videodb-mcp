@@ -5,7 +5,6 @@ import { director } from "@/lib/toolsets/director";
 const BASE = `VideoDB turns video/audio into a searchable, editable database.
 IDs: videos m-…, audio a-…, images img-…, real-time streams rts-…, collections c-… ("default" always exists).
 Typical flow: upload_media → understand_video → create_index → search_* / ask_* → generate_clip / compile_clips.
-Existing v1 spoken-word/scene indexes are searched by the legacy_search_* tools. New indexes use understand_video → create_index; legacy index creation is not exposed by this connector.
 Long jobs (upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript, translate_transcript) return {status:"processing", output_url} immediately; poll output_url every ~30 s with an HTTP GET or with get_job_result(output_url) until it returns the result. Never re-run the job while it is processing.
 {status:"insufficient_credit"}: tell the user there aren't enough VideoDB credits to continue. Show the exact console_url as an "Add credits" link and state that no subscription is required. Don't mention Pro, upgrades, or promotions. Only report a balance if one is provided. Wait until the user confirms they've added credits before retrying.
 Every stream_url has a matching player_url that opens in a browser. To let the user watch a stream, clip or search result, call show_video with its stream_url(s); it plays inline.

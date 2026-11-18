@@ -60,8 +60,6 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | indexing | on | `get_index_records` | read | Page through the records stored in a v2 index (scene_id, start, end, data). |
 | search | on | `search_video` | read | Search within one video and get matching moments with start/end timestamps, text, and relevance scores. |
 | search | on | `search_collection` | read | Search every indexed video in a collection and get matching moments grouped by video, with timestamps and scores. |
-| search | on | `legacy_search_video` | read | Search within one video and get matching moments with start/end timestamps, text, and relevance scores. |
-| search | on | `legacy_search_collection` | read | Search every indexed video in a collection and get matching moments grouped by video, with timestamps and scores. |
 | search | on | `ask_video` | read | Answer a natural-language question from one video's indexed content (requires an index built by create_index). |
 | search | on | `ask_collection` | read | Answer a natural-language question from every indexed video in a collection (requires indexes built by create_index). |
 | search | on | `semantic_search` | read | Vector search over one or more indexes built by create_index (use_for includes 'semantic') in a video or across a collection. |
