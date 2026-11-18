@@ -53,7 +53,7 @@ describe("registry", () => {
   it("gates toolsets by env", () => {
     expect(enabledToolsets("").every((t) => t.defaultEnabled)).toBe(true);
     expect(enabledToolsets("all")).toHaveLength(TOOLSETS.length);
-    expect(enabledToolsets("media,search").map((t) => t.name)).toEqual(["media", "search", "jobs"]); // jobs rides along: it reads what the others start
+    expect(enabledToolsets("media,search").map((t) => t.name)).toEqual(["media", "search", "jobs", "feedback"]); // jobs reads what the others start; feedback is always offered
     expect(() => enabledToolsets("nope")).toThrow(/Unknown toolset/);
   });
 });
@@ -189,10 +189,11 @@ describe("gateway timeouts", () => {
     }
   });
 
-  it("keeps a 400 a hard failure with the API's message", async () => {
+  it("returns a 400 as a rejected-input result carrying the API's message", async () => {
     const res = await call(failingTool(apiError(400, "Invalid start time"), "get_rtstream"), {}, fakeConnection());
-    expect(res.isError).toBe(true);
-    expect(res.data).toBe("Error: VideoDB rejected the request (HTTP 400): Invalid start time");
+    expect(res.isError).toBe(false);
+    expect(res.data).toMatchObject({ status: "rejected", http_status: 400, action_required: "fix_arguments" });
+    expect((res.data as { message: string }).message).toMatch(/^Invalid start time/);
   });
 
   it("keeps an ambiguous 500 a hard failure", async () => {
@@ -242,7 +243,7 @@ describe("insufficient credit", () => {
   });
 
   it("leaves unrelated failures as errors", async () => {
-    const res = await call(failingTool(apiError(400, "Invalid start time")), {}, fakeConnection());
+    const res = await call(failingTool(apiError(500, "Internal server error")), {}, fakeConnection());
     expect(res.isError).toBe(true);
   });
 

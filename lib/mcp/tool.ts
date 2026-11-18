@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { asAccountBlocked, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
+import { asAccountBlocked, asInputRejected, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
 import { openClientId } from "@/lib/oauth";
 import { endToolSpan, startAttributes, toolOutcome, withToolSpan } from "@/lib/otel/tool";
@@ -39,6 +39,8 @@ export interface ToolDef<S extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.Zo
   handler: (args: z.infer<S>, vdb: Connection) => Promise<unknown>;
   deadlineLabel?: string;
   retryWith?: string;
+  /** Telemetry outcome for a returned result; lets a tool log a failure it reports to the model as a result. */
+  outcome?: (result: unknown) => Outcome | undefined;
 }
 
 /**
@@ -111,6 +113,14 @@ export function settleError(e: unknown, def: ToolDef<any>): Settled {
   const blocked = asAccountBlocked(e);
   if (blocked) return { result: { content: [text(blocked)] }, outcome: { status: "success" }, blocked };
   const message = describeError(e);
+  // A refused input is the caller's to fix: a plain result for the model, an error row for telemetry.
+  const rejected = asInputRejected(e);
+  if (rejected) {
+    return {
+      result: { content: [text(rejected)] },
+      outcome: { status: "error", errorType: errorType(e), errorMessage: message, httpStatus: rejected.http_status },
+    };
+  }
   return {
     result: { content: [text(`Error: ${message}`)], isError: true },
     outcome: { status: "error", errorType: errorType(e), errorMessage: message, httpStatus: httpStatus(e) },
@@ -127,7 +137,7 @@ export async function run<S extends z.ZodObject<z.ZodRawShape>>(
     const result = await withDeadline(def.handler(args, vdb), def.deadlineLabel ?? def.title, {
       retryWith: def.retryWith,
     });
-    return { result: { content: [text(toPlain(result) ?? { ok: true })] }, outcome: { status: "success" } };
+    return { result: { content: [text(toPlain(result) ?? { ok: true })] }, outcome: def.outcome?.(result) ?? { status: "success" } };
   } catch (e) {
     return settleError(e, def);
   }

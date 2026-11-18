@@ -17,12 +17,20 @@ describe("outcome classification", () => {
   });
 
   it("a thrown error is an error with its class, message and upstream status", async () => {
-    const err = new InvalidRequestError({ status: 404, statusText: "Not Found", data: {} } as never, { cause: "no such video" } as never);
+    const err = new InvalidRequestError({ status: 500, statusText: "Server Error", data: {} } as never, { cause: "boom" } as never);
     const { result, outcome } = await run(tool(async () => { throw err; }), {}, fakeConnection());
     expect(result.isError).toBe(true);
     expect(outcome.status).toBe("error");
     expect(outcome.errorType).toBe("InvalidRequestError");
-    expect(outcome.httpStatus).toBe(404);
+    expect(outcome.httpStatus).toBe(500);
+    expect(outcome.errorMessage).toContain("boom");
+  });
+
+  it("a rejected input is a plain result for the model but an error row for telemetry", async () => {
+    const err = new InvalidRequestError({ status: 404, statusText: "Not Found", data: {} } as never, { cause: "no such video" } as never);
+    const { result, outcome } = await run(tool(async () => { throw err; }), {}, fakeConnection());
+    expect(result.isError).toBeUndefined();
+    expect(outcome).toMatchObject({ status: "error", errorType: "InvalidRequestError", httpStatus: 404 });
     expect(outcome.errorMessage).toContain("no such video");
   });
 

@@ -11,7 +11,7 @@ import { rtstream } from "@/lib/toolsets/rtstream";
 import { sandbox } from "@/lib/toolsets/sandbox";
 import { jobs } from "@/lib/toolsets/jobs";
 import { director } from "@/lib/toolsets/director";
-import { registerEditorApp } from "@/lib/apps/editor";
+import { feedback } from "@/lib/toolsets/feedback";
 import { registerPlayerApp } from "@/lib/apps/player";
 
 /**
@@ -26,7 +26,7 @@ export interface Toolset {
   tools: ToolDef<any>[];
 }
 
-export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, sandbox, director, jobs];
+export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, sandbox, director, jobs, feedback];
 
 export function enabledToolsets(env = process.env.VIDEODB_MCP_TOOLSETS): Toolset[] {
   const raw = env?.trim();
@@ -37,6 +37,7 @@ export function enabledToolsets(env = process.env.VIDEODB_MCP_TOOLSETS): Toolset
   if (unknown.length) throw new Error(`Unknown toolset(s) in VIDEODB_MCP_TOOLSETS: ${unknown.join(", ")}`);
   // Every job-starting tool hands back an output_url that only get_job_result can read.
   wanted.add(jobs.name);
+  wanted.add(feedback.name);
   return TOOLSETS.filter((t) => wanted.has(t.name));
 }
 
@@ -54,7 +55,6 @@ export async function registerAll(server: McpServer, toolsets = enabledToolsets(
   allTools(toolsets); // rejects duplicate names across toolsets
   for (const ts of toolsets) for (const tool of ts.tools) register(server, tool, ts.name);
   registerPlayerApp(server);
-  await registerEditorApp(server);
 }
 
 /** Register a hand-picked tool list (a profile); `label` is the toolset name telemetry records. */

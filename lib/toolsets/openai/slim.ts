@@ -36,9 +36,9 @@ const SEGMENTATION = z.union([
 
 export const understandVideoSlim = defineTool({
   ...understandVideo,
-  description: `Run analyzers over a video to extract timed artifacts. Artifacts are not searchable until create_index runs on them (then semantic_search/query_index/aggregate_index). Poll get_understanding; read with get_analyzer_output.
+  description: `Run analyzers over a video to extract timed artifacts. Artifacts are not searchable until create_index runs on them (then search_video / search_collection). Poll get_understanding until the analyzer is done.
 Default names: spoken_words→transcript, vlm→scene, ocr→text, object_detection→objects, brand_detection→brands, activity_recognition→activity, location_detection→location.
-config by type: spoken_words: language, speaker_labels. vlm: model, prompt, schema (JSON output), sandbox_id. object_detection: sandbox_id (required), labels (COCO 80), confidence_threshold, include_bounding_boxes. Rest: model. model = hosted tier mini|basic|pro|ultra or a provider id. object_detection and open-weight VLMs need a sandbox: create_sandbox → get_sandbox until active → config.sandbox_id; stop_sandbox after (bills while running).
+config by type: spoken_words: language, speaker_labels. vlm: model, prompt, schema (JSON output), sandbox_id. object_detection: sandbox_id (required), labels (COCO 80), confidence_threshold, include_bounding_boxes. Rest: model. model = hosted tier mini|basic|pro|ultra or a provider id. object_detection and open-weight VLMs need a GPU sandbox this plugin cannot start; prefer hosted models.
 inputs: use {{inputs.transcript}} in a prompt, else appended.
 segmentation (run-wide): shot threshold 30 (default) for edited video, time seconds N for unedited footage. sampling (run or analyzer level): uniform frame_count 4-8 for scenes, interval every N s for brief text/motion; spoken_words ignores it. transform resolution '480p' cuts cost.`,
   input: z.object({
@@ -56,17 +56,17 @@ segmentation (run-wide): shot threshold 30 (default) for edited video, time seco
 
 export const createIndexSlim = defineTool({
   ...createIndex,
-  description: `Build a retrieval-ready index from one analyzer's artifact of an understanding run; the analyzer must be done (get_understanding). Pipeline: understand_video → create_index → semantic_search / query_index / aggregate_index.
-use_for: semantic → semantic_search (embeddings); query → query_index (exact filters, ranges); aggregate → aggregate_index (counts, group_by). Omit for all three; ['query'] skips embeddings (cheaper, ready instantly). get_index reports the effective capability, which can be narrower.
+  description: `Build a retrieval-ready index from one analyzer's artifact of an understanding run; the analyzer must be done (get_understanding). Pipeline: understand_video → create_index → search_video / search_collection.
+use_for: semantic (embeddings, needed for search), query (exact filters, ranges), aggregate (counts, group_by). Omit for all three; ['query'] skips embeddings (cheaper, ready instantly). list_indexes reports the effective capability, which can be narrower.
 fields maps group → field names: {semantic:['description'], filter:['label'], aggregate:['label']}. Groups: semantic, fts, filter, aggregate, sort, hydrate, return. Names may be dotted paths (frames.detections.label). A declared group is used verbatim, an omitted one is derived from the data (text/scene_description → semantic; language/brand_names → filter+aggregate; activity/location → all three; numbers also → sort); an empty array opts out. Unknown names fail with a 400 listing real fields.
-Records are stored before this returns, so query_index and aggregate_index work while status is 'building'; semantic_search waits for 'ready'. Reuse one name across videos to form a group collection-scoped search can target; same name requires the same field structure.`,
+Search waits for status 'ready' (list_indexes). Reuse one name across videos to form a group collection-scoped search can target; same name requires the same field structure.`,
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
     understanding_id: z.string().describe("From understand_video."),
     analyzer_name: z.string().optional().describe("Give this or analyzer_id."),
     analyzer_id: z.string().optional(),
-    name: z.string().optional().describe("Index name, used by semantic_search index_names and get_index."),
+    name: z.string().optional().describe("Index name; reuse one name across videos for collection-wide search."),
     use_for: z.array(USE_FOR).optional(),
     fields: z.partialRecord(FIELD_CAP, z.array(z.string().min(1))).optional().describe("Group → field names; see description."),
     callback_url: CALLBACK_URL,
@@ -111,7 +111,7 @@ export const addSubtitlesSlim = defineTool({
 export const reframeVideoSlim = defineTool({
   ...reframeVideo,
   description:
-    "Re-crop a video, or start..end seconds of it, to a new aspect ratio as a new video in the same collection; smart tracks subjects, simple centre-crops. Returns {status:'processing', output_url}; poll get_job_result (~30 s apart) for the new video, or {accepted:true} with callback_url.",
+    "Re-crop a video, or start..end seconds of it, to a new aspect ratio as a new video in the same collection; smart tracks subjects, simple centre-crops. Returns {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result for the new video, or {accepted:true} with callback_url.",
   input: z.object({
     video_id: VIDEO_ID,
     collection_id: COLLECTION_ID,
@@ -178,7 +178,7 @@ const TRACK = z.object({ z_index: z.number().int().optional(), clips: z.array(CL
 export const renderTimelineSlim = defineTool({
   ...renderTimeline,
   description:
-    "Render a multi-track timeline into a new stream. Tracks stack by z_index; each clip places an asset (video/image/audio by existing VideoDB id, styled text, or caption) at a start time for a duration. Caption 'auto' needs a spoken-word index on the video, else the render yields zero captions without error. Text width/height are honoured only under fit 'contain' (default 'crop' scales the box to the frame). Returns {status:'processing', output_url}; poll get_job_result (~30 s apart) for stream_url and player_url; download_timeline_render makes an MP4.",
+    "Render a multi-track timeline into a new stream. Tracks stack by z_index; each clip places an asset (video/image/audio by existing VideoDB id, styled text, or caption) at a start time for a duration. Caption 'auto' needs a spoken-word index on the video, else it silently yields zero captions. Text width/height are honoured only under fit 'contain' (default 'crop' scales the box to the frame). Returns {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or get_job_result for stream_url and player_url; download_stream makes an MP4.",
   input: z.object({
     tracks: z.array(TRACK).min(1),
     background: HEX.optional(),

@@ -78,7 +78,7 @@ export const deleteAsset = defineTool({
   name: "delete_asset",
   title: "Delete asset",
   description:
-    "Permanently delete one VideoDB asset; cannot be undone. collection: the collection and everything in it (default refused). video: one video. audio: one audio file. image: one image. rtstream: not deletable here, stop it with set_rtstream_status.",
+    "Permanently delete one VideoDB asset; cannot be undone. collection: the collection and everything in it (default refused). video: one video. audio: one audio file. image: one image. rtstream: not deletable here (stop or remove it in the VideoDB console).",
   kind: "destructive",
   input: z.object({ asset_type: ASSET_TYPE, asset_id: ASSET_ID, collection_id: COLLECTION }),
   handler: async ({ asset_type, asset_id, collection_id = "default" }, vdb) => {

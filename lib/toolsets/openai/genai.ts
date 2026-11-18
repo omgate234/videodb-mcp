@@ -28,7 +28,7 @@ export const generateMedia = defineTool({
   name: "generate_media",
   title: "Generate media",
   description:
-    "Generate a new asset from a text prompt and save it in the collection. prompt applies to every kind (for voice it is the text to speak). duration applies to video, music and sound_effect. aspect_ratio applies to image only. voice_name applies to voice only. Returns {status:'processing', output_url} when the job is still running; poll get_job_result with that output_url until it returns the new asset.",
+    "Generate a new asset from a text prompt and save it in the collection. prompt applies to every kind (for voice it is the text to speak). duration applies to video, music and sound_effect. aspect_ratio applies to image only. voice_name applies to voice only. Returns {status:'processing', output_url} when the job is still running; poll output_url with an HTTP GET or with get_job_result until it returns the new asset.",
   kind: "create",
   input: z.object({
     kind: KIND.describe("What to generate."),

@@ -13,7 +13,7 @@ The MCP server wraps the official `videodb` Node SDK (0.3.x). Tools are grouped 
 | SDK access | `lib/videodb/client.ts`, `resolve.ts` | `client(apiKey)` per call; `collection()` shell (no round-trip), `fetchVideo/Audio/Image` |
 | Output | `lib/videodb/serialize.ts` | `toPlain()` snake_case flattening, `pick()`, `*_KEYS`, `shotsToPlain()` |
 | Long jobs | `lib/videodb/jobs.ts` | async-first: `startJob()` posts with `{wait:false}` and returns `{status:"processing", output_url}`; `get_job_result` reads it later. `deadline.ts` is the 50 s safety net for tools that still wait (MCP clients drop a call at ~60 s) |
-| Errors | `lib/videodb/errors.ts` | SDK error classes → actionable text |
+| Errors | `lib/videodb/errors.ts` | SDK error classes → actionable text. Two account/input states are results, not tool errors: `{status:"insufficient_credit"}` and `{status:"rejected"}` (VideoDB answered 400/404/409/422 to the caller's arguments). Telemetry still records both the HTTP status and the message |
 | Tests | `test/harness.ts` | `fakeConnection({"GET video": {...}})` fakes `vhttp`; real SDK classes run |
 
 ## Tool kinds → annotations
@@ -142,6 +142,7 @@ GPU runtimes for open-weight models, addressed by `config.sandbox_id` in `unders
 
 | Tool | Kind | Wire | Notes |
 | --- | --- | --- | --- |
+| `list_datasets` | R | `GET /corpus` | every index: name, record unit, field groups, export lane |
 | `dataset_search` / `get_search_status` | C / R | `POST /search` / `GET /search/{msg_id}` | fire-and-poll; `session_id` continues a conversation |
 | `get_result_set` / `list_result_shots` | R | `GET /result-sets/{id}` / `POST /result-sets/{id}/shots` | cursor pagination, ≤200 rows |
 | `export_result_set` / `get_export_status` | C / R | `POST /result-sets/{id}/export` / `GET /exports/{id}` | queued; status carries a one-hour download link |

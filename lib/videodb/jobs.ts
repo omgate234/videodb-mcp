@@ -33,7 +33,7 @@ const jobStarted = (label: string, id: unknown, output_url: string): JobStarted 
   ...(typeof id === "string" ? { job_id: id } : {}),
   output_url,
   poll_with: "get_job_result",
-  message: `${label} accepted; VideoDB is processing it in the background. Call get_job_result with this output_url in ~30 s and keep polling while status is "processing".`,
+  message: `${label} accepted; VideoDB is processing it in the background. Poll this output_url in ~30 s with an HTTP GET or with get_job_result, and keep polling while status is "processing".`,
 });
 
 const isRecord = (v: unknown): v is Raw => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -70,6 +70,32 @@ export async function startJob(vdb: Connection, path: string[], body: unknown, l
 
 export async function fetchJob(vdb: Connection, outputUrl: string): Promise<JobOutcome> {
   return settle(await vdb.vhttp.get([outputUrl], undefined, NO_POLL), "Job", outputUrl);
+}
+
+export type JobRead =
+  | JobStarted
+  | { status: "done"; output_url: string; result: unknown }
+  | { status: "failed"; output_url: string; message: string };
+
+const FAILED = new Set(["failed", "error"]);
+
+/**
+ * get_job_result's view of a job: any body VideoDB answers with is the job's state,
+ * so a failed job is a successful read. Only the HTTP call itself can throw.
+ */
+export async function readJob(vdb: Connection, outputUrl: string): Promise<JobRead> {
+  const body: unknown = await vdb.vhttp.get([outputUrl], undefined, NO_POLL);
+  if (!isRecord(body)) return { status: "done", output_url: outputUrl, result: body ?? null };
+  const response = body.response;
+  const rejected = body.success === false ? body : isRecord(response) && response.success === false ? response : undefined;
+  const status = String(body.status).toLowerCase();
+  if (rejected || FAILED.has(status)) {
+    const message = (rejected ?? body).message;
+    return { status: "failed", output_url: outputUrl, message: typeof message === "string" && message ? message : "VideoDB reported the job failed." };
+  }
+  if (PROCESSING.has(status)) return jobStarted("Job", isRecord(body.data) ? body.data.id : undefined, outputUrl);
+  const result = "response" in body ? (isRecord(response) ? response.data : response) : body.data;
+  return { status: "done", output_url: outputUrl, result: isRecord(result) ? shapeResult(result) : (result ?? body) };
 }
 
 /** output_url is fetched with the user's API key attached, so it must point at VideoDB. */

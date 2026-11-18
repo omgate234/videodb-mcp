@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { jobs } from "@/lib/toolsets/jobs";
 import { settle, isVideodbUrl, shapeResult } from "@/lib/videodb/jobs";
 import { call, fakeConnection, raw, toolNamed } from "./harness";
+import { run } from "@/lib/mcp/tool";
 
 const get = toolNamed(jobs, "get_job_result");
 const URL_ = "https://api.videodb.io/async-response/job-1";
@@ -57,11 +58,44 @@ describe("get_job_result", () => {
     expect(data).toEqual({ status: "done", output_url: dl, result: { id: "dl-1", status: "done", download_url: "https://files/x.mp4" } });
   });
 
-  it("surfaces a failed job as a tool error with the server message", async () => {
+  it("reports a failed job as a successful read with the server message", async () => {
     const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "done", response: { success: false, message: "Unsupported codec" } }) });
     const { isError, data } = await call(get, { output_url: URL_ }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "failed", output_url: URL_, message: "Unsupported codec" });
+  });
+
+  it("reports a failed status without success:false as failed too", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", message: "Source unreachable" }) });
+    const { isError, data } = await call(get, { output_url: URL_ }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "failed", output_url: URL_, message: "Source unreachable" });
+  });
+
+  it("records a failed job as an error in telemetry while the model sees a result", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", message: "Source unreachable" }) });
+    const { result, outcome } = await run(get, { output_url: URL_ }, vdb);
+    expect(result.isError).toBeUndefined();
+    expect(outcome).toEqual({ status: "error", errorType: "JobFailed", errorMessage: "Source unreachable" });
+  });
+
+  it("records a processing or finished read as success", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "processing", data: { id: "j1" } }) });
+    expect((await run(get, { output_url: URL_ }, vdb)).outcome).toEqual({ status: "success" });
+  });
+
+  it("returns whatever a finished job answered, even without a result object", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "done", response: "N/A" }) });
+    const { isError, data } = await call(get, { output_url: URL_ }, vdb);
+    expect(isError).toBe(false);
+    expect(data).toEqual({ status: "done", output_url: URL_, result: "N/A" });
+  });
+
+  it("still errors when the fetch itself fails", async () => {
+    const vdb = fakeConnection();
+    vdb.http.get.mockRejectedValueOnce(new Error("socket hang up"));
+    const { isError } = await call(get, { output_url: URL_ }, vdb);
     expect(isError).toBe(true);
-    expect(String(data)).toContain("Unsupported codec");
   });
 });
 

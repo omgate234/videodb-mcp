@@ -4,7 +4,7 @@ Read side of the async job protocol. `lib/toolsets/jobs.ts`, kernel in `lib/vide
 
 | Tool | Kind | Wire | Output |
 | --- | --- | --- | --- |
-| `get_job_result` | read | `vhttp.get([output_url], {wait:false, convert:false})` | `{status:"processing", output_url, poll_with}` · `{status:"done", output_url, result}` · tool error with the server message |
+| `get_job_result` | read | `vhttp.get([output_url], {wait:false, convert:false})` | `{status:"processing", output_url, poll_with}` · `{status:"done", output_url, result}` · `{status:"failed", output_url, message}` (a result for the model, an error row in telemetry) |
 
 ## Why
 
