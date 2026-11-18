@@ -12,7 +12,7 @@ const serverInfo: Implementation = {
 };
 
 /** Verify our sealed bearer tokens and expose the VideoDB API key to tools. */
-const verifyToken = async (req: Request, bearerToken?: string) => {
+export const verifyToken = async (req: Request, bearerToken?: string) => {
   if (!bearerToken) return undefined;
   const payload = openAccessToken(bearerToken);
   if (!payload) return undefined;

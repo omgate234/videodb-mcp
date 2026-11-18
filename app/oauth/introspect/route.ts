@@ -1,9 +1,9 @@
-import { openAccessToken, externalResources, introspectionClient, publicOrigin, oauthError } from "@/lib/oauth";
+import { openAccessToken, externalResources, introspectionClient, publicOrigin, mcpResourceUrl, oauthError } from "@/lib/oauth";
 import { safeEqual } from "@/lib/crypto";
 
 /**
- * OAuth 2.0 Token Introspection (RFC 7662) for external MCP resource servers.
- * Only tokens minted for a configured external resource are reported active, and
+ * OAuth 2.0 Token Introspection (RFC 7662) for the services behind /youtube-mcp and
+ * external MCP resource servers. Only tokens minted for those are reported active, and
  * the response carries the VideoDB API key that resource needs to act for the user.
  */
 export async function POST(req: Request) {
@@ -25,7 +25,8 @@ export async function POST(req: Request) {
   }
 
   const p = openAccessToken(token);
-  if (!p || !p.user_id || !externalResources().includes(p.aud)) return inactive();
+  const audiences = [mcpResourceUrl(req, "/youtube-mcp"), ...externalResources()];
+  if (!p || !p.user_id || !audiences.includes(p.aud)) return inactive();
 
   return Response.json(
     {

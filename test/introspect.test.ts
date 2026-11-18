@@ -59,6 +59,12 @@ describe("/oauth/introspect", () => {
     expect(body).toMatchObject({ active: true, iss: ORIGIN, aud: CREATORS, sub: "u-1", name: "Ada", scope: "videodb", videodb_api_key: "vdb-key" });
   });
 
+  it("reports /youtube-mcp tokens active without any configuration", async () => {
+    vi.stubEnv("EXTERNAL_MCP_RESOURCES", "");
+    const body = await (await introspect(introspectReq(token(`${ORIGIN}/youtube-mcp`, "u-1")))).json();
+    expect(body).toMatchObject({ active: true, aud: `${ORIGIN}/youtube-mcp`, videodb_api_key: "vdb-key" });
+  });
+
   it("reports our own /mcp tokens inactive", async () => {
     expect(await (await introspect(introspectReq(token(`${ORIGIN}/mcp`, "u-1")))).json()).toEqual({ active: false });
   });
