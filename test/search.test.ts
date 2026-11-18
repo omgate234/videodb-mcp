@@ -24,7 +24,7 @@ describe("search", () => {
     expect(data).toEqual({ response_type: "deepsearch", session_id: "s-2", waiting_for: "none", shots: [SHOT] });
   });
 
-  it("search_video with no options goes to v2, not the legacy endpoint", async () => {
+  it("search_video with no options goes to v2", async () => {
     const vdb = fakeConnection({
       "GET video/m-1": VIDEO,
       "POST video/m-1/search/v2": (body: any) => {
@@ -34,38 +34,6 @@ describe("search", () => {
     });
     const { data } = await call(toolNamed(search, "search_video"), { video_id: "m-1", query: "pricing" }, vdb);
     expect(data).toMatchObject({ shots: [SHOT] });
-  });
-
-  it("legacy_search_video applies the v1 defaults and cannot reach v2 params", async () => {
-    const vdb = fakeConnection({
-      "GET video/m-1": VIDEO,
-      "POST video/m-1/search": (body: any) => {
-        expect(body).toMatchObject({ query: "pricing", search_type: "semantic", index_type: "spoken_word", result_threshold: 5 });
-        return { results: RESULTS };
-      },
-    });
-    const tool = toolNamed(search, "legacy_search_video");
-    const { data, isError } = await call(tool, { video_id: "m-1", query: "pricing" }, vdb);
-    expect(isError).toBe(false);
-    expect(data).toEqual({ shots: [SHOT] });
-    expect(Object.keys((tool.input as any).shape)).not.toContain("top_k");
-  });
-
-  it("legacy_search_collection routes scene params to /collection/{id}/search", async () => {
-    const vdb = fakeConnection({
-      "POST collection/c-1/search": (body: any) => {
-        expect(body).toMatchObject({ query: "podium", search_type: "semantic", index_type: "scene", result_threshold: 2 });
-        return { results: RESULTS };
-      },
-    });
-    const { data, isError } = await call(
-      toolNamed(search, "legacy_search_collection"),
-      { collection_id: "c-1", query: "podium", index_type: "scene", result_threshold: 2 },
-      vdb
-    );
-    expect(isError).toBe(false);
-    expect(data).toEqual({ shots: [SHOT] });
-    expect(vdb.http.get).not.toHaveBeenCalled();
   });
 
   it("null stands in for an unset param instead of failing validation", async () => {
@@ -82,21 +50,6 @@ describe("search", () => {
     );
     expect(isError).toBe(false);
     expect(data).toMatchObject({ shots: [SHOT] });
-  });
-
-  it("null on a defaulted param falls back to the default", async () => {
-    const vdb = fakeConnection({
-      "POST collection/c-1/search": (body: any) => {
-        expect(body).toMatchObject({ query: "podium", index_type: "spoken_word", result_threshold: 5 });
-        return { results: RESULTS };
-      },
-    });
-    const { isError } = await call(
-      toolNamed(search, "legacy_search_collection"),
-      { collection_id: "c-1", query: "podium", index_type: null, result_threshold: null },
-      vdb
-    );
-    expect(isError).toBe(false);
   });
 
   it("search_collection v2 returns raw results for non-shot response types", async () => {

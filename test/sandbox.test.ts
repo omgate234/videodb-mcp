@@ -74,6 +74,13 @@ describe("sandbox", () => {
     expect(data).toEqual({ sandboxes: [SB_OUT] });
   });
 
+  it("null on a defaulted param falls back to the default", async () => {
+    const vdb = fakeConnection({ "GET sandbox": { sandboxes: [] } });
+    const { isError } = await call(t("list_sandboxes"), { page: null, page_size: null }, vdb);
+    expect(isError).toBe(false);
+    expect(vdb.http.get).toHaveBeenCalledWith(["sandbox"], { params: { page: 1, page_size: 20 } });
+  });
+
   it("stop_sandbox is destructive, sends grace, and re-reads the status the SDK drops", async () => {
     let stopBody: any;
     let gets = 0;

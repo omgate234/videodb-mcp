@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { media } from "@/lib/toolsets/media";
-import { search } from "@/lib/toolsets/search";
 import { streams } from "@/lib/toolsets/streams";
 import { call, fakeConnection, toolNamed } from "./harness";
 
@@ -21,21 +20,6 @@ describe("media", () => {
     expect(t.kind).toBe("destructive");
     const { data } = await call(t, { video_id: "m-1" }, vdb);
     expect(data).toEqual({ deleted: true, video_id: "m-1" });
-  });
-});
-
-describe("search", () => {
-  it("legacy_search_video routes legacy params and flattens shots", async () => {
-    const vdb = fakeConnection({
-      "GET video/m-1": VIDEO,
-      "POST video/m-1/search": (body: any) => {
-        expect(body).toMatchObject({ query: "pricing", search_type: "semantic", index_type: "spoken_word", result_threshold: 5 });
-        return { results: [{ videoId: "m-1", title: "Keynote", length: 120, docs: [{ start: 1, end: 5, text: "pricing", score: 0.9 }] }] };
-      },
-    });
-    const { data, isError } = await call(toolNamed(search, "legacy_search_video"), { video_id: "m-1", query: "pricing" }, vdb);
-    expect(isError).toBe(false);
-    expect(data).toEqual({ shots: [{ video_id: "m-1", video_title: "Keynote", start: 1, end: 5, text: "pricing", search_score: 0.9 }] });
   });
 });
 

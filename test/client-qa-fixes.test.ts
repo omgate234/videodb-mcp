@@ -28,24 +28,11 @@ describe("index selection constraints", () => {
     }
   });
 
-  it("requires a scene ID only for legacy scene keyword search", async () => {
-    const tool = toolNamed(search, "legacy_search_video");
-    const input = { video_id: "m-1", query: "factory", search_type: "keyword", index_type: "scene" };
-    for (const scene_index_id of [undefined, null, "", " "]) {
-      expect(tool.input.safeParse({ ...input, scene_index_id }).success).toBe(false);
-    }
-    expect(tool.input.safeParse({ ...input, search_type: "semantic" }).success).toBe(true);
-    expect(tool.input.safeParse({ ...input, index_type: "spoken_word" }).success).toBe(true);
-    const vdb = fakeConnection({ "GET video/m-1": { id: "m-1", collectionId: "c-1" }, "POST video/m-1/search": { results: [] } });
-    expect((await call(tool, { ...input, scene_index_id: " si-1 " }, vdb)).isError).toBe(false);
-    expect(vdb.http.post.mock.calls[0][1]).toMatchObject({ scene_index_id: "si-1", search_type: "keyword", index_type: "scene" });
-  });
-
   it("advertises and enforces the constraints through tools/list and tools/call", async () => {
     const vdb = fakeConnection({});
     vi.spyOn(sdkClient, "client").mockReturnValue(vdb);
     const server = new McpServer({ name: "selection-test", version: "1" });
-    for (const name of ["query_index", "aggregate_index", "legacy_search_video"]) register(server, toolNamed(search, name));
+    for (const name of ["query_index", "aggregate_index"]) register(server, toolNamed(search, name));
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const pending = new Map<number, (m: any) => void>();
     let id = 0;
@@ -76,8 +63,6 @@ describe("index selection constraints", () => {
           expect(result.result?.isError || Boolean(result.error)).toBe(true);
         }
       }
-      const result = await request("tools/call", { name: "legacy_search_video", arguments: { video_id: "m-1", query: "factory", search_type: "keyword", index_type: "scene" } });
-      expect(JSON.stringify(result)).toContain("scene_index_id is required");
       expect(vdb.http.get).not.toHaveBeenCalled();
       expect(vdb.http.post).not.toHaveBeenCalled();
     } finally {
