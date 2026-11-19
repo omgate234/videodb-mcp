@@ -16,7 +16,7 @@ const specBytes = (def: typeof generateMedia) =>
 
 describe("openai: generate_media", () => {
   it("fits the spec budget and is a closed-world create tool", () => {
-    expect(specBytes(generateMedia)).toBeLessThanOrEqual(1800);
+    expect(specBytes(generateMedia)).toBeLessThanOrEqual(2000);
     expect(generateMedia.kind).toBe("create");
     expect(annotationsFor(generateMedia).openWorldHint).toBe(false);
   });
@@ -91,5 +91,46 @@ describe("openai: generate_media", () => {
     const res = await call(generateMedia, { kind: "voice", prompt: "Hi" }, dflt);
     expect(res.data).toEqual({ id: "a-4" }); // AUDIO_KEYS trims the echo; default voice reached the wire
     expect(dflt.http.post.mock.calls[0][1]).toMatchObject({ voice_name: "Default" });
+  });
+
+  it("heygen_avatar signs an img- ID and posts model=heygen with its options under config", async () => {
+    const vdb = fakeConnection({
+      "GET image/img-1": { id: "img-1", collectionId: "c-1", name: "Face" },
+      "POST image/img-1/generate_url": { signedUrl: "https://signed/face.png" },
+      "POST collection/c-1/generate/video": (body: any) => {
+        expect(body).toEqual({
+          prompt: "Hi, I'm Maya.",
+          model: "heygen",
+          image_url: "https://signed/face.png",
+          aspect_ratio: "9:16",
+          config: { voice: "Ivy", talking_style: "expressive", caption: true },
+        });
+        return raw({ status: "processing", data: { id: "job-2", output_url: "https://api.test/async-response/job-2" } });
+      },
+    });
+    const args = { kind: "heygen_avatar", prompt: "Hi, I'm Maya.", image: "img-1", aspect_ratio: "9:16", voice_name: "Ivy", talking_style: "expressive", caption: true, collection_id: "c-1" };
+    const { data } = await call(generateMedia, args, vdb);
+    expect(data).toMatchObject({ status: "processing", output_url: "https://api.test/async-response/job-2" });
+  });
+
+  it("heygen_avatar passes a public URL through and sends no config when no option is set", async () => {
+    const vdb = fakeConnection({
+      "POST collection/default/generate/video": (body: any) => {
+        expect(body).toEqual({ prompt: "Hello", model: "heygen", image_url: "https://example.com/face.png" });
+        return { id: "m-2", collection_id: "default", name: "avatar", length: 3, stream_url: "https://stream/a.m3u8" };
+      },
+    });
+    const { data } = await call(generateMedia, { kind: "heygen_avatar", prompt: "Hello", image: "https://example.com/face.png", caption: null }, vdb);
+    expect(data).toMatchObject({ id: "m-2", stream_url: "https://stream/a.m3u8" });
+    expect(vdb.http.get).not.toHaveBeenCalled();
+  });
+
+  it("heygen_avatar refuses a missing image, a non-URL image and an unsupported aspect ratio before posting", async () => {
+    const vdb = fakeConnection({});
+    for (const args of [{}, { image: "face.png" }, { image: "https://example.com/face.png", aspect_ratio: "4:3" }]) {
+      const { isError } = await call(generateMedia, { kind: "heygen_avatar", prompt: "Hello", ...args }, vdb);
+      expect(isError).toBe(true);
+    }
+    expect(vdb.http.post).not.toHaveBeenCalled();
   });
 });
