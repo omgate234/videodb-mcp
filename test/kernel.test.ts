@@ -242,13 +242,6 @@ describe("insufficient credit", () => {
     expect(res.data).toMatchObject({ status: "insufficient_credit" });
   });
 
-  it("catches an insufficient_credit error_code whatever the status and wording", async () => {
-    const err = apiError(400, "Request refused");
-    (err as unknown as { response: { data: Record<string, unknown> } }).response.data = { error_code: "insufficient_credit" };
-    const res = await call(failingTool(err), {}, fakeConnection());
-    expect(res.data).toMatchObject({ status: "insufficient_credit" });
-  });
-
   it("leaves unrelated failures as errors", async () => {
     const res = await call(failingTool(apiError(500, "Internal server error")), {}, fakeConnection());
     expect(res.isError).toBe(true);
@@ -261,87 +254,22 @@ describe("insufficient credit", () => {
   });
 });
 
-describe("plan limits", () => {
-  it.each([
-    "You’ve reached the maximum limit for Image generation on your current plan.",
-    "Audio is over 2 hours, please reachout to team@videodb.io to increase the quota.",
-  ])("classifies %s as plan_limit", (msg) => {
-    const blocked = asAccountBlocked(new Error(msg));
-    expect(blocked).toMatchObject({ status: "plan_limit", action_required: "contact_support", contact: "team@videodb.io", contact_url: "mailto:team@videodb.io" });
-    expect(blocked!.message).toContain(msg);
-    expect(blocked!.message).not.toMatch(/\bpro\b|upgrade/i);
-  });
-
-  it("leaves Free plan usage limits alone", () => {
-    expect(asAccountBlocked(new Error("Free plan usage limit reached: 10 uploads per day. It resets at 2026-11-21 00:00 UTC. Upgrade to Pro to remove this limit."))).toBeUndefined();
-  });
-
-  it("leaves the hackathon LLM budget alone", () => {
-    expect(asAccountBlocked(new Error("You have reached the Hackathon budget for this model tier (Pro)."))).toBeUndefined();
-  });
-
-  it("keeps credit wording on the credit path", () => {
-    expect(asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))?.status).toBe("insufficient_credit");
-  });
-});
-
 describe("withPromoLink", () => {
   const blocked = asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))!;
-  const cap = (msg: string) => asAccountBlocked(new Error(msg))!;
-  const VIDEO_CAP = "You’ve reached the maximum limit for Video generation on your current plan.";
-  const PROMO_URL = "https://console.videodb.io/?page=billing&promo=test-promo";
-  const plan = (id: string | undefined) => vi.fn(async () => id);
 
-  const withPromo = async (fn: () => Promise<void>) => {
+  it("sends every account to the promo link without mentioning Pro", () => {
     vi.stubEnv("PRO_PROMO_CODE", "test-promo");
     try {
-      await fn();
+      const linked = withPromoLink(blocked);
+      expect(linked.console_url).toBe("https://console.videodb.io/?page=billing&promo=test-promo");
+      expect(linked.message).toBe(blocked.message);
+      expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
     } finally {
       vi.unstubAllEnvs();
     }
-  };
+  });
 
-  it("sends every out-of-credit account to the promo link without mentioning Pro or looking up the plan", () =>
-    withPromo(async () => {
-      const planOf = plan("Pro_v1");
-      const linked = await withPromoLink(blocked, planOf);
-      expect(linked).toMatchObject({ console_url: PROMO_URL });
-      expect(linked.message).toBe(blocked.message);
-      expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
-      expect(planOf).not.toHaveBeenCalled();
-    }));
-
-  it("turns a Free account's generation cap into an add-credits result on the promo link", () =>
-    withPromo(async () => {
-      const linked = await withPromoLink(cap(VIDEO_CAP), plan("Free_v1"));
-      expect(linked).toMatchObject({ status: "plan_limit", limit: VIDEO_CAP, action_required: "add_credits", console_url: PROMO_URL });
-      expect(linked.message).toMatch(/adding credits lifts it/);
-      expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
-    }));
-
-  it("leaves a Pro account's cap as a support ask", () =>
-    withPromo(async () => {
-      const limit = cap(VIDEO_CAP);
-      expect(await withPromoLink(limit, plan("Pro_v1"))).toBe(limit);
-    }));
-
-  it("leaves caps Pro does not raise as a support ask without looking up the plan", () =>
-    withPromo(async () => {
-      const limit = cap("Audio is over 5 hours, please reachout to team@videodb.io to increase the quota.");
-      const planOf = plan("Free_v1");
-      expect(await withPromoLink(limit, planOf)).toBe(limit);
-      expect(planOf).not.toHaveBeenCalled();
-    }));
-
-  it("falls back to the support ask when the plan lookup fails", () =>
-    withPromo(async () => {
-      const limit = cap(VIDEO_CAP);
-      expect(await withPromoLink(limit, () => Promise.reject(new Error("down")))).toBe(limit);
-    }));
-
-  it("leaves results alone when no promo is configured", async () => {
-    expect(await withPromoLink(blocked, plan("Free_v1"))).toBe(blocked);
-    const limit = cap(VIDEO_CAP);
-    expect(await withPromoLink(limit, plan("Free_v1"))).toBe(limit);
+  it("leaves the result alone when no promo is configured", () => {
+    expect(withPromoLink(blocked)).toBe(blocked);
   });
 });

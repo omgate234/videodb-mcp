@@ -92,11 +92,10 @@ describe("tool span attributes", () => {
 });
 
 describe("toolOutcome", () => {
-  const base = { blocked: undefined, isError: false, authed: true };
+  const base = { blocked: false, isError: false, authed: true };
   it.each([
     [{ status: "success" }, base, "ok"],
-    [{ status: "success" }, { ...base, blocked: "insufficient_credit" }, "out_of_credit"],
-    [{ status: "success" }, { ...base, blocked: "plan_limit" }, "plan_limit"],
+    [{ status: "success" }, { ...base, blocked: true }, "out_of_credit"],
     [{ status: "processing" }, base, "processing"],
     [{ status: "error" }, { ...base, isError: true }, "error"],
     [{ status: "error" }, base, "input_rejected"],

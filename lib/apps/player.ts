@@ -421,9 +421,7 @@ export function registerPlayerApp(server: McpServer): void {
         return { content: [{ type: "text", text: `Reel export: ${result.stage}` }], structuredContent: result };
       } catch (e) {
         const blocked = asAccountBlocked(e);
-        // The reel view's blocked state is the add-credits prompt; a support-only plan limit reads as plain text.
-        if (blocked?.action_required === "add_credits") return { content: [{ type: "text", text: blocked.message }], structuredContent: { stage: "blocked", console_url: blocked.console_url } };
-        if (blocked) return { content: [{ type: "text", text: blocked.message }] };
+        if (blocked) return { content: [{ type: "text", text: blocked.message }], structuredContent: { stage: "blocked", console_url: blocked.console_url } };
         return { content: [{ type: "text", text: `Error: ${describeError(e)}` }], isError: true };
       }
     }
