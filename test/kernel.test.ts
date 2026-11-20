@@ -254,6 +254,27 @@ describe("insufficient credit", () => {
   });
 });
 
+describe("plan limits", () => {
+  it.each([
+    "You’ve reached the maximum limit for Image generation on your current plan.",
+    "Video generation usage limit reached: 10 requested, 55 used, 60 allowed.",
+    "Audio is over 2 hours, please reachout to team@videodb.io to increase the quota.",
+  ])("classifies %s as plan_limit", (msg) => {
+    const blocked = asAccountBlocked(new Error(msg));
+    expect(blocked).toMatchObject({ status: "plan_limit", action_required: "contact_support", contact: "team@videodb.io" });
+    expect(blocked!.message).toContain(msg);
+    expect(blocked!.message).not.toMatch(/\bpro\b|upgrade/i);
+  });
+
+  it("leaves the hackathon LLM budget alone", () => {
+    expect(asAccountBlocked(new Error("You have reached the Hackathon budget for this model tier (Pro)."))).toBeUndefined();
+  });
+
+  it("keeps credit wording on the credit path", () => {
+    expect(asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))?.status).toBe("insufficient_credit");
+  });
+});
+
 describe("withPromoLink", () => {
   const blocked = asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))!;
 
@@ -264,6 +285,16 @@ describe("withPromoLink", () => {
       expect(linked.console_url).toBe("https://console.videodb.io/?page=billing&promo=test-promo");
       expect(linked.message).toBe(blocked.message);
       expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("never puts the promo on a plan-limit result", () => {
+    vi.stubEnv("PRO_PROMO_CODE", "test-promo");
+    try {
+      const limit = asAccountBlocked(new Error("Video generation usage limit reached: 1 requested, 60 used, 60 allowed."))!;
+      expect(withPromoLink(limit)).toBe(limit);
     } finally {
       vi.unstubAllEnvs();
     }

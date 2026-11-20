@@ -79,6 +79,23 @@ describe("get_job_result", () => {
     expect(outcome).toEqual({ status: "error", errorType: "JobFailed", errorMessage: "Source unreachable" });
   });
 
+  it("routes a job refused for credit through the out-of-credit path", async () => {
+    const msg = "Insufficient credit: your balance is $0.00. Please add credits to continue.";
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "done", response: { success: false, error_code: "low_credit", message: msg } }) });
+    const { result, outcome, blocked } = await run(get, { output_url: URL_ }, vdb);
+    expect(result.isError).toBeUndefined();
+    expect(outcome).toEqual({ status: "success" });
+    expect(blocked).toMatchObject({ status: "insufficient_credit", action_required: "add_credits" });
+  });
+
+  it("routes a job stopped by a plan cap through the plan-limit path", async () => {
+    const msg = "You’ve reached the maximum limit for Video generation on your current plan.";
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", message: msg }) });
+    const { result, blocked } = await run(get, { output_url: URL_ }, vdb);
+    expect(result.isError).toBeUndefined();
+    expect(blocked).toMatchObject({ status: "plan_limit", action_required: "contact_support", contact: "team@videodb.io" });
+  });
+
   it("records a processing or finished read as success", async () => {
     const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "processing", data: { id: "j1" } }) });
     expect((await run(get, { output_url: URL_ }, vdb)).outcome).toEqual({ status: "success" });

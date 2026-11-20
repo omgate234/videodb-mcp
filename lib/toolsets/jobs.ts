@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
 import { isVideodbUrl, readJob, type JobRead } from "@/lib/videodb/jobs";
+import { asAccountBlocked } from "@/lib/videodb/errors";
 
 /** Read side of the async job protocol; every job-starting tool points here. */
 
@@ -14,7 +15,10 @@ const getJobResult = defineTool({
   input: z.object({ output_url: z.string().url().describe("The output_url returned by a job-starting tool.") }),
   handler: async ({ output_url }, vdb) => {
     if (!isVideodbUrl(output_url)) throw new Error("output_url must be a VideoDB job URL returned by another tool.");
-    return readJob(vdb, output_url);
+    const read = await readJob(vdb, output_url);
+    // A job refused for credit or a plan cap goes through the same path as a sync tool's refusal.
+    if (read.status === "failed" && asAccountBlocked(new Error(read.message))) throw new Error(read.message);
+    return read;
   },
   // The model gets {status:'failed'} as a result; observ still records the job failure.
   outcome: (r) => {

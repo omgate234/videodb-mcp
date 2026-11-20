@@ -179,7 +179,7 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
         } catch (e) {
           s = settleError(e, def); // no credential in the token
         }
-        const outcome = toolOutcome(s.outcome, { blocked: Boolean(s.blocked), isError: Boolean(s.result.isError), authed: apiKey !== undefined });
+        const outcome = toolOutcome(s.outcome, { blocked: s.blocked?.status, isError: Boolean(s.result.isError), authed: apiKey !== undefined });
         endToolSpan(span, outcome, s.outcome);
         return s;
       });

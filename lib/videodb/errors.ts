@@ -53,17 +53,13 @@ export function describeError(e: unknown): string {
 }
 
 /**
- * Running out of credit is an account state the user fixes in the console, not a
- * tool failure. Reporting it as an MCP error counts against this server's error
- * rate — and a single unfunded account retrying in a loop would dominate it — so
- * it comes back as a normal result carrying the instruction instead.
+ * Running out of credit or hitting a plan cap is an account state, not a tool failure.
+ * Reporting it as an MCP error counts against this server's error rate (one unfunded
+ * account retrying in a loop would dominate it), so it comes back as a normal result.
  */
-export interface AccountBlocked {
-  status: "insufficient_credit";
-  message: string;
-  action_required: "add_credits";
-  console_url: string;
-}
+export type AccountBlocked =
+  | { status: "insufficient_credit"; message: string; action_required: "add_credits"; console_url: string }
+  | { status: "plan_limit"; message: string; action_required: "contact_support"; contact: string; console_url: string };
 
 const CONSOLE_URL = "https://console.videodb.io";
 const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
@@ -71,11 +67,14 @@ const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
 /** With a promo code configured, every out-of-credit result links the billing page carrying it. */
 export function withPromoLink(blocked: AccountBlocked): AccountBlocked {
   const code = PROMO_CODE();
-  if (!code) return blocked;
+  if (!code || blocked.status !== "insufficient_credit") return blocked;
   return { ...blocked, console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}` };
 }
 
+const SUPPORT_EMAIL = "team@videodb.io";
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
+// videodb-server's plan caps: LIMIT_EXHAUST_MESSAGE, check_limit and the upload size quota.
+const PLAN_LIMIT_PATTERN = /on your current plan|usage limit reached|limits? exhausted|increase the quota/i;
 
 /** The API's own wording, unprefixed — `describeError` decorates it for the failure path. */
 function rawMessage(e: unknown): string {
@@ -117,11 +116,22 @@ export function asInputRejected(e: unknown): InputRejected | undefined {
 export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (e instanceof StillProcessing) return undefined;
   const detail = rawMessage(e).trim();
-  if (!CREDIT_PATTERN.test(detail) && httpStatus(e) !== 402) return undefined;
-  return {
-    status: "insufficient_credit",
-    message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user there aren't enough VideoDB credits to continue, show console_url as an "Add credits" link and say no subscription is required. Wait until they confirm they have added credits before retrying — retrying before that will fail the same way.`,
-    action_required: "add_credits",
-    console_url: CONSOLE_URL,
-  };
+  if (CREDIT_PATTERN.test(detail) || httpStatus(e) === 402) {
+    return {
+      status: "insufficient_credit",
+      message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user there aren't enough VideoDB credits to continue, show console_url as an "Add credits" link and say no subscription is required. Wait until they confirm they have added credits before retrying — retrying before that will fail the same way.`,
+      action_required: "add_credits",
+      console_url: CONSOLE_URL,
+    };
+  }
+  if (PLAN_LIMIT_PATTERN.test(detail)) {
+    return {
+      status: "plan_limit",
+      message: `${detail} Nothing was charged and the request did not run. Tell the user this account has reached a usage limit and that the VideoDB team can raise it: email ${SUPPORT_EMAIL}. Adding credits does not lift this limit. Do not retry until the user confirms the limit was raised.`,
+      action_required: "contact_support",
+      contact: SUPPORT_EMAIL,
+      console_url: CONSOLE_URL,
+    };
+  }
+  return undefined;
 }
