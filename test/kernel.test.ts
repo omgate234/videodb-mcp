@@ -257,13 +257,16 @@ describe("insufficient credit", () => {
 describe("plan limits", () => {
   it.each([
     "You’ve reached the maximum limit for Image generation on your current plan.",
-    "Video generation usage limit reached: 10 requested, 55 used, 60 allowed.",
     "Audio is over 2 hours, please reachout to team@videodb.io to increase the quota.",
   ])("classifies %s as plan_limit", (msg) => {
     const blocked = asAccountBlocked(new Error(msg));
     expect(blocked).toMatchObject({ status: "plan_limit", action_required: "contact_support", contact: "team@videodb.io" });
     expect(blocked!.message).toContain(msg);
     expect(blocked!.message).not.toMatch(/\bpro\b|upgrade/i);
+  });
+
+  it("leaves Free plan usage limits alone", () => {
+    expect(asAccountBlocked(new Error("Free plan usage limit reached: 10 uploads per day. It resets at 2026-11-21 00:00 UTC. Upgrade to Pro to remove this limit."))).toBeUndefined();
   });
 
   it("leaves the hackathon LLM budget alone", () => {
@@ -278,7 +281,7 @@ describe("plan limits", () => {
 describe("withPromoLink", () => {
   const blocked = asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))!;
   const cap = (msg: string) => asAccountBlocked(new Error(msg))!;
-  const VIDEO_CAP = "Video generation usage limit reached: 1 requested, 10 used, 10 allowed.";
+  const VIDEO_CAP = "You’ve reached the maximum limit for Video generation on your current plan.";
   const PROMO_URL = "https://console.videodb.io/?page=billing&promo=test-promo";
   const plan = (id: string | undefined) => vi.fn(async () => id);
 

@@ -104,8 +104,9 @@ export async function withPromoLink(blocked: AccountBlocked, planOf: () => Promi
 }
 
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
-// videodb-server's plan caps: LIMIT_EXHAUST_MESSAGE, check_limit and the upload size quota.
-const PLAN_LIMIT_PATTERN = /on your current plan|usage limit reached|limits? exhausted|increase the quota/i;
+// videodb-server's plan caps: LIMIT_EXHAUST_MESSAGE and the upload duration quota.
+// Free plan usage limits ("usage limit reached") are deliberately not matched.
+const PLAN_LIMIT_PATTERN = /on your current plan|increase the quota/i;
 
 /** The API's own wording, unprefixed — `describeError` decorates it for the failure path. */
 function rawMessage(e: unknown): string {
