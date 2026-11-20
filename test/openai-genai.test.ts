@@ -134,3 +134,25 @@ describe("openai: generate_media", () => {
     expect(vdb.http.post).not.toHaveBeenCalled();
   });
 });
+
+describe("openai: generate_media voice_change", () => {
+  it("posts a voice_change body to generate/audio and hands back the job", async () => {
+    const vdb = fakeConnection({
+      "POST collection/default/generate/audio": (body: any) => {
+        expect(body).toEqual({ audio_type: "voice_change", audio_id: "a-1", voice_name: "Aria", config: {} });
+        return raw({ status: "processing", data: { id: "job-2", output_url: "https://api.test/async-response/job-2" } });
+      },
+    });
+    const { data, isError } = await call(generateMedia, { kind: "voice_change", audio_id: "a-1", voice_name: "Aria" }, vdb);
+    expect(isError).toBe(false);
+    expect(vdb.http.post.mock.calls[0][3]).toEqual(NO_POLL);
+    expect(data).toMatchObject({ status: "processing", output_url: "https://api.test/async-response/job-2", poll_with: "get_job_result" });
+  });
+
+  it("needs audio_id for voice_change and prompt for every other kind", () => {
+    expect(generateMedia.input.safeParse({ kind: "voice_change", audio_id: "a-1" }).success).toBe(true);
+    expect(generateMedia.input.safeParse({ kind: "voice_change", audio_id: "m-1" }).success).toBe(false);
+    expect(generateMedia.input.safeParse({ kind: "voice_change" }).success).toBe(false);
+    expect(generateMedia.input.safeParse({ kind: "music" }).success).toBe(false);
+  });
+});
