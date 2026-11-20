@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
-import { isVideodbUrl, readJob, type JobRead } from "@/lib/videodb/jobs";
+import { isVideodbUrl, readJob } from "@/lib/videodb/jobs";
+import { JobFailed } from "@/lib/videodb/errors";
 
 /** Read side of the async job protocol; every job-starting tool points here. */
 
@@ -9,17 +10,15 @@ const getJobResult = defineTool({
   name: "get_job_result",
   title: "Get job result",
   description:
-    "Fetch the result of a background job started by upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript or translate_transcript. Pass the output_url those tools returned. While the job is running the reply is {status:'processing'} with the same output_url — wait ~30 s and call again; when it finishes the reply is the job's result (media record, stream_url + player_url, download_url, shots, or translated segments). If the job itself failed the reply is {status:'failed', message} — the job will not recover, so do not keep polling. Only VideoDB job URLs are accepted.",
+    "Fetch the result of a background job started by upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript or translate_transcript. Pass the output_url those tools returned. While the job is running the reply is {status:'processing'} with the same output_url — wait ~30 s and call again; when it finishes the reply is the job's result (media record, stream_url + player_url, download_url, shots, or translated segments). If the job itself failed the reply is {status:'failed', message} — the job will not recover, so do not keep polling. If it failed because the account is out of credit the reply is {status:'insufficient_credit', console_url} instead. Only VideoDB job URLs are accepted.",
   kind: "read",
   input: z.object({ output_url: z.string().url().describe("The output_url returned by a job-starting tool.") }),
   handler: async ({ output_url }, vdb) => {
     if (!isVideodbUrl(output_url)) throw new Error("output_url must be a VideoDB job URL returned by another tool.");
-    return readJob(vdb, output_url);
-  },
-  // The model gets {status:'failed'} as a result; observ still records the job failure.
-  outcome: (r) => {
-    const read = r as JobRead;
-    return read.status === "failed" ? { status: "error", errorType: "JobFailed", errorMessage: read.message } : undefined;
+    const read = await readJob(vdb, output_url);
+    // Thrown so an out-of-credit job settles like a sync tool's refusal.
+    if (read.status === "failed") throw new JobFailed(read.message, read.output_url, read.error_code);
+    return read;
   },
 });
 

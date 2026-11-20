@@ -247,9 +247,9 @@ describe("insufficient credit", () => {
     expect(res.isError).toBe(true);
   });
 
-  it("links to the plain console", async () => {
+  it("links to the console billing page", async () => {
     const res = await call(failingTool(apiError(400, BALANCE)), {}, fakeConnection());
-    expect(res.data).toMatchObject({ console_url: "https://console.videodb.io" });
+    expect(res.data).toMatchObject({ console_url: "https://console.videodb.io/?page=billing" });
     expect((res.data as { message: string }).message).toMatch(/no subscription is required/);
   });
 });

@@ -79,6 +79,19 @@ describe("get_job_result", () => {
     expect(outcome).toEqual({ status: "error", errorType: "JobFailed", errorMessage: "Source unreachable" });
   });
 
+  it("turns an out-of-credit job into the add-credits result", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "done", response: { success: false, message: "Insufficient credit: your balance is $0.00." } }) });
+    const { result, outcome, blocked } = await run(get, { output_url: URL_ }, vdb);
+    expect(result.isError).toBeUndefined();
+    expect(outcome).toEqual({ status: "success" });
+    expect(blocked).toMatchObject({ status: "insufficient_credit", console_url: "https://console.videodb.io/?page=billing" });
+  });
+
+  it("trusts the job's error_code when the message has no credit wording", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", error_code: "low_credit", message: "Job stopped." }) });
+    expect((await run(get, { output_url: URL_ }, vdb)).blocked).toMatchObject({ status: "insufficient_credit" });
+  });
+
   it("records a processing or finished read as success", async () => {
     const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "processing", data: { id: "j1" } }) });
     expect((await run(get, { output_url: URL_ }, vdb)).outcome).toEqual({ status: "success" });

@@ -24,6 +24,17 @@ function apiDetail(e: unknown): string {
 
 export const httpStatus = (e: unknown): number | undefined => (e as { response?: { status?: number } }).response?.status;
 
+/** A background job VideoDB reported as failed, with the job body's error_code when it sent one. */
+export class JobFailed extends Error {
+  constructor(message: string, readonly outputUrl: string, readonly errorCode?: string) {
+    super(message);
+    this.name = "JobFailed";
+  }
+}
+
+const errorCode = (e: unknown): string | undefined =>
+  e instanceof JobFailed ? e.errorCode : (e as { response?: { data?: { error_code?: string } } }).response?.data?.error_code;
+
 /**
  * A gateway timeout means the HTTP request died in transit, not the job: the write
  * keeps running on VideoDB. 500 is ambiguous and stays a real failure.
@@ -65,16 +76,17 @@ export interface AccountBlocked {
   console_url: string;
 }
 
-const CONSOLE_URL = "https://console.videodb.io";
+const BILLING_URL = "https://console.videodb.io/?page=billing";
 const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
 
 /** With a promo code configured, every out-of-credit result links the billing page carrying it. */
 export function withPromoLink(blocked: AccountBlocked): AccountBlocked {
   const code = PROMO_CODE();
   if (!code) return blocked;
-  return { ...blocked, console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}` };
+  return { ...blocked, console_url: `${BILLING_URL}&promo=${encodeURIComponent(code)}` };
 }
 
+const CREDIT_CODES = new Set(["insufficient_credit", "low_credit"]);
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
 
 /** The API's own wording, unprefixed — `describeError` decorates it for the failure path. */
@@ -117,11 +129,12 @@ export function asInputRejected(e: unknown): InputRejected | undefined {
 export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (e instanceof StillProcessing) return undefined;
   const detail = rawMessage(e).trim();
-  if (!CREDIT_PATTERN.test(detail) && httpStatus(e) !== 402) return undefined;
+  const isCredit = CREDIT_CODES.has(errorCode(e) ?? "") || httpStatus(e) === 402 || CREDIT_PATTERN.test(detail);
+  if (!isCredit) return undefined;
   return {
     status: "insufficient_credit",
     message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user there aren't enough VideoDB credits to continue, show console_url as an "Add credits" link and say no subscription is required. Wait until they confirm they have added credits before retrying — retrying before that will fail the same way.`,
     action_required: "add_credits",
-    console_url: CONSOLE_URL,
+    console_url: BILLING_URL,
   };
 }
