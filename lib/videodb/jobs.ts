@@ -75,7 +75,7 @@ export async function fetchJob(vdb: Connection, outputUrl: string): Promise<JobO
 export type JobRead =
   | JobStarted
   | { status: "done"; output_url: string; result: unknown }
-  | { status: "failed"; output_url: string; message: string };
+  | { status: "failed"; output_url: string; message: string; error_code?: string };
 
 const FAILED = new Set(["failed", "error"]);
 
@@ -90,8 +90,13 @@ export async function readJob(vdb: Connection, outputUrl: string): Promise<JobRe
   const rejected = body.success === false ? body : isRecord(response) && response.success === false ? response : undefined;
   const status = String(body.status).toLowerCase();
   if (rejected || FAILED.has(status)) {
-    const message = (rejected ?? body).message;
-    return { status: "failed", output_url: outputUrl, message: typeof message === "string" && message ? message : "VideoDB reported the job failed." };
+    const { message, error_code } = rejected ?? body;
+    return {
+      status: "failed",
+      output_url: outputUrl,
+      message: typeof message === "string" && message ? message : "VideoDB reported the job failed.",
+      ...(typeof error_code === "string" ? { error_code } : {}),
+    };
   }
   if (PROCESSING.has(status)) return jobStarted("Job", isRecord(body.data) ? body.data.id : undefined, outputUrl);
   const result = "response" in body ? (isRecord(response) ? response.data : response) : body.data;

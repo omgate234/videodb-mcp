@@ -24,6 +24,25 @@ function apiDetail(e: unknown): string {
 
 export const httpStatus = (e: unknown): number | undefined => (e as { response?: { status?: number } }).response?.status;
 
+/** A background job VideoDB reported as failed, with the job body's error_code when it sent one. */
+export class JobFailed extends Error {
+  constructor(message: string, readonly outputUrl: string, readonly errorCode?: string) {
+    super(message);
+    this.name = "JobFailed";
+  }
+
+  toResult() {
+    return { status: "failed" as const, output_url: this.outputUrl, message: this.message };
+  }
+}
+
+/** The machine-readable error_code VideoDB attached, from a failed job or an HTTP error body. */
+function errorCode(e: unknown): string | undefined {
+  if (e instanceof JobFailed) return e.errorCode;
+  const code = (e as { response?: { data?: { error_code?: unknown } } }).response?.data?.error_code;
+  return typeof code === "string" ? code : undefined;
+}
+
 /**
  * A gateway timeout means the HTTP request died in transit, not the job: the write
  * keeps running on VideoDB. 500 is ambiguous and stays a real failure.
@@ -103,6 +122,8 @@ export async function withPromoLink(blocked: AccountBlocked, planOf: () => Promi
   return plan === FREE_PLAN ? liftByTopUp(blocked.limit, code) : blocked;
 }
 
+const CREDIT_CODES = new Set(["insufficient_credit", "low_credit"]);
+// Fallback for the routes that send the credit message without an error_code.
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
 // videodb-server's plan caps: LIMIT_EXHAUST_MESSAGE and the upload duration quota.
 // Free plan usage limits ("usage limit reached") are deliberately not matched.
@@ -148,7 +169,7 @@ export function asInputRejected(e: unknown): InputRejected | undefined {
 export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (e instanceof StillProcessing) return undefined;
   const detail = rawMessage(e).trim();
-  if (CREDIT_PATTERN.test(detail) || httpStatus(e) === 402) {
+  if (CREDIT_CODES.has(errorCode(e) ?? "") || httpStatus(e) === 402 || CREDIT_PATTERN.test(detail)) {
     return {
       status: "insufficient_credit",
       message: `${detail || "VideoDB reported insufficient credit for this account."} Nothing was charged and the request did not run. Tell the user there aren't enough VideoDB credits to continue, show console_url as an "Add credits" link and say no subscription is required. Wait until they confirm they have added credits before retrying — retrying before that will fail the same way.`,

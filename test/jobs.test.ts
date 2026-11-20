@@ -88,6 +88,12 @@ describe("get_job_result", () => {
     expect(blocked).toMatchObject({ status: "insufficient_credit", action_required: "add_credits" });
   });
 
+  it("trusts the job's error_code even when the message has no credit wording", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", error_code: "insufficient_credit", message: "Job stopped." }) });
+    const { blocked } = await run(get, { output_url: URL_ }, vdb);
+    expect(blocked).toMatchObject({ status: "insufficient_credit", action_required: "add_credits" });
+  });
+
   it("routes a job stopped by a plan cap through the plan-limit path", async () => {
     const msg = "You’ve reached the maximum limit for Video generation on your current plan.";
     const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "failed", message: msg }) });

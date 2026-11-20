@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { asAccountBlocked, asInputRejected, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
+import { JobFailed, asAccountBlocked, asInputRejected, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
 import { openClientId } from "@/lib/oauth";
 import { endToolSpan, startAttributes, toolOutcome, withToolSpan } from "@/lib/otel/tool";
@@ -119,6 +119,10 @@ export function settleError(e: unknown, def: ToolDef<any>): Settled {
   // Telemetry's status enum has no slot for it; `result.status` tells the two apart.
   const blocked = asAccountBlocked(e);
   if (blocked) return { result: { content: [text(blocked)] }, outcome: { status: "success" }, blocked };
+  // A failed job is a successful read for the model; observ still records the failure.
+  if (e instanceof JobFailed) {
+    return { result: { content: [text(e.toResult())] }, outcome: { status: "error", errorType: "JobFailed", errorMessage: e.message } };
+  }
   const message = describeError(e);
   // A refused input is the caller's to fix: a plain result for the model, an error row for telemetry.
   const rejected = asInputRejected(e);

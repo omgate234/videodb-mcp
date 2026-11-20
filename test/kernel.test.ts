@@ -242,6 +242,13 @@ describe("insufficient credit", () => {
     expect(res.data).toMatchObject({ status: "insufficient_credit" });
   });
 
+  it("catches an insufficient_credit error_code whatever the status and wording", async () => {
+    const err = apiError(400, "Request refused");
+    (err as unknown as { response: { data: Record<string, unknown> } }).response.data = { error_code: "insufficient_credit" };
+    const res = await call(failingTool(err), {}, fakeConnection());
+    expect(res.data).toMatchObject({ status: "insufficient_credit" });
+  });
+
   it("leaves unrelated failures as errors", async () => {
     const res = await call(failingTool(apiError(500, "Internal server error")), {}, fakeConnection());
     expect(res.isError).toBe(true);
