@@ -254,9 +254,9 @@ describe("insufficient credit", () => {
     expect(res.isError).toBe(true);
   });
 
-  it("links to the plain console", async () => {
+  it("links to the console billing page", async () => {
     const res = await call(failingTool(apiError(400, BALANCE)), {}, fakeConnection());
-    expect(res.data).toMatchObject({ console_url: "https://console.videodb.io" });
+    expect(res.data).toMatchObject({ console_url: "https://console.videodb.io/?page=billing" });
     expect((res.data as { message: string }).message).toMatch(/no subscription is required/);
   });
 });
@@ -267,7 +267,7 @@ describe("plan limits", () => {
     "Audio is over 2 hours, please reachout to team@videodb.io to increase the quota.",
   ])("classifies %s as plan_limit", (msg) => {
     const blocked = asAccountBlocked(new Error(msg));
-    expect(blocked).toMatchObject({ status: "plan_limit", action_required: "contact_support", contact: "team@videodb.io" });
+    expect(blocked).toMatchObject({ status: "plan_limit", action_required: "contact_support", contact: "team@videodb.io", contact_url: "mailto:team@videodb.io" });
     expect(blocked!.message).toContain(msg);
     expect(blocked!.message).not.toMatch(/\bpro\b|upgrade/i);
   });
@@ -305,7 +305,7 @@ describe("withPromoLink", () => {
     withPromo(async () => {
       const planOf = plan("Pro_v1");
       const linked = await withPromoLink(blocked, planOf);
-      expect(linked.console_url).toBe(PROMO_URL);
+      expect(linked).toMatchObject({ console_url: PROMO_URL });
       expect(linked.message).toBe(blocked.message);
       expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
       expect(planOf).not.toHaveBeenCalled();
