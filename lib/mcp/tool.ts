@@ -97,6 +97,13 @@ const errorType = (e: unknown) => (e instanceof Error ? e.constructor.name : typ
 /** What a tool call settles to: the client's result, telemetry's outcome, and the out-of-credit state if that's why it stopped. */
 type Settled = { result: ToolResult; outcome: Outcome; blocked?: AccountBlocked };
 
+/** The account's plan id, read only when a plan cap might be lifted by a promo top-up. */
+async function planOf(vdb: Connection): Promise<string | undefined> {
+  const usage = (await vdb.checkUsage()) as { planId?: unknown; plan_id?: unknown };
+  const plan = usage.planId ?? usage.plan_id;
+  return typeof plan === "string" ? plan : undefined;
+}
+
 /** Map a thrown error to the result the client sees plus the outcome telemetry records. */
 export function settleError(e: unknown, def: ToolDef<any>): Settled {
   if (e instanceof StillProcessing) {
@@ -174,8 +181,12 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
         let s: Settled;
         try {
           apiKey = apiKeyFrom(ctx);
-          s = await run(def, args as never, client(apiKey));
-          if (s.blocked) s = { ...s, result: { content: [text(withPromoLink(s.blocked))] } };
+          const vdb = client(apiKey);
+          s = await run(def, args as never, vdb);
+          if (s.blocked) {
+            const blocked = await withPromoLink(s.blocked, () => planOf(vdb));
+            s = { ...s, blocked, result: { content: [text(blocked)] } };
+          }
         } catch (e) {
           s = settleError(e, def); // no credential in the token
         }

@@ -277,30 +277,61 @@ describe("plan limits", () => {
 
 describe("withPromoLink", () => {
   const blocked = asAccountBlocked(new Error("Insufficient credit: your balance is $0.00."))!;
+  const cap = (msg: string) => asAccountBlocked(new Error(msg))!;
+  const VIDEO_CAP = "Video generation usage limit reached: 1 requested, 10 used, 10 allowed.";
+  const PROMO_URL = "https://console.videodb.io/?page=billing&promo=test-promo";
+  const plan = (id: string | undefined) => vi.fn(async () => id);
 
-  it("sends every account to the promo link without mentioning Pro", () => {
+  const withPromo = async (fn: () => Promise<void>) => {
     vi.stubEnv("PRO_PROMO_CODE", "test-promo");
     try {
-      const linked = withPromoLink(blocked);
-      expect(linked.console_url).toBe("https://console.videodb.io/?page=billing&promo=test-promo");
+      await fn();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  };
+
+  it("sends every out-of-credit account to the promo link without mentioning Pro or looking up the plan", () =>
+    withPromo(async () => {
+      const planOf = plan("Pro_v1");
+      const linked = await withPromoLink(blocked, planOf);
+      expect(linked.console_url).toBe(PROMO_URL);
       expect(linked.message).toBe(blocked.message);
       expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
+      expect(planOf).not.toHaveBeenCalled();
+    }));
 
-  it("never puts the promo on a plan-limit result", () => {
-    vi.stubEnv("PRO_PROMO_CODE", "test-promo");
-    try {
-      const limit = asAccountBlocked(new Error("Video generation usage limit reached: 1 requested, 60 used, 60 allowed."))!;
-      expect(withPromoLink(limit)).toBe(limit);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
+  it("turns a Free account's generation cap into an add-credits result on the promo link", () =>
+    withPromo(async () => {
+      const linked = await withPromoLink(cap(VIDEO_CAP), plan("Free_v1"));
+      expect(linked).toMatchObject({ status: "plan_limit", limit: VIDEO_CAP, action_required: "add_credits", console_url: PROMO_URL });
+      expect(linked.message).toMatch(/adding credits lifts it/);
+      expect(JSON.stringify(linked)).not.toMatch(/\bpro\b|upgrade/i);
+    }));
 
-  it("leaves the result alone when no promo is configured", () => {
-    expect(withPromoLink(blocked)).toBe(blocked);
+  it("leaves a Pro account's cap as a support ask", () =>
+    withPromo(async () => {
+      const limit = cap(VIDEO_CAP);
+      expect(await withPromoLink(limit, plan("Pro_v1"))).toBe(limit);
+    }));
+
+  it("leaves caps Pro does not raise as a support ask without looking up the plan", () =>
+    withPromo(async () => {
+      const limit = cap("Audio is over 5 hours, please reachout to team@videodb.io to increase the quota.");
+      const planOf = plan("Free_v1");
+      expect(await withPromoLink(limit, planOf)).toBe(limit);
+      expect(planOf).not.toHaveBeenCalled();
+    }));
+
+  it("falls back to the support ask when the plan lookup fails", () =>
+    withPromo(async () => {
+      const limit = cap(VIDEO_CAP);
+      expect(await withPromoLink(limit, () => Promise.reject(new Error("down")))).toBe(limit);
+    }));
+
+  it("leaves results alone when no promo is configured", async () => {
+    expect(await withPromoLink(blocked, plan("Free_v1"))).toBe(blocked);
+    const limit = cap(VIDEO_CAP);
+    expect(await withPromoLink(limit, plan("Free_v1"))).toBe(limit);
   });
 });

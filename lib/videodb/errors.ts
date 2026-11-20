@@ -59,19 +59,50 @@ export function describeError(e: unknown): string {
  */
 export type AccountBlocked =
   | { status: "insufficient_credit"; message: string; action_required: "add_credits"; console_url: string }
-  | { status: "plan_limit"; message: string; action_required: "contact_support"; contact: string; console_url: string };
+  | { status: "plan_limit"; limit: string; message: string; action_required: "contact_support"; contact: string; console_url: string }
+  | { status: "plan_limit"; limit: string; message: string; action_required: "add_credits"; console_url: string };
 
 const CONSOLE_URL = "https://console.videodb.io";
 const PROMO_CODE = () => process.env.PRO_PROMO_CODE?.trim();
 
-/** With a promo code configured, every out-of-credit result links the billing page carrying it. */
-export function withPromoLink(blocked: AccountBlocked): AccountBlocked {
+const SUPPORT_EMAIL = "team@videodb.io";
+const FREE_PLAN = "Free_v1";
+// Caps Pro raises over Free. A Free account that tops up through the promo link is moved to Pro.
+const PROMO_LIFTS = /youtube search|translation|dubbing|(?:image|voice|music|video) generation/i;
+
+const promoUrl = (code: string) => `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}`;
+
+const contactSupport = (limit: string): AccountBlocked => ({
+  status: "plan_limit",
+  limit,
+  message: `${limit} Nothing was charged and the request did not run. Tell the user this account has reached a usage limit and that the VideoDB team can raise it: email ${SUPPORT_EMAIL}. Adding credits does not lift this limit. Do not retry until the user confirms the limit was raised.`,
+  action_required: "contact_support",
+  contact: SUPPORT_EMAIL,
+  console_url: CONSOLE_URL,
+});
+
+const liftByTopUp = (limit: string, code: string): AccountBlocked => ({
+  status: "plan_limit",
+  limit,
+  message: `${limit} Nothing was charged and the request did not run. Tell the user this account has reached a usage limit and that adding credits lifts it: show console_url as an "Add credits" link and say no subscription is required. Wait until they confirm they have added credits before retrying.`,
+  action_required: "add_credits",
+  console_url: promoUrl(code),
+});
+
+/**
+ * With a promo code configured, out-of-credit results link the billing page carrying it,
+ * and so does a plan cap that a promo top-up lifts (Free account, cap Pro raises).
+ * The plan is only looked up for that second case; if the lookup fails the cap stays a support ask.
+ */
+export async function withPromoLink(blocked: AccountBlocked, planOf: () => Promise<string | undefined>): Promise<AccountBlocked> {
   const code = PROMO_CODE();
-  if (!code || blocked.status !== "insufficient_credit") return blocked;
-  return { ...blocked, console_url: `${CONSOLE_URL}/?page=billing&promo=${encodeURIComponent(code)}` };
+  if (!code) return blocked;
+  if (blocked.status === "insufficient_credit") return { ...blocked, console_url: promoUrl(code) };
+  if (blocked.action_required !== "contact_support" || !PROMO_LIFTS.test(blocked.limit)) return blocked;
+  const plan = await planOf().catch(() => undefined);
+  return plan === FREE_PLAN ? liftByTopUp(blocked.limit, code) : blocked;
 }
 
-const SUPPORT_EMAIL = "team@videodb.io";
 const CREDIT_PATTERN = /insufficient (?:credit|balance)|add credits|out of credits/i;
 // videodb-server's plan caps: LIMIT_EXHAUST_MESSAGE, check_limit and the upload size quota.
 const PLAN_LIMIT_PATTERN = /on your current plan|usage limit reached|limits? exhausted|increase the quota/i;
@@ -124,14 +155,6 @@ export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
       console_url: CONSOLE_URL,
     };
   }
-  if (PLAN_LIMIT_PATTERN.test(detail)) {
-    return {
-      status: "plan_limit",
-      message: `${detail} Nothing was charged and the request did not run. Tell the user this account has reached a usage limit and that the VideoDB team can raise it: email ${SUPPORT_EMAIL}. Adding credits does not lift this limit. Do not retry until the user confirms the limit was raised.`,
-      action_required: "contact_support",
-      contact: SUPPORT_EMAIL,
-      console_url: CONSOLE_URL,
-    };
-  }
+  if (PLAN_LIMIT_PATTERN.test(detail)) return contactSupport(detail);
   return undefined;
 }
