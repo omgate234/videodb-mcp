@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
-import { AUDIO_ID, CALLBACK_URL, COLLECTION_ID, IMAGE_ID, MEDIA_ID, PAGE, PAGE_SIZE, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
+import { AUDIO_ID, CALLBACK_URL, COLLECTION_ID, IMAGE_ID, MEDIA_ID, PAGE, PAGE_SIZE, USER_CONTEXT, VIDEO_ID, mediaKind } from "@/lib/mcp/schemas";
 import { ASSET_KEYS, AUDIO_KEYS, IMAGE_KEYS, VIDEO_KEYS, cap, pick } from "@/lib/videodb/serialize";
 import { collection, fetchAudio, fetchImage, fetchVideo } from "@/lib/videodb/resolve";
 import { listAssets } from "@/lib/videodb/assets";
@@ -105,6 +105,7 @@ const uploadMedia = defineTool({
       .default("video")
       .describe("Media type to store the URL as. Defaults to video — set 'audio' or 'image' explicitly for an audio file or an image, or it is processed as a video."),
     callback_url: CALLBACK_URL,
+    user_context: USER_CONTEXT,
   }),
   retryWith: "list_videos",
   handler: async ({ url, collection_id, name, description, media_type, callback_url }, vdb) => {

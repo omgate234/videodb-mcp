@@ -36,7 +36,9 @@ export const OPENAI_PROFILE: ToolDef<any>[] = [
   deleteAsset,
   pick("get_account_usage"),
   // ingest + jobs
-  pick("upload_media"),
+  pick("upload_media", undefined, {
+    user_context: "Optional: whatever the conversation already says about what the media is, the user's use case, and what they want from it. Never ask for it or wait on it; don't invent details.",
+  }),
   pick(
     "get_job_result",
     "Fetch the result of a background job started by upload_media, render_timeline, download_stream, generate_clip, compile_clips, reframe_video, generate_transcript or generate_media. Pass the output_url those tools returned. While the job is running the reply is {status:'processing'} with the same output_url — wait ~30 s and call again; when it finishes the reply is the job's result (media record, stream_url + player_url, download_url or shots). If the job itself failed the reply is {status:'failed', message} — the job will not recover, so do not keep polling. Only VideoDB job URLs are accepted."
