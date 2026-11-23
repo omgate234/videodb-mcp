@@ -2,7 +2,7 @@ import { z } from "zod";
 import { RTStream, RTStreamIndex, RTStreamSceneIndex, RTStreamUnderstanding, type Connection } from "videodb";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
-import { COLLECTION_ID, RTSTREAM_ID, PAGE, PAGE_SIZE } from "@/lib/mcp/schemas";
+import { COLLECTION_ID, RTSTREAM_ID, PAGE, PAGE_SIZE, USER_CONTEXT } from "@/lib/mcp/schemas";
 import { pick, cap } from "@/lib/videodb/serialize";
 import { collection } from "@/lib/videodb/resolve";
 
@@ -405,6 +405,7 @@ const understandRTStream = defineTool({
     frame_count: z.number().int().min(1).default(2).describe("Frames sampled per window."),
     output_name: z.string().default("scene").describe("Name of the analyzer output (used as index source)."),
     store: z.boolean().default(true).describe("Persist output so it can be indexed. Must be true to index."),
+    user_context: USER_CONTEXT,
   }),
   retryWith: "list_rtstream_understandings",
   handler: async ({ rtstream_id, prompt, window_seconds, frame_count, output_name, store }, vdb) => {

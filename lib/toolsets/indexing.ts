@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Index, Understanding } from "videodb";
 import { defineTool } from "@/lib/mcp/tool";
 import type { Toolset } from "@/lib/mcp/registry";
-import { CALLBACK_URL, COLLECTION_ID, VIDEO_ID } from "@/lib/mcp/schemas";
+import { CALLBACK_URL, COLLECTION_ID, USER_CONTEXT, VIDEO_ID } from "@/lib/mcp/schemas";
 import { fetchVideo } from "@/lib/videodb/resolve";
 import { pick, cap } from "@/lib/videodb/serialize";
 
@@ -228,6 +228,7 @@ transform \`{"resolution":"480p"}\` lowers cost and latency; keep the source res
     sampling: SAMPLING.optional().describe("Default frame selection for every visual analyzer; an analyzer's own sampling wins."),
     transform: TRANSFORM.optional().describe('Preprocessing for the whole run, e.g. {"resolution":"480p"} to cut cost and latency.'),
     callback_url: CALLBACK_URL,
+    user_context: USER_CONTEXT,
   }),
   retryWith: "get_understanding",
   handler: async ({ video_id, collection_id, analyzers, segmentation, sampling, transform, callback_url }, vdb) => {
