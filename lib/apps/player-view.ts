@@ -1239,7 +1239,7 @@ function renderInsight(data) {
   $("i-search").value = "";
   if (data.layout === "understanding") {
     ins.run = data.understanding;
-    ins.sources = (data.understanding.analyzers || []).map((a, i) => ({ id: a.id, name: a.name || "Analyzer " + (i + 1), type: a.type, status: runState(a.status) }));
+    ins.sources = (data.understanding.analyzers || []).map((a, i) => ({ id: a.id, name: a.name || "Analyzer " + (i + 1), type: a.type, status: runState(a.status), partial: !!a.partial_ready }));
     restoreInsight();
     drawAll();
     pollRun();
@@ -1257,7 +1257,7 @@ function renderInsight(data) {
 // so what has loaded is kept for the browser tab and a remounted widget opens finished.
 const cacheKey = () => "vdb-insight:" + ins.video.video_id + ":" + (ins.kind === "understanding" ? ins.run.id : ins.source.kind + ":" + (ins.source.id || ""));
 function keepInsight() {
-  const sources = ins.sources.map((s) => ({ status: s.status, segments: s.segments, total: s.total }));
+  const sources = ins.sources.map((s) => ({ status: s.status, segments: s.segments, total: s.total, final: s.final, progress: s.progress }));
   try { sessionStorage.setItem(cacheKey(), JSON.stringify({ sources: sources, cursor: ins.cursor })); } catch {}
 }
 function restoreInsight() {
@@ -1284,34 +1284,53 @@ function drawMeta() {
   $("i-meta").textContent = parts.join(" · ");
 }
 
-/** Understanding run: fetch output for analyzers that just finished, then poll every 5 s while any still works. */
+// The server rewrites a running analyzer's partial output every 15 s; reading it sooner returns the same scenes.
+const PARTIAL_EVERY = 15000;
+const outputPending = (s) => s.status === "running" || (s.status === "done" && !s.final && !s.error);
+
+/** Understanding run: poll status every 5 s while any analyzer works; read finished output, and partial output every 15 s while it runs. */
 async function pollRun(poll) {
   const token = ins.token;
   if (poll) {
     try {
       const u = await readTool("get_understanding", { video_id: ins.video.video_id, collection_id: ins.video.collection_id, understanding_id: ins.run.id });
       if (token !== ins?.token) return;
-      (u.analyzers || []).forEach((a) => { const s = ins.sources.find((x) => (a.id && x.id === a.id) || x.name === a.name); if (s) s.status = runState(a.status); });
+      (u.analyzers || []).forEach((a) => {
+        const s = ins.sources.find((x) => (a.id && x.id === a.id) || x.name === a.name);
+        if (s) Object.assign(s, { status: runState(a.status), partial: !!a.partial_ready });
+      });
       keepInsight();
     } catch {}
   }
-  ins.sources.filter((s) => s.status === "done" && !s.segments && !s.loading && !s.error).forEach(loadSource);
+  const now = Date.now();
+  ins.sources
+    .filter((s) => !s.loading && !s.error && !s.final && (s.status === "done" || (s.partial && now - (s.readAt || 0) >= PARTIAL_EVERY)))
+    .forEach(loadSource);
   drawAll();
-  if (ins.sources.some((s) => s.status === "running")) ins.timer = setTimeout(() => pollRun(true), 5000);
+  if (ins.sources.some(outputPending)) ins.timer = setTimeout(() => pollRun(true), 5000);
 }
 
 async function loadSource(s) {
   const token = ins.token;
-  s.loading = true;
+  const done = s.status === "done";
+  s.loading = true; s.readAt = Date.now();
   try {
     const args = { video_id: ins.video.video_id, collection_id: ins.video.collection_id, understanding_id: ins.run.id };
     if (s.id) args.analyzer_id = s.id; else args.analyzer_name = s.name;
     const out = await readTool("get_analyzer_output", args);
     if (token !== ins?.token) return;
-    s.segments = segs(out.scenes);
-    s.total = out.scenes_total || s.segments.length;
+    // Every read holds all scenes so far; before the first one there are none to show.
+    if (Array.isArray(out.scenes)) {
+      s.segments = segs(out.scenes);
+      s.total = out.scenes_total || s.segments.length;
+    }
+    s.progress = out.progress || null;
+    s.final = done && out.status !== "processing";
     keepInsight();
-  } catch (e) { s.error = e.message || "Couldn't load this output."; }
+  } catch (e) {
+    // A failed partial read is retried on the next poll.
+    if (done) s.error = e.message || "Couldn't load this output.";
+  }
   s.loading = false;
   drawAll();
 }
@@ -1398,7 +1417,10 @@ const isFlat = (sc) => sc.parts.length === 1 && sc.parts[0].data && typeof sc.pa
 function drawAll() {
   if (!ins) return;
   pickTab();
+  // Partial output adds scenes between reads; keep the open row on the same scene.
+  const openAt = ins.scenes[ins.open]?.start;
   buildScenes();
+  if (openAt != null) ins.open = ins.scenes.findIndex((sc) => sc.start === openAt);
   drawMeta(); drawTabs(); drawGlance(); drawList();
   ins.cur = -1; tick();
 }
@@ -1415,7 +1437,7 @@ function selectTab(i, focus) {
   if (focus) $("i-tabs").children[i]?.focus();
 }
 // Working until the output is loaded, not just until the run says done.
-const tabState = (s) => (s.error || s.status === "failed" ? "failed" : s.status === "done" && s.segments ? "done" : "running");
+const tabState = (s) => (s.error || s.status === "failed" ? "failed" : s.status === "done" && s.final ? "done" : "running");
 
 /** Tabs: one per analyzer. Arrow keys move along them; only the selected tab is a Tab stop. */
 function drawTabs() {
@@ -1486,8 +1508,17 @@ function emptyText(s) {
   if (!s) return "Nothing was found in this video.";
   if (s.status === "failed") return sourceLabel(s) + " failed on this video.";
   if (s.error) return "Couldn't load what was found. " + s.error;
-  if (!s.segments) return ins.kind === "understanding" ? sourceLabel(s) + " is still working." : "Loading records";
+  if (ins.kind === "understanding" && !s.final) return sourceLabel(s) + " is still working.";
+  if (!s.segments) return "Loading records";
   return "Nothing was found in this video.";
+}
+
+/** A running analyzer's scenes so far: how many of how many, and how far the timeline has no gaps. */
+function liveNote(s) {
+  const p = s.progress;
+  if (!p || !p.scenes_total) return "Still working. Showing the scenes found so far.";
+  const upTo = p.no_gaps_until_sec != null ? ", complete up to " + fmt(p.no_gaps_until_sec) : "";
+  return "Still working: " + p.scenes_completed + " of " + p.scenes_total + " scenes so far" + upTo + ".";
 }
 
 /** The scene list: time, a two-line title and short facts; a row opens to everything found there. Shown PAGE rows at a time. */
@@ -1504,8 +1535,10 @@ function drawList() {
   else if (!shown.length) sceneList.replaceChildren(el("p", "muted empty-list", "Nothing matches."));
   else sceneList.replaceChildren(...shown.slice(0, ins.limit).map((sc) => sceneRow(sc)));
   const capped = s && s.total > (s.segments?.length || 0);
-  $("i-note").hidden = !capped;
-  $("i-note").textContent = capped ? "Showing the first " + s.segments.length + " of " + s.total + " segments of " + sourceLabel(s).toLowerCase() + "." : "";
+  const note = ins.kind === "understanding" && s && !s.final && s.segments?.length ? liveNote(s)
+    : capped ? "Showing the first " + s.segments.length + " of " + s.total + " segments of " + sourceLabel(s).toLowerCase() + "." : "";
+  $("i-note").hidden = !note;
+  $("i-note").textContent = note;
   // Rows already loaded show first; then an index loads its next 200 records.
   const more = $("i-more"), rest = shown.length - ins.limit;
   more.hidden = !(rest > 0 || (ins.kind === "index" && ins.cursor));

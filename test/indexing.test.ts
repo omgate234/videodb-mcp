@@ -220,6 +220,35 @@ describe("indexing (v2 understand)", () => {
     expect(vdb.http.get).toHaveBeenCalledWith(["video", "m-1", "understand", "u-1", "analyzers", "scene", "output"], undefined, { convert: false });
   });
 
+  it("get_understanding marks analyzers whose partial output can be read", async () => {
+    const running = { ...UNDERSTANDING, status: "running", analyzers: [ANALYZERS[0], { ...ANALYZERS[1], status: "running", partialReady: true }] };
+    const vdb = fakeConnection({ ...GET_VIDEO, "GET video/m-1/understand/u-1": running });
+    const { data } = await call(tool("get_understanding"), { video_id: "m-1", collection_id: "c-1", understanding_id: "u-1" }, vdb);
+    expect((data as any).analyzers).toEqual([ANALYZERS[0], { ...ANALYZERS[1], status: "running", partial_ready: true }]);
+  });
+
+  it("get_analyzer_output passes partial scenes and progress through", async () => {
+    const partial = { name: "scene", type: "vlm", status: "processing", progress: { scenes_completed: 1, scenes_total: 3, no_gaps_until_sec: 5 }, scenes: [{ scene_id: "s-1", start: 0, end: 5, data: { text: "intro" } }] };
+    const vdb = fakeConnection({ "GET video/m-1/understand/u-1/analyzers/scene/output": partial });
+    const { data } = await call(tool("get_analyzer_output"), { video_id: "m-1", collection_id: "c-1", understanding_id: "u-1", analyzer_name: "scene" }, vdb);
+    expect(data).toEqual(partial);
+  });
+
+  it("get_analyzer_output with progress_only drops the scenes", async () => {
+    const partial = { name: "scene", type: "vlm", status: "processing", progress: { scenes_completed: 2, scenes_total: 3, no_gaps_until_sec: null }, scenes: [{ scene_id: "s-1" }, { scene_id: "s-3" }] };
+    const done = { name: "scene", type: "vlm", status: "done", metadata: { model: "pro" }, scenes: [{ scene_id: "s-1" }] };
+    const waiting = { name: "scene", status: "processing", message: "Analyzer is still running." };
+    const vdb = fakeConnection({
+      "GET video/m-1/understand/u-1/analyzers/scene/output": partial,
+      "GET video/m-1/understand/u-1/analyzers/done/output": done,
+      "GET video/m-1/understand/u-1/analyzers/new/output": waiting,
+    });
+    const read = (analyzer_name: string) => call(tool("get_analyzer_output"), { video_id: "m-1", collection_id: "c-1", understanding_id: "u-1", analyzer_name, progress_only: true }, vdb).then((r) => r.data);
+    expect(await read("scene")).toEqual({ name: "scene", type: "vlm", status: "processing", progress: partial.progress, scenes_count: 2 });
+    expect(await read("done")).toEqual({ name: "scene", type: "vlm", status: "done", scenes_count: 1 });
+    expect(await read("new")).toEqual(waiting);
+  });
+
   it("get_analyzer_output requires an analyzer reference", async () => {
     const { isError, data } = await call(tool("get_analyzer_output"), { video_id: "m-1", understanding_id: "u-1" }, fakeConnection());
     expect(isError).toBe(true);

@@ -40,7 +40,14 @@ export const understandingToPlain = (u: Understanding) => ({
   id: u.id,
   video_id: u.videoId,
   status: u.status,
-  analyzers: u.analyzers.map((a) => ({ id: a.id, name: a.name, type: a.type, status: a.status })),
+  analyzers: u.analyzers.map((a) => ({
+    id: a.id,
+    name: a.name,
+    type: a.type,
+    status: a.status,
+    // Running, with finished scenes readable through get_analyzer_output.
+    ...(a.extra?.partialReady === true ? { partial_ready: true } : {}),
+  })),
 });
 
 // Understanding/Index shells need only ids — no GET /video round-trip.
@@ -48,6 +55,13 @@ const understandingShell = (vdb: Parameters<typeof fetchVideo>[0], collectionId:
   new Understanding(vdb.vhttp, videoId, { id, collectionId });
 const indexShell = (vdb: Parameters<typeof fetchVideo>[0], collectionId: string, videoId: string, indexId: string) =>
   new Index(vdb.vhttp, videoId, collectionId, { index_id: indexId });
+
+/** An analyzer output without its scenes: status, progress and the scene count. */
+function progressOf(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { output: value };
+  const { scenes, metadata: _metadata, ...rest } = value as Record<string, unknown>;
+  return Array.isArray(scenes) ? { ...rest, scenes_count: scenes.length } : rest;
+}
 
 /** Cap a raw list, or every top-level list inside a raw object, to RECORD_CAP items. */
 function capRecords(value: unknown): Record<string, unknown> {
@@ -154,7 +168,7 @@ export const understandVideo = defineTool({
   title: "Understand video (run analyzers)",
   description: `Run analyzers over a video to extract timestamped artifacts: speech, scene descriptions, on-screen text, objects, brands, activities, locations. Artifacts are stored but NOT searchable until create_index runs on them. ${V2_FLOW}
 
-Returns the run and each analyzer's status (pending, running, done, failed). If show_understanding is available, call it right away with the returned understanding_id so the user watches the run live. When the next step needs the output (create_index, get_analyzer_output), or show_understanding is not available, poll get_understanding about every 30 s until every analyzer is done or failed. With callback_url the call returns immediately.
+Returns the run and each analyzer's status (queued, running, done, failed). If show_understanding is available, call it right away with the returned understanding_id: the user watches the run, and scene descriptions fill in while the analyzer is still running. When the next step needs the output (create_index, get_analyzer_output), or show_understanding is not available, poll get_understanding about every 30 s until every analyzer is done or failed, and tell the user how far it has got (see get_analyzer_output with progress_only). With callback_url the call returns immediately.
 
 ## Shape
 
@@ -243,7 +257,7 @@ transform \`{"resolution":"480p"}\` lowers cost and latency; keep the source res
 const getUnderstanding = defineTool({
   name: "get_understanding",
   title: "Get understanding run",
-  description: `Get the status of one understanding run and of each analyzer in it (pending, running, done, failed). ${V2_FLOW}`,
+  description: `Get the status of one understanding run and of each analyzer in it (queued, running, done, failed). partial_ready: true marks a running analyzer whose finished scenes can already be read with get_analyzer_output; it goes away once the analyzer is done. ${V2_FLOW}`,
   kind: "read",
   input: z.object({ video_id: VIDEO_ID, collection_id: COLLECTION_ID, understanding_id: UNDERSTANDING_ID }),
   handler: async ({ video_id, collection_id, understanding_id }, vdb) => {
@@ -280,13 +294,23 @@ const deleteUnderstanding = defineTool({
 const getAnalyzerOutput = defineTool({
   name: "get_analyzer_output",
   title: "Get analyzer output",
-  description:
-    "Return the raw artifact one analyzer produced in an understanding run, such as transcript segments or per-scene descriptions with start/end. Requires the analyzer status to be done (see get_understanding). Lists are capped at 200 items.",
+  description: `Return the artifact one analyzer produced in an understanding run, such as transcript segments or per-scene descriptions with start/end. Lists are capped at 200 items.
+
+Read it when the analyzer is done, or while it runs if get_understanding shows partial_ready: true. While running, status is "processing" and the reply holds the scenes finished so far plus progress {scenes_completed, scenes_total, no_gaps_until_sec}; scenes can finish out of order, so the timeline is complete only up to no_gaps_until_sec. Each read returns every scene so far, not only new ones (scene_id is stable). Only status "done" is final.
+
+To report how far a run has got, pass progress_only: true and tell the user, e.g. "56 of 209 scenes, complete up to 17:00". Offer to show the scenes so far with show_understanding, which keeps filling in by itself. Read at most every 15 s; the partial output does not change faster.`,
   kind: "read",
-  input: z.object({ video_id: VIDEO_ID, collection_id: COLLECTION_ID, understanding_id: UNDERSTANDING_ID, ...ANALYZER_REF }),
-  handler: async ({ video_id, collection_id, understanding_id, analyzer_name, analyzer_id }, vdb) => {
+  input: z.object({
+    video_id: VIDEO_ID,
+    collection_id: COLLECTION_ID,
+    understanding_id: UNDERSTANDING_ID,
+    ...ANALYZER_REF,
+    progress_only: z.boolean().optional().describe("Return status and progress without the scenes, to report how far a running analyzer has got."),
+  }),
+  handler: async ({ video_id, collection_id, understanding_id, analyzer_name, analyzer_id, progress_only }, vdb) => {
     const u = understandingShell(vdb, collection_id, video_id, understanding_id);
-    return capRecords(await u.getAnalyzerOutput(analyzerRef(analyzer_name, analyzer_id)));
+    const out = await u.getAnalyzerOutput(analyzerRef(analyzer_name, analyzer_id));
+    return progress_only ? progressOf(out) : capRecords(out);
   },
 });
 

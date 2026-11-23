@@ -338,8 +338,9 @@ export function registerPlayerApp(server: McpServer): void {
       title: "Show understanding",
       description:
         "Show an understanding run on the video's timeline in the chat: each analyzer's status while the run works, then one lane per analyzer " +
-        "with its segments, the data at the playing time and object boxes on the video. Use it after understand_video, or whenever the user wants to " +
-        "see or review what the analyzers found. The view loads the output itself, so don't fetch it with get_analyzer_output first.",
+        "with its segments, the data at the playing time and object boxes on the video. Scene descriptions appear while the analyzer is still " +
+        "running and keep filling in until it is done. Use it after understand_video, or whenever the user wants to see or review what the " +
+        "analyzers found so far. The view loads the output itself, so don't fetch it with get_analyzer_output first.",
       inputSchema: UNDERSTANDING_INPUT,
       annotations: { title: "Show understanding", readOnlyHint: true, openWorldHint: false },
       _meta: { ui: { resourceUri: RESOURCE_URI } },
@@ -347,7 +348,7 @@ export function registerPlayerApp(server: McpServer): void {
     async (args, ctx) => {
       try {
         const view = await understandingView(client(apiKeyFrom(ctx)), args);
-        const lines = view.understanding.analyzers.map((a) => `- ${a.name} (${a.type}): ${a.status}`);
+        const lines = view.understanding.analyzers.map((a) => `- ${a.name} (${a.type}): ${a.status}${a.partial_ready ? ", scenes so far are showing" : ""}`);
         return {
           content: [{ type: "text", text: `Showing understanding run ${view.understanding.id} of ${view.video.title ?? args.video_id} (${view.understanding.status}) on its timeline.\n${lines.join("\n")}` }],
           structuredContent: view,
