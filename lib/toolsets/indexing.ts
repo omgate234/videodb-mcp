@@ -154,7 +154,7 @@ export const understandVideo = defineTool({
   title: "Understand video (run analyzers)",
   description: `Run analyzers over a video to extract timestamped artifacts: speech, scene descriptions, on-screen text, objects, brands, activities, locations. Artifacts are stored but NOT searchable until create_index runs on them. ${V2_FLOW}
 
-Returns the run and each analyzer's status (pending, running, done, failed). Poll get_understanding, then read an artifact with get_analyzer_output. With callback_url the call returns immediately.
+Returns the run and each analyzer's status (pending, running, done, failed). If show_understanding is available, call it right away with the returned understanding_id so the user watches the run live. When the next step needs the output (create_index, get_analyzer_output), or show_understanding is not available, poll get_understanding about every 30 s until every analyzer is done or failed. With callback_url the call returns immediately.
 
 ## Shape
 
