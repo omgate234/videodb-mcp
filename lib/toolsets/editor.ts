@@ -289,7 +289,7 @@ export const renderTimeline = defineTool({
   name: "render_timeline",
   title: "Render editor timeline",
   description:
-    "Render a multi-track editor timeline into a new stream in one call. Tracks stack by z_index; each clip places an asset at a start time for a duration with optional transitions, effects, filters, scale, opacity, fit and position. Asset kinds: video, image, audio (ids must be existing VideoDB media ids from this account), text (styled overlay text) and caption. Two behaviours to plan for: caption src 'auto' needs an existing spoken-word index on the video, otherwise the render succeeds with zero captions and no error; and a text asset's width/height are only honoured under fit 'contain', because the default fit 'crop' scales that box up to fill the frame. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns stream_url and player_url. Use download_timeline_render for an MP4.",
+    "Render a multi-track editor timeline into a new stream in one call. Tracks stack by z_index; each clip places an asset at a start time for a duration with optional transitions, effects, filters, scale, opacity, fit and position. Asset kinds: video, image, audio (ids must be existing VideoDB media ids from this account), text (styled overlay text) and caption. Two behaviours to plan for: caption src 'auto' needs an existing spoken-word index on the video, otherwise the render succeeds with zero captions and no error; and a text asset's width/height are only honoured under fit 'contain', because the default fit 'crop' scales that box up to fill the frame. Returns immediately with {status:'processing', output_url}; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result until it returns stream_url and player_url. Use download_timeline_render for an MP4.",
   kind: "create",
   input: z.object({
     tracks: z.array(TRACK).min(1).describe("Tracks in the timeline; the whole edit is described here."),
@@ -318,7 +318,7 @@ const downloadTimelineRender = defineTool({
   name: "download_timeline_render",
   title: "Download timeline render",
   description:
-    "Start an MP4 export of a stream produced by render_timeline. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns download_url. Older backends answer with download_url directly.",
+    "Start an MP4 export of a stream produced by render_timeline. Returns immediately with {status:'processing', output_url}; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result until it returns download_url. Older backends answer with download_url directly.",
   kind: "create",
   input: z.object({ stream_url: z.string().url().describe("stream_url returned by render_timeline.") }),
   handler: async ({ stream_url }, vdb) => {

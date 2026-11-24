@@ -69,7 +69,7 @@ describe("transcripts", () => {
       "POST video/m-1/transcription": () => raw({ status: "processing", data: { output_url: "https://api.test/video/m-1/transcription/?engine=x" } }),
     });
     const { data } = await call(toolNamed(transcripts, "generate_transcript"), { media_id: "m-1" }, vdb);
-    expect(data).toEqual({ media_id: "m-1", media_type: "video", status: "processing", output_url: "https://api.test/video/m-1/transcription/?engine=x", poll_with: "get_job_result", message: expect.any(String) });
+    expect(data).toEqual({ media_id: "m-1", media_type: "video", status: "processing", output_url: "https://api.test/video/m-1/transcription/?engine=x", poll_with: "get_job_result", retry_after: 30, message: expect.any(String) });
   });
 
   it("generate_transcript dispatches a- IDs to the audio endpoint", async () => {
@@ -100,7 +100,7 @@ describe("transcripts", () => {
 
     const pending = fakeConnection({ "GET video/m-1": VIDEO, "POST collection/c-1/video/m-1/translate": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
     const job = await call(t, { video_id: "m-1", collection_id: "c-1", language: "Spanish" }, pending);
-    expect(job.data).toEqual({ video_id: "m-1", language: "Spanish", ...{ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") } });
+    expect(job.data).toEqual({ video_id: "m-1", language: "Spanish", ...{ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", retry_after: 30, message: expect.stringContaining("get_job_result") } });
   });
 
   it("translate_transcript with callback_url passes it through and returns accepted", async () => {

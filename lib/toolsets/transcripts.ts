@@ -77,7 +77,7 @@ const generateTranscript = defineTool({
   name: "generate_transcript",
   title: "Generate transcript",
   description:
-    "Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until status is done, then read the text with get_transcript. Media that already has a transcript answers done at once.",
+    "Transcribe a video or audio file (speech to text), optionally forcing a fresh transcription or hinting the spoken language. Returns immediately with {status:'processing', output_url}; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result until status is done, then read the text with get_transcript. Media that already has a transcript answers done at once.",
   kind: "create",
   input: z
     .object({
@@ -104,7 +104,7 @@ const translateTranscript = defineTool({
   name: "translate_transcript",
   title: "Translate transcript",
   description:
-    "Translate a video's transcript into another language (requires a transcript — get_transcript or generate_transcript first). Video only; the translation is returned, not stored. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns translated_transcript.",
+    "Translate a video's transcript into another language (requires a transcript — get_transcript or generate_transcript first). Video only; the translation is returned, not stored. Returns immediately with {status:'processing', output_url}; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result until it returns translated_transcript.",
   kind: "create",
   openWorld: true,
   input: z.object({

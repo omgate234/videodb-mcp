@@ -26,6 +26,20 @@ describe("get_job_result", () => {
     expect(data).toMatchObject({ status: "processing", job_id: "job-1", output_url: URL_, poll_with: "get_job_result" });
   });
 
+  it("passes the server's retry_after and max_wait through and puts them in the message", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "processing", data: { id: "job-1", output_url: URL_, retry_after: 5, max_wait: 600 } }) });
+    const { data } = await call(get, { output_url: URL_ }, vdb);
+    expect(data).toMatchObject({ status: "processing", retry_after: 5, max_wait: 600 });
+    expect((data as { message: string }).message).toContain("Wait 5 s");
+  });
+
+  it("falls back to a 30 s wait when the server sends no hint", async () => {
+    const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "processing", data: { id: "job-1", output_url: URL_ } }) });
+    const { data } = await call(get, { output_url: URL_ }, vdb);
+    expect(data).toMatchObject({ retry_after: 30 });
+    expect(data).not.toHaveProperty("max_wait");
+  });
+
   it("treats a 404-shaped processing echo (no id) the same way", async () => {
     const vdb = fakeConnection({ [`GET ${URL_}`]: raw({ status: "processing", data: { output_url: URL_ } }) });
     const { data } = await call(get, { output_url: URL_ }, vdb);

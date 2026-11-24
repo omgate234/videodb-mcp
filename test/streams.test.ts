@@ -32,7 +32,7 @@ describe("streams", () => {
     const vdb = fakeConnection({ "GET video/m-1": VIDEO, "POST video/m-1/stream": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
     const { data, isError } = await call(toolNamed(streams, "generate_clip"), { video_id: "m-1", collection_id: "c-1", timeline: [[10, 20]] }, vdb);
     expect(isError).toBe(false);
-    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
+    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", retry_after: 30, message: expect.stringContaining("get_job_result") });
   });
 
   it("compile_clips posts snake_case clips to /compile and prefers the server player url", async () => {
@@ -115,7 +115,7 @@ describe("streams", () => {
 
     const pending = fakeConnection({ "GET video/m-1": VIDEO, "POST video/m-1/clip": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
     const job = await call(toolNamed(streams, "create_highlight_clip"), { video_id: "m-1", collection_id: "c-1", prompt: "demos" }, pending);
-    expect(job.data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
+    expect(job.data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", retry_after: 30, message: expect.stringContaining("get_job_result") });
   });
 
   it("reframe_video posts target/mode and returns the new video; callback_url short-circuits", async () => {

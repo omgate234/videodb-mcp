@@ -12,7 +12,7 @@ import { isJobStarted, shapeResult, shotsFromRaw, startJob, streamResult } from 
  * the tool returns a job handle and get_job_result reads the stream.
  */
 
-const POLL = "Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns";
+const POLL = "Returns immediately with {status:'processing', output_url}; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result until it returns";
 
 const generateClip = defineTool({
   name: "generate_clip",

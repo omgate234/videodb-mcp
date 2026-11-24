@@ -17,6 +17,8 @@ export interface JobStarted {
   job_id?: string;
   output_url: string;
   poll_with: "get_job_result";
+  retry_after: number;
+  max_wait?: number;
   message: string;
 }
 
@@ -28,13 +30,26 @@ const LIST_CAP = 200;
 
 export const isJobStarted = (o: JobOutcome): o is { job: JobStarted } => "job" in o;
 
-const jobStarted = (label: string, id: unknown, output_url: string): JobStarted => ({
-  status: "processing",
-  ...(typeof id === "string" ? { job_id: id } : {}),
-  output_url,
-  poll_with: "get_job_result",
-  message: `${label} accepted; VideoDB is processing it in the background. Poll this output_url in ~30 s with an HTTP GET or with get_job_result, and keep polling while status is "processing".`,
-});
+// Used only when the server sends no retry_after for this job kind.
+const DEFAULT_RETRY_AFTER = 30;
+
+const seconds = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined);
+
+/** The server owns the poll schedule; its retry_after/max_wait fill the message. */
+const jobStarted = (label: string, data: Raw | undefined, output_url: string): JobStarted => {
+  const retry_after = seconds(data?.retry_after) ?? DEFAULT_RETRY_AFTER;
+  const max_wait = seconds(data?.max_wait);
+  const ceiling = max_wait ? ` Jobs like this can take up to ${Math.round(max_wait / 60)} min.` : "";
+  return {
+    status: "processing",
+    ...(typeof data?.id === "string" ? { job_id: data.id } : {}),
+    output_url,
+    poll_with: "get_job_result",
+    retry_after,
+    ...(max_wait ? { max_wait } : {}),
+    message: `${label} is processing in the background. Wait ${retry_after} s, then poll this output_url with an HTTP GET or with get_job_result; each reply gives the next wait in retry_after.${ceiling}`,
+  };
+};
 
 const isRecord = (v: unknown): v is Raw => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -55,7 +70,7 @@ export function settle(body: unknown, label: string, pollUrl?: string): JobOutco
   if (PROCESSING.has(String(body.status).toLowerCase())) {
     const url = pollUrl ?? (typeof data?.output_url === "string" && data.output_url ? data.output_url : undefined);
     if (!url) throw new Error(`${label} is processing but VideoDB returned no URL to poll.`);
-    return { job: jobStarted(label, data?.id, url) };
+    return { job: jobStarted(label, data, url) };
   }
 
   // A finished /async-response body wraps the handler's own {success, data} under `response`.
@@ -98,7 +113,7 @@ export async function readJob(vdb: Connection, outputUrl: string): Promise<JobRe
       ...(typeof error_code === "string" ? { error_code } : {}),
     };
   }
-  if (PROCESSING.has(status)) return jobStarted("Job", isRecord(body.data) ? body.data.id : undefined, outputUrl);
+  if (PROCESSING.has(status)) return jobStarted("Job", isRecord(body.data) ? body.data : undefined, outputUrl);
   const result = "response" in body ? (isRecord(response) ? response.data : response) : body.data;
   return { status: "done", output_url: outputUrl, result: isRecord(result) ? shapeResult(result) : (result ?? body) };
 }

@@ -41,7 +41,7 @@ export const OPENAI_PROFILE: ToolDef<any>[] = [
   }),
   pick(
     "get_job_result",
-    "Fetch the result of a background job started by upload_media, render_timeline, download_stream, generate_clip, compile_clips, reframe_video, generate_transcript or generate_media. Pass the output_url those tools returned. While the job is running the reply is {status:'processing'} with the same output_url — wait ~30 s and call again; when it finishes the reply is the job's result (media record, stream_url + player_url, download_url or shots). If the job itself failed the reply is {status:'failed', message} — the job will not recover, so do not keep polling. Only VideoDB job URLs are accepted."
+    "Fetch the result of a background job started by upload_media, render_timeline, download_stream, generate_clip, compile_clips, reframe_video, generate_transcript or generate_media. Pass the output_url those tools returned. While the job is running the reply is {status:'processing'} with the same output_url — wait retry_after s, then call again; when it finishes the reply is the job's result (media record, stream_url + player_url, download_url or shots). If the job itself failed the reply is {status:'failed', message} — the job will not recover, so do not keep polling. Only VideoDB job URLs are accepted."
   ),
   // transcripts
   pick("generate_transcript"),
@@ -65,14 +65,14 @@ export const OPENAI_PROFILE: ToolDef<any>[] = [
   pick("generate_clip"),
   pick(
     "compile_clips",
-    "Stitch moments from one or more videos into a single new stream — e.g. turn search_video results into a highlight reel. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns stream_url and player_url."
+    "Stitch moments from one or more videos into a single new stream — e.g. turn search_video results into a highlight reel. Returns immediately with {status:'processing', output_url}; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result until it returns stream_url and player_url."
   ),
   addSubtitlesSlim,
   reframeVideoSlim,
   renderTimelineSlim,
   pick(
     "download_stream",
-    "Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles, render_timeline or get_asset) into a downloadable MP4 file. Returns immediately with {status:'processing', output_url}; poll output_url (~30 s apart) with an HTTP GET or with get_job_result until it returns download_url. A stream that was already exported answers with download_url at once."
+    "Render any VideoDB stream URL (from generate_clip, compile_clips, add_subtitles, render_timeline or get_asset) into a downloadable MP4 file. Returns immediately with {status:'processing', output_url}; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result until it returns download_url. A stream that was already exported answers with download_url at once."
   ),
   // live
   pick(

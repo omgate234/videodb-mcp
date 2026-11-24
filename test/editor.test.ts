@@ -178,7 +178,7 @@ describe("editor", () => {
     const vdb = fakeConnection({ "POST editor": () => raw({ status: "processing", data: { id: "job-1", output_url: "https://api.test/async-response/job-1" } }) });
     const { data, isError } = await call(render, { tracks: [{ clips: [{ start: 0, duration: 3, asset: { type: "image", id: "img-1" } }] }] }, vdb);
     expect(isError).toBe(false);
-    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
+    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", retry_after: 30, message: expect.stringContaining("get_job_result") });
   });
 
   it("render_timeline rejects out-of-range values before any wire call", () => {
