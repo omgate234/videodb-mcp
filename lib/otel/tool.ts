@@ -4,12 +4,13 @@ import type { Outcome } from "@/lib/telemetry";
 
 const tracer = () => trace.getTracer("videodb-mcp");
 
-export type ToolOutcome = "ok" | "error" | "processing" | "input_rejected" | "out_of_credit" | "unauthenticated";
+export type ToolOutcome = "ok" | "error" | "processing" | "input_rejected" | "out_of_credit" | "usage_limited" | "unauthenticated";
 
 /** Collapse a settled call into the span's outcome code. */
-export function toolOutcome(o: Outcome, opts: { blocked: boolean; isError: boolean; authed: boolean }): ToolOutcome {
+export function toolOutcome(o: Outcome, opts: { blocked: boolean; limited?: boolean; isError: boolean; authed: boolean }): ToolOutcome {
   if (!opts.authed) return "unauthenticated";
   if (opts.blocked) return "out_of_credit";
+  if (opts.limited) return "usage_limited";
   if (o.status === "processing") return "processing";
   if (o.status === "error") return opts.isError ? "error" : "input_rejected";
   return "ok";
