@@ -84,7 +84,7 @@ describe("media", () => {
     const { data, isError } = await call(t("upload_media"), { url: "https://x/y.mp4", collection_id: "c-1", name: "Y", media_type: "video" }, vdb);
     expect(isError).toBe(false);
     expect(vdb.http.post.mock.calls[0][3]).toEqual({ wait: false, convert: false });
-    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
+    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", retry_after: 30, message: expect.stringContaining("get_job_result") });
 
     // A backend that answers inline (tiny file) still yields the trimmed media record.
     const inline = fakeConnection({ "POST collection/c-1/upload": () => ({ id: "m-1", collection_id: "c-1", name: "Y", length: 3, stream_url: "https://stream/y.m3u8", user_id: "u" }) });

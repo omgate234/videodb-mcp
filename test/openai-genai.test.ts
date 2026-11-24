@@ -42,7 +42,7 @@ describe("openai: generate_media", () => {
       },
     });
     const { data } = await call(generateMedia, { kind: "video", prompt: "waves at dusk", duration: 8 }, vdb);
-    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", message: expect.stringContaining("get_job_result") });
+    expect(data).toEqual({ status: "processing", job_id: "job-1", output_url: "https://api.test/async-response/job-1", poll_with: "get_job_result", retry_after: 30, message: expect.stringContaining("get_job_result") });
 
     // Finished inline → trimmed video record, SDK default duration applied.
     const done = fakeConnection({
