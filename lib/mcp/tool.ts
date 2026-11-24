@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { client, type Connection } from "@/lib/videodb/client";
 import { toPlain } from "@/lib/videodb/serialize";
 import { withDeadline, StillProcessing } from "@/lib/videodb/deadline";
-import { JobFailed, asAccountBlocked, asInputRejected, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
+import { JobFailed, asAccountBlocked, asInputRejected, asUsageLimited, describeError, httpStatus, isGatewayTimeout, withPromoLink, type AccountBlocked } from "@/lib/videodb/errors";
 import { recordToolCall, type Outcome } from "@/lib/telemetry";
 import { openClientId } from "@/lib/oauth";
 import { endToolSpan, startAttributes, toolOutcome, withToolSpan } from "@/lib/otel/tool";
@@ -95,7 +95,7 @@ const text = (data: unknown): Content => ({
 const errorType = (e: unknown) => (e instanceof Error ? e.constructor.name : typeof e);
 
 /** What a tool call settles to: the client's result, telemetry's outcome, and the out-of-credit state if that's why it stopped. */
-type Settled = { result: ToolResult; outcome: Outcome; blocked?: AccountBlocked };
+type Settled = { result: ToolResult; outcome: Outcome; blocked?: AccountBlocked; limited?: boolean };
 
 /** Map a thrown error to the result the client sees plus the outcome telemetry records. */
 export function settleError(e: unknown, def: ToolDef<any>): Settled {
@@ -112,6 +112,9 @@ export function settleError(e: unknown, def: ToolDef<any>): Settled {
   // Telemetry's status enum has no slot for it; `result.status` tells the two apart.
   const blocked = asAccountBlocked(e);
   if (blocked) return { result: { content: [text(blocked)] }, outcome: { status: "success" }, blocked };
+  // A usage limit is the same kind of account state; `result.status` marks it for observ.
+  const limited = asUsageLimited(e);
+  if (limited) return { result: { content: [text(limited)] }, outcome: { status: "success" }, limited: true };
   // Any other failed job is still a successful read for the model; observ records the failure.
   if (e instanceof JobFailed) {
     return {
@@ -186,7 +189,7 @@ export function register(server: McpServer, def: ToolDef<any>, toolset?: string)
         } catch (e) {
           s = settleError(e, def); // no credential in the token
         }
-        const outcome = toolOutcome(s.outcome, { blocked: Boolean(s.blocked), isError: Boolean(s.result.isError), authed: apiKey !== undefined });
+        const outcome = toolOutcome(s.outcome, { blocked: Boolean(s.blocked), limited: Boolean(s.limited), isError: Boolean(s.result.isError), authed: apiKey !== undefined });
         endToolSpan(span, outcome, s.outcome);
         return s;
       });

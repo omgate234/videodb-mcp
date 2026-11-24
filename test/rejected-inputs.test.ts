@@ -29,3 +29,35 @@ describe("rejected inputs are results, not tool errors", () => {
     expect(result.isError).toBe(true);
   });
 });
+
+describe("a usage limit is a result, not a tool error", () => {
+  const limitError = () =>
+    new InvalidRequestError(
+      {
+        status: 429,
+        statusText: "x",
+        data: {
+          success: false,
+          error_code: "usage_limit_reached",
+          message: "Free plan usage limit reached: 15 uploads per day.",
+          data: { action: "upload", window: "day", limit: 15, resets_at: "2026-11-25T00:00:00+00:00" },
+        },
+      } as never,
+      { cause: "Free plan usage limit reached: 15 uploads per day." } as never
+    );
+
+  it("carries the limit fields and records a success outcome", () => {
+    const { result, outcome, limited } = settleError(limitError(), getVideo);
+    expect(result.isError).toBeUndefined();
+    expect(limited).toBe(true);
+    expect(outcome).toEqual({ status: "success" });
+    expect(JSON.parse(result.content[0].text)).toMatchObject({
+      status: "usage_limit_reached",
+      action: "upload",
+      window: "day",
+      limit: 15,
+      resets_at: "2026-11-25T00:00:00+00:00",
+      action_required: "wait_or_upgrade",
+    });
+  });
+});

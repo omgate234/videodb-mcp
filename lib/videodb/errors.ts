@@ -126,6 +126,38 @@ export function asInputRejected(e: unknown): InputRejected | undefined {
   };
 }
 
+/**
+ * A Free plan usage limit refused the call. Like running out of credit it is the
+ * user's account state, not a tool failure, so it comes back as a result. The
+ * limit fields ride along so observ can record when and which limit was hit.
+ */
+export interface UsageLimited {
+  status: "usage_limit_reached";
+  message: string;
+  action_required: "wait_or_upgrade";
+  action?: string;
+  window?: string;
+  limit?: number;
+  resets_at?: string;
+  console_url: string;
+}
+
+export function asUsageLimited(e: unknown): UsageLimited | undefined {
+  if (errorCode(e) !== "usage_limit_reached") return undefined;
+  const data = (e as { response?: { data?: { data?: Record<string, unknown> } } }).response?.data?.data ?? {};
+  const code = PROMO_CODE();
+  return {
+    status: "usage_limit_reached",
+    message: `${rawMessage(e).trim() || "Free plan usage limit reached."} Nothing was charged and the request did not run. Tell the user which limit they reached and when it resets, and that upgrading to Pro removes the limit now: show console_url as an "Upgrade" link. Do not retry before resets_at; it will fail the same way.`,
+    action_required: "wait_or_upgrade",
+    action: typeof data.action === "string" ? data.action : undefined,
+    window: typeof data.window === "string" ? data.window : undefined,
+    limit: typeof data.limit === "number" ? data.limit : undefined,
+    resets_at: typeof data.resets_at === "string" ? data.resets_at : undefined,
+    console_url: code ? `${BILLING_URL}&promo=${encodeURIComponent(code)}` : BILLING_URL,
+  };
+}
+
 export function asAccountBlocked(e: unknown): AccountBlocked | undefined {
   if (e instanceof StillProcessing) return undefined;
   const detail = rawMessage(e).trim();
