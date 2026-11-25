@@ -1,7 +1,7 @@
 /** Server-level guidance sent to the client on initialize. Keep it short; tools carry the detail. */
 const BASE = `VideoDB turns video/audio into a searchable, editable database.
 IDs: videos m-…, audio a-…, images img-…, real-time streams rts-…, collections c-… ("default" always exists).
-Typical flow: upload_media → understand_video → create_index → search_* / ask_* → generate_clip / compile_clips.
+For a new user or a request to explore VideoDB, call onboarding when available for goal-based guidance. Follow the user’s intent: transcription, visual understanding, search and editing are optional paths, not mandatory stages. Known time ranges can go directly to editing; indexing is needed for indexed retrieval, not every task.
 Long jobs (upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript, translate_transcript) return {status:"processing", output_url} immediately; poll output_url (retry_after s apart) with an HTTP GET or with get_job_result(output_url) until it returns the result. Never re-run the job while it is processing.
 {status:"insufficient_credit"}: tell the user there aren't enough VideoDB credits to continue. Show the exact console_url as an "Add credits" link and state that no subscription is required. Don't mention Pro, upgrades, or promotions. Only report a balance if one is provided. Wait until the user confirms they've added credits before retrying.
 {status:"usage_limit_reached"}: the Free plan limit for this action is used up. Tell the user which limit and when it resets (resets_at), and that upgrading to Pro removes it now; show console_url as an "Upgrade" link. Don't retry before resets_at.

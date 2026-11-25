@@ -9,6 +9,7 @@ import { streams } from "@/lib/toolsets/streams";
 import { editor } from "@/lib/toolsets/editor";
 import { rtstream } from "@/lib/toolsets/rtstream";
 import { sandbox } from "@/lib/toolsets/sandbox";
+import { onboarding } from "@/lib/toolsets/onboarding";
 import { jobs } from "@/lib/toolsets/jobs";
 import { feedback } from "@/lib/toolsets/feedback";
 import { registerPlayerApp } from "@/lib/apps/player";
@@ -25,7 +26,7 @@ export interface Toolset {
   tools: ToolDef<any>[];
 }
 
-export const TOOLSETS: Toolset[] = [collections, media, transcripts, indexing, search, streams, editor, rtstream, sandbox, jobs, feedback];
+export const TOOLSETS: Toolset[] = [onboarding, collections, media, transcripts, indexing, search, streams, editor, rtstream, sandbox, jobs, feedback];
 
 export function enabledToolsets(env = process.env.VIDEODB_MCP_TOOLSETS): Toolset[] {
   const raw = env?.trim();
