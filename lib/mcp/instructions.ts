@@ -1,6 +1,3 @@
-import { enabledToolsets } from "./registry";
-import { director } from "@/lib/toolsets/director";
-
 /** Server-level guidance sent to the client on initialize. Keep it short; tools carry the detail. */
 const BASE = `VideoDB turns video/audio into a searchable, editable database.
 IDs: videos m-…, audio a-…, images img-…, real-time streams rts-…, collections c-… ("default" always exists).
@@ -12,16 +9,16 @@ Every stream_url has a matching player_url that opens in a browser. To let the u
 Show, don't list: when the user wants to see or review something, open it in the chat. Assets in a collection → show_assets. A video, clip or search hits → show_video (hits inside one video go in as its moments). What understand_video found, or how a run is going → show_understanding; call it right after starting understand_video so the user watches the run finish, with scene descriptions filling in while it runs. A long run: tell the user how far it has got (get_analyzer_output with progress_only) and offer to show what it has found so far. What an index or a transcript holds → show_index. These views load the data themselves, so don't fetch it first.
 When no tool can do what the user asked, a result looks wrong, or the user is unhappy with VideoDB, call submit_feedback once per issue, then keep helping.`;
 
-// Routing for dataset_search lives here, where the client weighs it against search_* before picking a tool.
-const DATASET_SEARCH = `
+// Standalone robot dataset endpoint; only its seven dataset tools are available.
+export const ROBOT_INSTRUCTIONS = `
 
-Robot-learning datasets: dataset_search searches a hosted corpus of 30+ public robot-learning and human-activity datasets (robot and humanoid manipulation, real and simulated, drone flights, egocentric and exocentric human video). Use it whenever the user wants data for robotics, embodied AI, imitation learning, VLA or policy training, or wants to find, count, curate, verify or export episodes, demonstrations or clips from such datasets, even without naming one. Questions about the corpus itself (which datasets, what each records, their fields, what exports) go to list_datasets, which answers at once. Neither touches the user's own videos; search_* and semantic_search cover those.
+Robot-learning datasets: dataset_search searches a hosted corpus of 30+ public robot-learning and human-activity datasets (robot and humanoid manipulation, real and simulated, drone flights, egocentric and exocentric human video). Use it whenever the user wants data for robotics, embodied AI, imitation learning, VLA or policy training, or wants to find, count, curate, verify or export episodes, demonstrations or clips from such datasets, even without naming one. Questions about the corpus itself (which datasets, what each records, their fields, what exports) go to list_datasets, which answers at once. These tools do not access the user's own VideoDB videos.
 Flow: dataset_search(message) → poll get_search_status(msg_id) every ~10 s → result_sets[].content_id → get_result_set (totals, field counts) / list_result_shots (rows, watch_url links) → export_result_set(content_id, formats) → poll get_export_status(export_id) → hand download.url to the user.
 The search agent reads annotation sentences and fields, not frames: it cannot watch clips or judge what the footage looks like. Send one goal per message, with every restriction stated and datasets named as list_datasets spells them. Ask it to judge hits only when the user wants them verified.
 Keep the session_id from dataset_search and pass it on every follow-up ("only the sim ones", "verify each", "export the confirmed tier") so the agent refines its earlier sets instead of starting over.
 Result sets (srs-…) and their rows work only with the dataset tools above. Rows are not VideoDB media: present their watch_url as a link instead of calling show_video or the clip tools.`;
 
-export const INSTRUCTIONS = BASE + (enabledToolsets().includes(director) ? DATASET_SEARCH : "");
+export const INSTRUCTIONS = BASE;
 
 /** /openai-mcp ships a compact profile with enum tools; name them so the model does not look for the per-type ones. */
 export const OPENAI_INSTRUCTIONS = `VideoDB turns video/audio into a searchable, editable database.
