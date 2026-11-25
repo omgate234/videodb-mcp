@@ -104,13 +104,6 @@ Tools are grouped into **toolsets**, one per VideoDB domain, and every tool is b
 | sandbox | on | `get_sandbox` | read | Get one sandbox: its status, tier, prepared models and lifetime. |
 | sandbox | on | `list_sandboxes` | read | List the account's sandboxes with their status, tier and prepared models. |
 | sandbox | on | `stop_sandbox` | destructive | Stop a sandbox and end its billing. |
-| director | off | `list_datasets` | read | The datasets in the hosted robot-learning and human-activity corpus that dataset_search searches. |
-| director | off | `dataset_search` | create | Search a hosted corpus of 30+ public robot-learning and human-activity datasets (robot and humanoid manipulation, real and simulated, drone flights, egocentric and exocentric human video) for training data. |
-| director | off | `get_search_status` | read | Poll a dataset_search turn by its msg_id; returns immediately. |
-| director | off | `get_result_set` | read | Summary of a result set from dataset_search: name, count (rows), video_count, scope (the query and filters that built it), complete (false when a cap cut it short), tiers (confirmed/partial/rejected/unjudged counts, when judged), score range, and the top value counts of each low-cardinality field (e.g. |
-| director | off | `list_result_shots` | read | Rows of a result set, at most 200 per page. |
-| director | off | `export_result_set` | create | Export a result set from dataset_search as downloadable training data, by content_id, in the set's rank order: at most 50 rows per call for lerobot or rlds, 10 for mcap (also the fallback when formats is omitted). |
-| director | off | `get_export_status` | read | Poll an export_result_set job by export_id every 15–30 s until status is 'complete' or 'failed'. |
 | jobs | on | `get_job_result` | read | Fetch the result of a background job started by upload_media, render_timeline, download_timeline_render, download_stream, generate_clip, compile_clips, create_highlight_clip, reframe_video, generate_transcript or translate_transcript. |
 | feedback | on | `submit_feedback` | create | Send product feedback about this VideoDB connector to the VideoDB team. |
 <!-- tools:end -->
@@ -212,3 +205,7 @@ Security issues: email [hello@videodb.io](mailto:hello@videodb.io).
 ## License
 
 Closed source. Copyright © Spext Labs Inc. (VideoDB). All rights reserved. Ships as a hosted service, not as source.
+
+### Robot dataset MCP
+
+Connect to `/mcp/robot` for `list_datasets`, `dataset_search`, `get_search_status`, `get_result_set`, `list_result_shots`, `export_result_set`, and `get_export_status`. It shares the existing MCP OAuth authentication. These tools are no longer exposed on `/mcp`, even with `VIDEODB_MCP_TOOLSETS=all`; remove `director` from explicit toolset lists. Configure `DIRECTOR_SEARCH_URL` with the Tracelet API base (including `/internal/v1/director`) and `DIRECTOR_SEARCH_KEY`.

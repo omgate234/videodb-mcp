@@ -166,7 +166,7 @@ export function canonicalResource(url: string): string {
 }
 
 /** Paths that serve an MCP endpoint on this origin; each is its own OAuth resource. */
-export const MCP_PATHS = ["/mcp", "/openai-mcp", "/youtube-mcp"] as const;
+export const MCP_PATHS = ["/mcp", "/mcp/robot", "/openai-mcp", "/youtube-mcp"] as const;
 export type McpPath = (typeof MCP_PATHS)[number];
 
 export function mcpResourceUrl(req: Request, path: McpPath = "/mcp"): string {
